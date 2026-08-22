@@ -1,0 +1,509 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>URL Tracking Tester · PropertyPistol</title>
+<link rel="icon" type="image/svg+xml" href="https://cdn.propertypistol.com/images/pp-logo-updated.svg">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700;800&family=IBM+Plex+Mono:wght@400;500;600&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --ink:#14161C; --ink-soft:#4A5160; --line:#DFE2E7; --line-soft:#ECEEF1;
+  --paper:#F2F3F5; --surface:#FFFFFF;
+  --orange:#FB6A02; --orange-wash:#FFF1E6;
+  --navy:#1A2847; --navy-wash:#EDF1F8;
+  --ok:#0E7C55; --ok-wash:#E7F5EF;
+  --warn:#B26A00; --warn-wash:#FFF6E3;
+  --bad:#C0242F; --bad-wash:#FDECEC;
+  --mono:'IBM Plex Mono',ui-monospace,Menlo,monospace;
+  --disp:'Archivo',system-ui,sans-serif;
+  --ui:'Inter',system-ui,sans-serif;
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0}
+body{background:var(--paper);color:var(--ink);font-family:var(--ui);font-size:14px;line-height:1.5;-webkit-font-smoothing:antialiased}
+
+.topbar{background:var(--surface);border-bottom:1px solid var(--line);position:sticky;top:0;z-index:40}
+.topbar-in{max-width:1440px;margin:0 auto;padding:14px 24px;display:flex;align-items:center;gap:16px;flex-wrap:wrap}
+.logo{height:26px;width:auto;display:block}
+.logo-fallback{font-family:var(--disp);font-weight:800;font-size:17px;letter-spacing:-.02em}
+.logo-fallback b{color:var(--orange)}
+.divider-v{width:1px;height:24px;background:var(--line)}
+.wordmark{font-family:var(--disp);font-weight:700;font-size:15px;letter-spacing:-.01em}
+.wordmark span{color:var(--ink-soft);font-weight:500}
+.topbar .spacer{flex:1}
+.badge-env{font-family:var(--mono);font-size:11px;font-weight:600;color:var(--orange);background:var(--orange-wash);border:1px solid #FFD9BC;padding:4px 9px;border-radius:3px;letter-spacing:.04em}
+
+.tabs{position:sticky;top:55px;z-index:39;background:var(--surface);border-bottom:1px solid var(--line)}
+.tabs-in{max-width:1440px;margin:0 auto;padding:0 24px;display:flex;gap:2px}
+.tab{font-family:var(--disp);font-weight:600;font-size:13px;padding:12px 16px;border:0;background:none;
+  color:var(--ink-soft);cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-1px}
+.tab:hover{color:var(--ink)}
+.tab[aria-selected="true"]{color:var(--ink);border-bottom-color:var(--orange)}
+.tab .num{font-family:var(--mono);font-size:10px;color:var(--orange);margin-right:6px}
+.tab .cnt{font-family:var(--mono);font-size:10px;background:var(--navy);color:#fff;border-radius:9px;padding:1px 6px;margin-left:7px}
+
+.wrap{max-width:1440px;margin:0 auto;padding:24px}
+.panel{display:none}.panel.on{display:block}
+.split{display:grid;grid-template-columns:380px minmax(0,1fr);gap:20px;align-items:start}
+@media(max-width:1040px){.split{grid-template-columns:1fr}}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:6px}
+.card + .card{margin-top:16px}
+.card-hd{padding:13px 16px;border-bottom:1px solid var(--line-soft);display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.card-hd h2{font-family:var(--disp);font-size:12px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;margin:0}
+.card-hd .hint{font-size:11.5px;color:var(--ink-soft);margin-left:auto;font-family:var(--mono)}
+.card-bd{padding:16px}
+.sticky-col{position:sticky;top:104px}
+@media(max-width:1040px){.sticky-col{position:static}}
+
+label.f{display:block;margin-bottom:14px}
+label.f:last-child{margin-bottom:0}
+.f-lab{display:flex;align-items:baseline;gap:8px;font-size:11px;font-weight:600;letter-spacing:.07em;
+  text-transform:uppercase;color:var(--ink-soft);margin-bottom:5px}
+.f-lab em{font-style:normal;color:var(--orange)}
+.f-lab .mini-act{margin-left:auto;text-transform:none;letter-spacing:0;font-weight:500;font-size:11px;
+  color:var(--navy);cursor:pointer;text-decoration:underline;background:none;border:0;padding:0;font-family:var(--ui)}
+input[type=text],input[type=url],select,textarea{
+  width:100%;font-family:var(--mono);font-size:13px;color:var(--ink);background:var(--surface);
+  border:1px solid var(--line);border-radius:4px;padding:9px 10px;outline:none}
+select{font-family:var(--ui);font-size:13.5px}
+select[multiple]{padding:4px;font-family:var(--ui);font-size:13px}
+select[multiple] option{padding:5px 7px;border-radius:3px}
+input:focus,select:focus,textarea:focus{border-color:var(--orange);box-shadow:0 0 0 3px rgba(251,106,2,.13)}
+textarea{resize:vertical;line-height:1.55;font-size:12px}
+.f-note{font-size:11.5px;color:var(--ink-soft);margin-top:5px}
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.row3{display:grid;grid-template-columns:80px 1fr 1fr;gap:12px}
+.seg{display:flex;border:1px solid var(--line);border-radius:4px;overflow:hidden}
+.seg button{flex:1;border:0;background:var(--surface);padding:9px 8px;font-family:var(--disp);
+  font-weight:600;font-size:12.5px;color:var(--ink-soft);cursor:pointer}
+.seg button + button{border-left:1px solid var(--line)}
+.seg button[aria-pressed="true"]{background:var(--navy);color:#fff}
+
+.btn{font-family:var(--disp);font-weight:600;font-size:13px;border-radius:4px;border:1px solid var(--line);
+  background:var(--surface);color:var(--ink);padding:9px 14px;cursor:pointer}
+.btn:hover{border-color:#C3C8D0}
+.btn-pri{background:var(--orange);border-color:var(--orange);color:#fff}
+.btn-pri:hover{background:#E45E00;border-color:#E45E00}
+.btn-navy{background:var(--navy);border-color:var(--navy);color:#fff}
+.btn-navy:hover{background:#122038}
+.btn-sm{padding:5px 9px;font-size:11.5px}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+.btnrow{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+
+.out{font-family:var(--mono);font-size:12.5px;line-height:1.7;word-break:break-all;
+  background:#FAFBFC;border:1px solid var(--line);border-radius:4px;padding:12px 13px}
+.out.sm{font-size:11.5px}
+.kv{width:100%;border-collapse:collapse}
+.kv th{text-align:left;font-size:10.5px;letter-spacing:.07em;text-transform:uppercase;color:var(--ink-soft);
+  font-weight:600;padding:0 12px 8px 0;border-bottom:1px solid var(--line-soft);white-space:nowrap}
+.kv td{padding:8px 12px 8px 0;border-bottom:1px solid var(--line-soft);vertical-align:middle;font-size:12.5px}
+.kv tbody tr:last-child td{border-bottom:0}
+.kv td.m,.kv th.m{font-family:var(--mono);font-size:11.5px;word-break:break-all}
+.kv td.right,.kv th.right{text-align:right;padding-right:0}
+.kv tr.sel td{background:var(--orange-wash)}
+.kv tbody tr.pick{cursor:pointer}
+.kv tbody tr.pick:hover td{background:#FAFBFC}
+.param-name{font-family:var(--mono);font-weight:600;color:var(--navy);background:var(--navy-wash);
+  padding:3px 7px;border-radius:3px;display:inline-block;font-size:12.5px}
+.count{font-family:var(--mono);font-size:11px;color:var(--ink-soft)}
+.count.bad{color:var(--bad);font-weight:600}
+
+.anat-base{padding:11px 13px;background:#FAFBFC;border-bottom:1px solid var(--line-soft);
+  font-family:var(--mono);font-size:12.5px;word-break:break-all;font-weight:500}
+.anat-row{display:grid;grid-template-columns:16px minmax(120px,190px) 1fr;gap:10px;align-items:baseline;
+  padding:7px 13px;border-bottom:1px solid var(--line-soft);font-family:var(--mono);font-size:12px}
+.anat-row:last-child{border-bottom:0}
+.anat-row:hover{background:#FAFBFC}
+.dot{width:7px;height:7px;border-radius:50%;display:inline-block;margin-top:5px}
+.k-static .dot{background:#B9C0CB}
+.k-valuetrack .dot{background:var(--navy)}
+.k-custom .dot{background:var(--orange)}
+.anat-k{color:var(--ink-soft);word-break:break-all}
+.anat-v{word-break:break-all}
+.k-custom .anat-v{color:var(--orange);font-weight:600}
+.k-valuetrack .anat-v{color:var(--navy);font-weight:500}
+.legend{display:flex;gap:16px;flex-wrap:wrap;padding:9px 13px;background:#FAFBFC;
+  border-top:1px solid var(--line-soft);font-size:11.5px;color:var(--ink-soft)}
+.legend span{display:flex;align-items:center;gap:6px}
+.legend i{width:7px;height:7px;border-radius:50%;display:inline-block}
+
+.check{display:flex;gap:10px;padding:9px 12px;border-radius:4px;font-size:12.5px;margin-bottom:8px;align-items:flex-start}
+.check:last-child{margin-bottom:0}
+.check .ic{font-family:var(--mono);font-weight:700;font-size:12px;flex:none;margin-top:1px}
+.c-ok{background:var(--ok-wash);color:#0A5E41}
+.c-warn{background:var(--warn-wash);color:#7A4A00}
+.c-bad{background:var(--bad-wash);color:#8E1A22}
+.check b{font-weight:600}
+
+.pill{font-family:var(--mono);font-size:10.5px;font-weight:600;padding:3px 7px;border-radius:3px;white-space:nowrap}
+.p-ok{background:var(--ok-wash);color:var(--ok)}
+.p-warn{background:var(--warn-wash);color:var(--warn)}
+.p-bad{background:var(--bad-wash);color:var(--bad)}
+.p-mute{background:var(--line-soft);color:var(--ink-soft)}
+.p-live{background:var(--navy-wash);color:var(--navy)}
+
+.empty{padding:34px 16px;text-align:center;color:var(--ink-soft);font-size:13px}
+.tblwrap{overflow-x:auto}
+.mini{font-size:12px;color:var(--ink-soft)}
+.callout{background:var(--navy-wash);border-left:3px solid var(--navy);padding:11px 13px;
+  border-radius:0 4px 4px 0;font-size:12.5px;color:#1E2C4A}
+.callout.warn{background:var(--warn-wash);border-left-color:var(--warn);color:#7A4A00}
+.callout b{font-weight:600}
+code{font-family:var(--mono);background:rgba(0,0,0,.05);padding:1px 4px;border-radius:3px;font-size:.94em}
+
+.bar{height:4px;background:var(--line-soft);border-radius:2px;overflow:hidden;margin-top:12px}
+.bar i{display:block;height:100%;background:var(--orange);width:0;transition:width .2s}
+@media (prefers-reduced-motion:reduce){.bar i{transition:none}}
+
+.toast{position:fixed;bottom:22px;left:50%;transform:translateX(-50%) translateY(70px);background:var(--ink);
+  color:#fff;font-family:var(--disp);font-weight:600;font-size:13px;padding:11px 18px;border-radius:5px;
+  opacity:0;transition:.22s;z-index:99;pointer-events:none}
+.toast.on{opacity:1;transform:translateX(-50%) translateY(0)}
+@media (prefers-reduced-motion:reduce){.toast{transition:none}}
+:focus-visible{outline:2px solid var(--orange);outline-offset:2px}
+.foot{max-width:1440px;margin:0 auto;padding:8px 24px 40px;font-size:11.5px;color:var(--ink-soft)}
+.mode-card{border:1px solid var(--line);border-radius:5px;padding:12px 13px;cursor:pointer;display:block}
+.mode-card + .mode-card{margin-top:10px}
+.mode-card[data-on="1"]{border-color:var(--orange);background:var(--orange-wash)}
+.mode-card h3{font-family:var(--disp);font-size:13px;margin:0 0 3px;font-weight:700}
+.mode-card p{margin:0;font-size:12px;color:var(--ink-soft)}
+.mode-card input{margin-right:8px}
+.hidden{display:none !important}
+</style>
+</head>
+<body>
+
+<header class="topbar">
+  <div class="topbar-in">
+    <img class="logo" src="https://cdn.propertypistol.com/images/pp-logo-updated.svg" alt="PropertyPistol"
+      onerror="this.outerHTML='&lt;div class=\'logo-fallback\'&gt;Property&lt;b&gt;Pistol&lt;/b&gt;&lt;/div&gt;'">
+    <div class="divider-v"></div>
+    <div class="wordmark">URL Tracking Tester <span>· Google Ads → CRM</span></div>
+    <div class="spacer"></div>
+    <div class="badge-env">QA / NON-LIVE</div>
+  </div>
+</header>
+
+<nav class="tabs" role="tablist"><div class="tabs-in">
+  <button class="tab" role="tab" aria-selected="true" data-panel="p-build"><span class="num">01</span>Build URLs<span class="cnt" id="cntVar">0</span></button>
+  <button class="tab" role="tab" aria-selected="false" data-panel="p-lead"><span class="num">02</span>Fire test leads</button>
+  <button class="tab" role="tab" aria-selected="false" data-panel="p-log"><span class="num">03</span>Run log</button>
+</div></nav>
+
+<main class="wrap">
+
+<!-- ═════════ 01 BUILD ═════════ -->
+<section class="panel on" id="p-build">
+<div class="split">
+  <div class="sticky-col">
+    <div class="card">
+      <div class="card-hd"><h2>Inputs</h2></div>
+      <div class="card-bd">
+        <label class="f">
+          <span class="f-lab">Channel</span>
+          <div class="seg" id="segChannel">
+            <button type="button" data-ch="search" aria-pressed="true">Search</button>
+            <button type="button" data-ch="demandgen" aria-pressed="false">Demand Gen</button>
+          </div>
+        </label>
+        <label class="f">
+          <span class="f-lab">Landing page URL <em>*</em></span>
+          <input type="url" id="inLp" placeholder="https://www.propertypistol.com/project/..." spellcheck="false">
+        </label>
+        <label class="f">
+          <span class="f-lab">CRM enquiry name <em>*</em></span>
+          <input type="text" id="inEnq" placeholder="Kolte Patil Vyana Pune" spellcheck="false">
+          <span class="f-note">Spaces become hyphens. Must match the CRM enquiry exactly.</span>
+        </label>
+        <label class="f">
+          <span class="f-lab">Strategies
+            <button class="mini-act" type="button" data-all="inStrat">select all</button></span>
+          <select id="inStrat" multiple size="9"></select>
+          <span class="f-note">Every strategy you pick becomes its own campaign, ad group and test lead.</span>
+        </label>
+        <label class="f" id="wrapMatch">
+          <span class="f-lab">Match types
+            <button class="mini-act" type="button" data-all="inMatch">select all</button></span>
+          <select id="inMatch" multiple size="3"></select>
+        </label>
+        <label class="f">
+          <span class="f-lab">Ticket size</span>
+          <input type="text" id="inTicket" list="ticketList" placeholder="1-2cr" spellcheck="false">
+          <datalist id="ticketList">
+            <option value="upto50l"></option><option value="50l-1cr"></option>
+            <option value="1-2cr"></option><option value="2-5cr"></option><option value="5cr-plus"></option>
+          </datalist>
+        </label>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-hd"><h2>ValueTrack test values</h2><span class="hint">click-time substitutes</span></div>
+      <div class="card-bd">
+        <div class="row2" id="vtGrid"></div>
+        <div class="f-note" style="margin-top:10px">Google fills these on a real click. These values only populate the test URLs and the test leads.</div>
+      </div>
+    </div>
+  </div>
+
+  <div>
+    <div class="card">
+      <div class="card-hd"><h2>Tracking template</h2><span class="hint">Google Ads → Settings → Tracking template</span></div>
+      <div class="card-bd">
+        <div class="out sm" id="outTpl">—</div>
+        <div class="btnrow" style="margin-top:10px"><button class="btn btn-sm" data-copy="outTpl">Copy template</button></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-hd"><h2>Variants</h2>
+        <span class="hint" id="varHint">—</span></div>
+      <div class="card-bd" style="padding:0">
+        <div class="tblwrap"><table class="kv" id="tblVar" style="min-width:820px">
+          <thead><tr>
+            <th style="padding-left:16px;width:34px">#</th>
+            <th>{_campaign}</th><th>{_adgroup}</th><th>{_strategy}</th>
+            <th class="right" style="width:150px;padding-right:16px">Test URL</th>
+          </tr></thead>
+          <tbody><tr><td colspan="5"><div class="empty">Enter an enquiry name and pick at least one strategy.</div></td></tr></tbody>
+        </table></div>
+      </div>
+      <div class="card-bd" style="border-top:1px solid var(--line-soft)">
+        <div class="btnrow">
+          <button class="btn btn-sm" id="btnCsvVar">Download CSV</button>
+          <button class="btn btn-sm" id="btnCopyVar">Copy all as TSV</button>
+          <button class="btn btn-pri btn-sm" id="btnToLead">Fire test leads →</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-hd"><h2>Custom parameters</h2>
+        <span class="hint" id="cpWho">select a variant</span></div>
+      <div class="card-bd">
+        <table class="kv" id="tblCP">
+          <thead><tr><th style="width:150px">Parameter</th><th>Value</th>
+            <th class="right" style="width:130px">Length</th></tr></thead>
+          <tbody></tbody>
+        </table>
+        <div class="btnrow" style="margin-top:12px">
+          <button class="btn btn-sm" id="btnCPtsv">Copy all three</button>
+          <button class="btn btn-sm" id="btnCPall">Copy for every variant</button>
+        </div>
+        <div class="f-note" style="margin-top:8px">Paste these into Google Ads → Settings → Campaign URL options → Custom parameters.</div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-hd"><h2>URL anatomy</h2><span class="hint" id="anatWho">select a variant</span></div>
+      <div class="card-bd" style="padding:0">
+        <div class="anat-base" id="anatBase">—</div>
+        <div id="anatList"></div>
+        <div class="legend">
+          <span><i style="background:#B9C0CB"></i> Static</span>
+          <span><i style="background:#1A2847"></i> ValueTrack (Google fills)</span>
+          <span><i style="background:#FB6A02"></i> Custom parameter (you fill)</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-hd"><h2>Checks</h2></div>
+      <div class="card-bd" id="checks"><div class="empty">Enter a landing page URL and enquiry name.</div></div>
+    </div>
+  </div>
+</div>
+</section>
+
+<!-- ═════════ 02 FIRE ═════════ -->
+<section class="panel" id="p-lead">
+<div class="split">
+  <div class="sticky-col">
+    <div class="card">
+      <div class="card-hd"><h2>Method</h2></div>
+      <div class="card-bd">
+        <label class="mode-card" data-on="1" id="mcDrive">
+          <h3><input type="radio" name="fmode" value="drive" checked> Drive the real form</h3>
+          <p>Opens each test URL in a background tab, fills the page's own form and submits it. Referer, cookies and page scripts are all real — which is what your CRM actually reads. Works on every LP domain.</p>
+        </label>
+        <label class="mode-card" data-on="0" id="mcPost">
+          <h3><input type="radio" name="fmode" value="post"> Post to the endpoint</h3>
+          <p>Sends the form payload straight to the handler. Faster, but the browser sets Referer to this page — so any attribution read from the referring URL will be wrong.</p>
+        </label>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-hd"><h2>Test identity</h2></div>
+      <div class="card-bd">
+        <label class="f">
+          <span class="f-lab">Name pattern</span>
+          <input type="text" id="tlName" value="Test {{campaign}}">
+          <span class="f-note">Resolves to <code id="egName">Test …</code> — CRM can auto-flag on the leading word.</span>
+        </label>
+        <div class="row3">
+          <label class="f"><span class="f-lab">Prefix</span>
+            <input type="text" id="tlPfx" value="981" maxlength="6"></label>
+          <label class="f"><span class="f-lab">Next serial</span>
+            <input type="text" id="tlSeq" value="0000001"></label>
+          <label class="f"><span class="f-lab">Country</span>
+            <input type="text" id="tlCc" value="+91"></label>
+        </div>
+        <div class="f-note" style="margin-top:-6px">Next number: <code id="egPhone">9810000001</code> <span id="phoneWarn"></span></div>
+        <label class="f" style="margin-top:14px">
+          <span class="f-lab">Email pattern</span>
+          <input type="text" id="tlEmail" value="test.{{phone}}@propertypistol.com">
+        </label>
+        <div class="callout warn">Numbers increment and are remembered, so no run reuses one. Ask the CRM team to block the <code id="egPfx">981</code> series from sales queues and from lead counts before you fire.</div>
+      </div>
+    </div>
+  </div>
+
+  <div>
+    <div class="card" id="cardDrive">
+      <div class="card-hd"><h2>Form driver</h2><span class="hint" id="originState">checking…</span></div>
+      <div class="card-bd">
+        <div class="row2">
+          <label class="f"><span class="f-lab">Form selector</span>
+            <input type="text" id="dvForm" value="form" spellcheck="false">
+            <span class="f-note">CSS selector for the lead form inside the page.</span></label>
+          <label class="f"><span class="f-lab">Success parameter</span>
+            <input type="text" id="dvParam" value="em" spellcheck="false">
+            <span class="f-note">Query param on the thank-you URL that echoes the lead.</span></label>
+        </div>
+        <label class="f">
+          <span class="f-lab">Verify by</span>
+          <select id="dvVerify">
+            <option value="b64phone">base64 of phone — matches damacslifestylecollection.com</option>
+            <option value="rawphone">plain phone</option>
+            <option value="landed">just reaching the thank-you page</option>
+          </select>
+          <span class="f-note">Lead only shows <b>Verified</b> when the thank-you URL echoes the number that was submitted.</span>
+        </label>
+        <div class="callout" id="originNote"></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-hd"><h2>Endpoint</h2><span class="hint">paste once, reuse forever</span></div>
+      <div class="card-bd">
+        <label class="f">
+          <span class="f-lab">Import from Chrome DevTools</span>
+          <textarea id="curlIn" rows="4" placeholder="Submit one real lead in Chrome → Network tab → right-click the request → Copy → Copy as cURL → paste here"></textarea>
+          <span class="f-note">Reads the URL, method, content type and every form field, then maps them to tokens automatically.</span>
+        </label>
+        <div class="btnrow"><button class="btn btn-navy btn-sm" id="btnParseCurl">Parse cURL</button>
+          <button class="btn btn-sm" id="btnClearCurl">Clear</button></div>
+        <div class="row2" style="margin-top:14px">
+          <label class="f"><span class="f-lab">Endpoint URL</span>
+            <input type="url" id="epUrl" placeholder="https://…/lead/create" spellcheck="false"></label>
+          <div class="row2">
+            <label class="f"><span class="f-lab">Method</span>
+              <select id="epMethod"><option>POST</option><option>GET</option></select></label>
+            <label class="f"><span class="f-lab">Body</span>
+              <select id="epType"><option value="form">form-urlencoded</option><option value="json">JSON</option></select></label>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-hd"><h2>Field map</h2><span class="hint">use <code>{{token}}</code> anywhere</span></div>
+      <div class="card-bd">
+        <div class="tblwrap"><table class="kv" id="tblFields">
+          <thead><tr><th style="width:34%">Field name</th><th>Value</th><th class="right" style="width:60px"></th></tr></thead>
+          <tbody></tbody>
+        </table></div>
+        <div class="btnrow" style="margin-top:12px">
+          <button class="btn btn-sm" id="btnAddField">Add field</button>
+          <button class="btn btn-sm" id="btnAutoTrack">Add all tracking fields</button>
+        </div>
+        <div class="mini" style="margin-top:12px">Tokens: <code id="tokenList"></code></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-hd"><h2>Queue</h2><span class="hint" id="queueHint">0 leads</span></div>
+      <div class="card-bd" style="padding:0">
+        <div class="tblwrap"><table class="kv" id="tblQueue" style="min-width:760px">
+          <thead><tr>
+            <th style="padding-left:16px;width:34px">#</th><th style="width:230px">Name</th>
+            <th style="width:120px">Phone</th><th>Strategy</th>
+            <th class="right" style="width:110px;padding-right:16px">Status</th>
+          </tr></thead>
+          <tbody><tr><td colspan="5"><div class="empty">Build variants on tab 01 first.</div></td></tr></tbody>
+        </table></div>
+      </div>
+      <div class="card-bd" style="border-top:1px solid var(--line-soft)">
+        <div class="btnrow">
+          <button class="btn btn-pri" id="btnFire">Fire all test leads</button>
+          <button class="btn" id="btnFireOne">Fire first only</button>
+          <label class="mini" style="display:flex;align-items:center;gap:6px;margin-left:6px">
+            gap <input type="text" id="tlGap" value="900" style="width:64px;padding:5px 7px;font-size:12px"> ms
+          </label>
+        </div>
+        <div class="bar"><i id="fireBar"></i></div>
+      </div>
+    </div>
+
+    <div class="card hidden" id="cardGet">
+      <div class="card-hd"><h2>Direct lead URLs</h2><span class="hint">one URL = one lead</span></div>
+      <div class="card-bd">
+        <div class="out sm" id="getUrls">—</div>
+        <div class="btnrow" style="margin-top:12px">
+          <button class="btn btn-pri btn-sm" id="btnOpenAll">Open all in tabs</button>
+          <button class="btn btn-sm" data-copy="getUrls">Copy all</button>
+        </div>
+        <div class="callout" style="margin-top:14px">
+          Your endpoint takes GET, so no tooling is needed at all — paste any of these in a browser, a Postman runner, or a cron, and the lead lands with every tracking parameter attached.
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-hd"><h2>Payload preview</h2><span class="hint">lead #1</span></div>
+      <div class="card-bd">
+        <div class="out sm" id="payloadOut">—</div>
+        <div class="callout" style="margin-top:14px">
+          Browsers block reading a cross-origin response, so a submission shows as <b>Sent</b>, not <b>Accepted</b>. Confirmation comes from the CRM: filter on the name prefix, then check <code>campaign_name</code>, <code>ads_set_name</code> and <code>ad_strategy</code> came through unmangled.
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+</section>
+
+<!-- ═════════ 03 LOG ═════════ -->
+<section class="panel" id="p-log">
+  <div class="card">
+    <div class="card-hd"><h2>Run log</h2><span class="hint" id="logCount">0 runs</span></div>
+    <div class="card-bd">
+      <div class="btnrow" style="margin-bottom:14px">
+        <button class="btn btn-sm" id="btnLogCsv">Download CSV</button>
+        <button class="btn btn-sm" id="btnLogClear">Clear log</button>
+      </div>
+      <div class="tblwrap"><table class="kv" id="tblLog" style="min-width:900px">
+        <thead><tr>
+          <th style="width:135px">Time</th><th style="width:210px">Name</th><th style="width:110px">Phone</th>
+          <th>Campaign</th><th style="width:120px">Strategy</th><th class="right" style="width:90px">Status</th>
+        </tr></thead>
+        <tbody><tr><td colspan="6"><div class="empty">No test leads fired yet.</div></td></tr></tbody>
+      </table></div>
+      <div class="callout" style="margin-top:16px">
+        Export this, export the CRM dump for the same window, join on phone number. A number here and missing there is a tracking break — check whether the landing page strips unknown query parameters before the form posts.
+      </div>
+    </div>
+  </div>
+</section>
+
+</main>
+<div class="foot">Built for PropertyPistol marketing ops. Test leads are real writes to whatever endpoint you point this at — confirm the environment before firing.</div>
+<div class="toast" id="toast"></div>
+<iframe name="pp_qa_sink" style="display:none" title="submission sink"></iframe>
+
+<script src="tool.js"></script>
+</body>
+</html>
