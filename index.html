@@ -379,6 +379,9 @@ code{font-family:var(--mono);background:rgba(0,0,0,.05);padding:1px 4px;border-r
       <div class="card-bd">
         <textarea id="kwRaw" rows="14" spellcheck="false" placeholder="imtiaz dubai&#10;imtiaz projects in dubai&#10;imtiaz developments dubai&#10;imtiaz property dubai&#10;imtiaz real estate dubai"></textarea>
         <div class="f-note">One per line, or comma separated. Both work.</div>
+        <div class="btnrow" style="margin-top:10px">
+          <button class="btn btn-pri btn-sm" id="kwGen">Generate from brief</button>
+        </div>
       </div>
     </div>
     <div class="card">
@@ -448,12 +451,31 @@ code{font-family:var(--mono);background:rgba(0,0,0,.05);padding:1px 4px;border-r
       <div class="card-bd">
         <label class="f"><span class="f-lab">Final URL</span>
           <input type="text" id="acUrl" placeholder="https://thesymphonyatdubai.com/imtiaz/" spellcheck="false"></label>
+        <div class="row2">
+          <label class="f"><span class="f-lab">Project</span>
+            <input type="text" id="acProj" placeholder="Kolte Patil Vyana"></label>
+          <label class="f"><span class="f-lab">Developer</span>
+            <input type="text" id="acDev" placeholder="Kolte Patil"></label>
+        </div>
+        <div class="row2">
+          <label class="f"><span class="f-lab">Micro-market</span>
+            <input type="text" id="acMicro" placeholder="Vadgaon"></label>
+          <label class="f"><span class="f-lab">City</span>
+            <input type="text" id="acCity" placeholder="Pune"></label>
+        </div>
         <label class="f"><span class="f-lab">Configuration</span>
-          <input type="text" id="acCfg" placeholder="Studio, 1 &amp; 2 BR Apartments"></label>
+          <input type="text" id="acCfg" placeholder="2, 2.5 &amp; 3 BHK"></label>
         <label class="f"><span class="f-lab">Price</span>
-          <input type="text" id="acPrice" placeholder="AED 1.8 M* Onwards"></label>
-        <label class="f"><span class="f-lab">Location</span>
-          <input type="text" id="acLoc" placeholder="Meydan Horizon, Dubai"></label>
+          <input type="text" id="acPrice" placeholder="₹ 85 Lakhs*">
+          <span class="f-note"><button class="mini-act" type="button" id="acPriceFromTk" style="margin:0">pull from ticket size</button></span></label>
+        <label class="f"><span class="f-lab">Location line</span>
+          <input type="text" id="acLoc" placeholder="Vadgaon Khurd, Pune"></label>
+        <label class="f"><span class="f-lab">Offer / hook</span>
+          <input type="text" id="acOffer" placeholder="New Launch"></label>
+        <label class="f"><span class="f-lab">USPs — one per line</span>
+          <textarea id="acUsps" rows="5" placeholder="21 Acre Township&#10;70% Open-To-Sky Spaces&#10;50+ Modern Amenities&#10;Riverside Development"></textarea></label>
+        <label class="f"><span class="f-lab">Landmarks — Name - Time</span>
+          <textarea id="acMarks" rows="4" placeholder="Hinjewadi IT Park - 25 Mins&#10;Pune Airport - 45 Mins&#10;Kothrud - 20 Mins"></textarea></label>
         <div class="row2">
           <label class="f"><span class="f-lab">Path 1 <span class="count" id="p1c">0/15</span></span>
             <input type="text" id="acP1" placeholder="Imtiaz"></label>
@@ -471,6 +493,7 @@ code{font-family:var(--mono);background:rgba(0,0,0,.05);padding:1px 4px;border-r
         <div class="achd"><span>SR</span><span>Headline</span><span>Length</span><span>Pin</span><span></span></div>
         <div id="hRows"></div>
         <div class="btnrow" style="margin-top:10px">
+          <button class="btn btn-pri btn-sm" id="hGen">Generate 15 headlines</button>
           <button class="btn btn-sm" id="hAdd">Add headline</button>
           <button class="btn btn-sm" id="hPaste">Paste a list</button>
         </div>
@@ -482,6 +505,7 @@ code{font-family:var(--mono);background:rgba(0,0,0,.05);padding:1px 4px;border-r
         <div class="achd"><span>SR</span><span>Description</span><span>Length</span><span>Pin</span><span></span></div>
         <div id="dRows"></div>
         <div class="btnrow" style="margin-top:10px">
+          <button class="btn btn-pri btn-sm" id="dGen">Generate 4 descriptions</button>
           <button class="btn btn-sm" id="dAdd">Add description</button>
         </div>
       </div>
@@ -541,9 +565,10 @@ code{font-family:var(--mono);background:rgba(0,0,0,.05);padding:1px 4px;border-r
             <option value="ae">Dubai residential</option>
           </select></label>
         <div class="btnrow">
-          <button class="btn btn-sm btn-navy" id="asLoadSl">Load sitelinks</button>
-          <button class="btn btn-sm btn-navy" id="asLoadCo">Load callouts</button>
-          <button class="btn btn-sm btn-navy" id="asLoadSn">Load snippets</button>
+          <button class="btn btn-pri btn-sm" id="asGen">Generate all from brief</button>
+          <button class="btn btn-sm btn-navy" id="asLoadSl">Generic sitelinks</button>
+          <button class="btn btn-sm btn-navy" id="asLoadCo">Generic callouts</button>
+          <button class="btn btn-sm btn-navy" id="asLoadSn">Generic snippets</button>
         </div>
         <div class="f-note" style="margin-top:10px">Everything loads as editable rows — treat them as a starting point, not final copy.</div>
       </div>
@@ -1014,7 +1039,8 @@ $("#kwSheet").addEventListener("click",()=>{
 const H_MAX=30, D_MAX=90, H_CAP=15, D_CAP=4, PATH_MAX=15;
 let ADG=store.get("pp_adgroups",null)||{};
 let ADCUR=store.get("pp_adcur","")||"";
-let PROJ=store.get("pp_proj",{url:"",cfg:"",price:"",loc:"",p1:"",p2:""});
+const PROJ_KEYS=["url","cfg","price","loc","p1","p2","proj","dev","micro","city","offer","usps","marks"];
+let PROJ=Object.assign({url:"",cfg:"",price:"",loc:"",p1:"",p2:"",proj:"",dev:"",micro:"",city:"",offer:"",usps:"",marks:""},store.get("pp_proj",{}));
 const blankGroup=()=>({h:Array.from({length:H_CAP},()=>["",""]),d:Array.from({length:D_CAP},()=>["",""]),kw:""});
 function cur(){ if(!ADG[ADCUR])ADG[ADCUR]=blankGroup(); return ADG[ADCUR]; }
 const saveAd=()=>{store.set("pp_adgroups",ADG);store.set("pp_adcur",ADCUR);};
@@ -1163,9 +1189,10 @@ $("#acDel").addEventListener("click",()=>{
   if(!ADCUR)return;
   if(!confirm(`Delete "${ADCUR}" and everything written in it?`))return;
   delete ADG[ADCUR]; ADCUR=Object.keys(ADG)[0]||""; saveAd(); fillAdPicker(); drawAd();});
-["acUrl","acCfg","acPrice","acLoc","acP1","acP2"].forEach(id=>$("#"+id).addEventListener("input",()=>{
-  PROJ={url:$("#acUrl").value,cfg:$("#acCfg").value,price:$("#acPrice").value,
-        loc:$("#acLoc").value,p1:$("#acP1").value,p2:$("#acP2").value};
+const PROJ_FIELDS={url:"acUrl",cfg:"acCfg",price:"acPrice",loc:"acLoc",p1:"acP1",p2:"acP2",
+  proj:"acProj",dev:"acDev",micro:"acMicro",city:"acCity",offer:"acOffer",usps:"acUsps",marks:"acMarks"};
+Object.values(PROJ_FIELDS).forEach(id=>$("#"+id).addEventListener("input",()=>{
+  PROJ_KEYS.forEach(k=>PROJ[k]=$("#"+PROJ_FIELDS[k]).value);
   $("#p1c").textContent=`${PROJ.p1.length}/${PATH_MAX}`;
   $("#p1c").className="count"+(PROJ.p1.length>PATH_MAX?" bad":"");
   $("#p2c").textContent=`${PROJ.p2.length}/${PATH_MAX}`;
@@ -1211,8 +1238,7 @@ $("#acEditor").addEventListener("click",()=>{
 
 /* ═══════════ boot (tabs 02 + 03) ═══════════ */
 renderKw();
-$("#acUrl").value=PROJ.url; $("#acCfg").value=PROJ.cfg; $("#acPrice").value=PROJ.price;
-$("#acLoc").value=PROJ.loc; $("#acP1").value=PROJ.p1; $("#acP2").value=PROJ.p2;
+PROJ_KEYS.forEach(k=>{const el=$("#"+PROJ_FIELDS[k]); if(el)el.value=PROJ[k]||"";});
 $("#p1c").textContent=`${(PROJ.p1||"").length}/${PATH_MAX}`;
 $("#p2c").textContent=`${(PROJ.p2||"").length}/${PATH_MAX}`;
 if(!ADG[ADCUR])ADCUR=Object.keys(ADG)[0]||"";
@@ -1417,6 +1443,155 @@ $("#snCsv").addEventListener("click",()=>{
   dl("snippets-ads-editor.csv",hdr.map(csvq).join(",")+"\n"+
     AS.sn.map(([hd,v])=>{const vv=v.filter(x=>x.trim()).slice(0,10);
       const r=[hd]; for(let i=0;i<10;i++)r.push(vv[i]||""); return r.map(csvq).join(",");}).join("\n"));});
+
+
+/* ═══════════ generator ═══════════
+   Copy is assembled from the brief and filtered by character limit,
+   so nothing that overflows ever reaches a row. */
+const ABBR=[[/\bApartments\b/gi,"Apts"],[/\bMinutes\b/gi,"Mins"],[/\bBedroom\b/gi,"BR"],
+  [/\band\b/g,"&"],[/\bAnd\b/g,"&"],[/\bWith\b/gi,"With"],[/\s{2,}/g," "]];
+const tc=s=>String(s||"").trim().replace(/\s+/g," ")
+  .replace(/\w\S*/g,w=>w[0].toUpperCase()+w.slice(1));
+function fit(s,max){
+  s=String(s||"").replace(/\s+/g," ").trim();
+  if(!s)return null;
+  if(s.length<=max)return s;
+  let t=s; for(const [re,rep] of ABBR){ t=t.replace(re,rep); if(t.length<=max)return t.trim(); }
+  return null;
+}
+function pick(cands,max,n,used){
+  const out=[];
+  for(const c of cands){
+    const f=fit(c,max); if(!f)continue;
+    const k=f.toLowerCase(); if(used.has(k))continue;
+    used.add(k); out.push(f); if(out.length>=n)break;
+  }
+  return out;
+}
+const lines=s=>String(s||"").split("\n").map(x=>x.trim()).filter(Boolean);
+function brief(){
+  const p=PROJ;
+  const price=(p.price||"").trim();
+  return {
+    proj:tc(p.proj)||tc(p.cfg&&"")||"", dev:tc(p.dev), micro:tc(p.micro), city:tc(p.city),
+    cfg:(p.cfg||"").trim(), price, offer:tc(p.offer), loc:(p.loc||"").trim(),
+    usps:lines(p.usps), marks:lines(p.marks)
+  };
+}
+function genHeadlines(){
+  const b=brief(); if(!b.proj)return null;
+  const used=new Set(), out=[];
+  const brand=[b.proj, `${b.proj} ${b.micro}`, `${b.proj} ${b.city}`,
+    b.dev?`${b.proj} By ${b.dev}`:"", b.dev?`${b.dev} ${b.micro}`:"",
+    `${b.proj} ${b.micro} ${b.city}`, b.offer?`${b.proj} ${b.offer}`:""].filter(Boolean);
+  const money=[b.cfg&&b.price?`${b.cfg} From ${b.price}`:"",
+    b.cfg&&b.price?`Luxury ${b.cfg} At ${b.price}`:"",
+    b.cfg&&b.price?`Premium ${b.cfg} ${b.price}`:"",
+    b.cfg&&b.price?`${b.cfg} | ${b.price}`:"",
+    b.cfg?`Spacious ${b.cfg} Homes`:"",
+    b.price?`Homes Starting ${b.price}`:""].filter(Boolean);
+  const proof=[...b.usps.map(tc), ...b.marks.map(u=>tc(u.replace(/\s*-\s*/," - "))),
+    "Book A Free Site Visit","Download Brochure Now","Get Price List Instantly",
+    "Limited Units Available","Zero Brokerage Assured"];
+  pick(brand,H_MAX,5,used).forEach(t=>out.push([t,"1"]));
+  pick(money,H_MAX,5,used).forEach(t=>out.push([t,"2"]));
+  pick(proof,H_MAX,H_CAP-out.length,used).forEach(t=>out.push([t,"3"]));
+  while(out.length<H_CAP)out.push(["",""]);
+  return out.slice(0,H_CAP);
+}
+function compose(parts,max){
+  const p=parts.map(x=>String(x||"").replace(/\s+/g," ").trim()).filter(Boolean);
+  for(let n=p.length;n>0;n--){
+    let s=p.slice(0,n).join(". ");
+    if(!/[.!?]$/.test(s))s+=".";
+    const f=fit(s,max); if(f)return f;
+  }
+  return null;
+}
+function genDescriptions(){
+  const b=brief(); if(!b.proj)return null;
+  const u1=tc(b.usps[0]||""), u2=tc(b.usps[1]||""), u3=tc(b.usps[2]||"");
+  const m1=tc(b.marks[0]||""), m2=tc(b.marks[1]||"");
+  const where=[b.micro,b.city].filter(Boolean).join(", ");
+  const cands=[
+    compose([`${b.proj} ${b.micro} \u2014 ${b.cfg}`, b.price&&`From ${b.price}`, "Book A Free Site Visit Today"],D_MAX),
+    compose([`${b.cfg} At ${b.proj}, ${where}`, b.price&&`From ${b.price}`, "Enquire For Floor Plans"],D_MAX),
+    compose([u1&&u2?`${u1} & ${u2} At ${b.proj}`:`${u1||"Premium Homes"} At ${b.proj}`, "Download The Brochure"],D_MAX),
+    compose([`${b.offer||"New Launch"} At ${b.proj} ${b.micro}`, m1, "Get Price List"],D_MAX),
+    compose([`Book ${b.cfg} At ${b.proj} ${b.micro}`, "Zero Brokerage, Free Site Visit"],D_MAX),
+    compose([b.dev?`${b.proj} By ${b.dev} In ${where}`:`${b.proj} In ${where}`, u3||u1, "Request Pricing"],D_MAX),
+    compose([`${b.cfg} In ${where}`, m2||m1, "Instant Call Back From Our Team"],D_MAX)
+  ].filter(Boolean);
+  const used=new Set(), out=pick(cands,D_MAX,D_CAP,used).map(t=>[t,""]);
+  while(out.length<D_CAP)out.push(["",""]);
+  return out;
+}
+$("#hGen").addEventListener("click",()=>{
+  if(!ADCUR)return toast("Create an ad group first");
+  const g=genHeadlines();
+  if(!g)return toast("Fill in the project name on this tab first");
+  if(cur().h.some(r=>r[0].trim())&&!confirm("Replace the headlines already written here?"))return;
+  cur().h=g; saveAd(); drawAd();
+  toast(`${g.filter(r=>r[0]).length} headlines generated`);});
+$("#dGen").addEventListener("click",()=>{
+  if(!ADCUR)return toast("Create an ad group first");
+  const g=genDescriptions();
+  if(!g)return toast("Fill in the project name on this tab first");
+  if(cur().d.some(r=>r[0].trim())&&!confirm("Replace the descriptions already written here?"))return;
+  cur().d=g; saveAd(); drawAd();
+  toast(`${g.filter(r=>r[0]).length} descriptions generated`);});
+$("#acPriceFromTk").addEventListener("click",()=>{
+  const t=ticket(); if(!t)return toast("Set a ticket size on tab 01");
+  const label=REGION==="ae"?aedLabel():"\u20b9 "+t.replace("CR"," Cr").replace("L"," Lakhs");
+  $("#acPrice").value=label+"*"; $("#acPrice").dispatchEvent(new Event("input",{bubbles:true}));});
+
+/* keywords from the brief */
+$("#kwGen").addEventListener("click",()=>{
+  const b=brief(); if(!b.proj)return toast("Fill in the project name on the ad copy tab");
+  const P=b.proj, D=b.dev, M=b.micro, C=b.city;
+  const roots=[P, M&&`${P} ${M}`, C&&`${P} ${C}`, M&&C&&`${P} ${M} ${C}`,
+    D&&`${D} ${M||C}`, D&&D!==P?D:""].filter(Boolean);
+  const tails=["","price","price list","brochure","floor plan","floor plans","reviews","location",
+    "possession date","payment plan","apartments","flats","new launch","booking","offers"];
+  const cfgs=(b.cfg||"").split(/[,&]/).map(s=>s.trim()).filter(Boolean);
+  const out=[];
+  roots.forEach(r=>tails.forEach(t=>out.push((r+" "+t).trim())));
+  cfgs.forEach(c=>{ if(M)out.push(`${c} in ${M}`); if(C)out.push(`${c} in ${C}`);
+    out.push(`${c} ${P}`);});
+  if(M)out.push(`flats in ${M}`,`apartments in ${M}`,`new projects in ${M}`);
+  if(C)out.push(`new launch projects in ${C}`,`ready to move flats in ${C}`);
+  const seen=new Set(), clean=out.map(s=>s.toLowerCase().replace(/\s+/g," ").trim())
+    .filter(s=>s&&s.split(" ").length<=10&&s.length<=80&&!seen.has(s)&&seen.add(s));
+  $("#kwRaw").value=clean.join("\n"); renderKw();
+  toast(`${clean.length} keywords generated`);});
+
+/* assets from the brief */
+$("#asGen").addEventListener("click",()=>{
+  const b=brief(); if(!b.proj)return toast("Fill in the project name on the ad copy tab");
+  const where=[b.micro,b.city].filter(Boolean).join(", ");
+  const u=b.usps.map(tc), m=b.marks.map(tc);
+  const d=(a,fb)=>fit(a,SL_D)||fit(fb,SL_D)||"";
+  const sl=[
+    ["Download Brochure","Get Complete Project Details","Floor Plans, Pricing & Offers"],
+    ["Price & Payment Plan", d(`${b.cfg} From ${b.price}`,"Complete Costing Details Inside"),"No Hidden Charges Or Brokerage"],
+    ["Book A Free Site Visit", d(`Visit ${b.proj} ${b.micro}`,"Pick A Slot That Suits You"),"Instant Call Back From Our Team"],
+    ["Master & Floor Plans", d(u[0]||"","Township Layout And Unit Plans"),"See Every Configuration Inside"],
+    ["Amenities & Highlights", d(u[1]||u[0]||"","World-Class Modern Amenities"),"Designed For Every Age Group"],
+    ["Location & Connectivity", d(m[0]||"","Connected To The Whole City"), d(m[1]||"","Prime Address, Easy Access")]
+  ].map(r=>[fit(r[0],SL_T)||r[0].slice(0,SL_T),r[1],r[2]]);
+  const coCands=[...u, ...m, b.offer, b.dev&&`By ${b.dev}`, "Zero Brokerage","RERA Registered",
+    "Free Site Visit","Instant Call Back","Assured Best Price","Limited Units"].filter(Boolean).map(tc);
+  const used=new Set(), co=pick(coCands,CO_MAX,10,used);
+  const cfgVals=(b.cfg||"").split(/[,&]/).map(s=>s.trim()).filter(Boolean)
+    .map(s=>fit(tc(s),SN_MAX)).filter(Boolean);
+  const sn=[];
+  if(cfgVals.length>=3)sn.push(["Types",cfgVals]);
+  const amen=["Swimming Pool","Gymnasium","Clubhouse","Jogging Track","Kids Play Area","Yoga Deck"];
+  sn.push(["Amenities",amen]);
+  if(where)sn.push(["Neighborhoods",[b.micro,b.city].filter(Boolean).map(x=>fit(x,SN_MAX)).filter(Boolean)]);
+  AS.sl=sl; AS.co=co; AS.sn=sn.filter(s=>s[1].length>=3);
+  if(!AS.base&&PROJ.url){AS.base=PROJ.url;$("#asBase").value=PROJ.url;}
+  saveAs(); drawAll(); toast("Sitelinks, callouts and snippets generated");});
 
 $("#asBase").value=AS.base||"";
 drawAll();
