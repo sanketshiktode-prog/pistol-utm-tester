@@ -920,13 +920,18 @@ function names(enq,strat,tk,mt,ch){
   const strategy=search ? `${C.short}-${strat}-${mt}` : `${C.short}-${strat}`;
   return {campaign,adgroup,strategy};
 }
+/* Google Ads custom parameter values cannot carry spaces — Ads Editor
+   splits on them and reads each token as a new parameter name. Campaign
+   and ad group NAMES keep their spaces; only the tracking values are
+   hyphenated. */
+const paramVal=s=>String(s||"").replace(/\s+/g,"-").replace(/-{2,}/g,"-");
 function assemble(lp,tplRaw,n){
   const hasQ=lp.includes("?"), tail=tplRaw.replace("{lpurl}","").replace(/^&/,"");
   const parts=tail.split("&").map(p=>{
     const i=p.indexOf("="), k=p.slice(0,i), raw=p.slice(i+1);
     let kind="static", val=raw;
     if(raw.startsWith("{_")){kind="custom";
-      val=raw==="{_adgroup}"?n.adgroup:raw==="{_campaign}"?n.campaign:raw==="{_strategy}"?n.strategy:raw;}
+      val=raw==="{_adgroup}"?paramVal(n.adgroup):raw==="{_campaign}"?paramVal(n.campaign):raw==="{_strategy}"?paramVal(n.strategy):raw;}
     else if(raw.startsWith("{")){kind="valuetrack";val=VT[raw.slice(1,-1)]??raw;}
     return {k,raw,val,kind};});
   return {parts,hasQ,url:lp+(hasQ?"&":"?")+parts.map(p=>`${p.k}=${encodeURIComponent(p.val)}`).join("&")};
@@ -979,7 +984,7 @@ function renderCP(){
   if(!v){$("#cpWho").textContent="select a variant";
     tb.innerHTML=`<tr><td colspan="3"><div class="empty">No variants yet.</div></td></tr>`;return;}
   $("#cpWho").textContent=v.names.strategy;
-  tb.innerHTML=[["{_adgroup}",v.names.adgroup],["{_campaign}",v.names.campaign],["{_strategy}",v.names.strategy]]
+  tb.innerHTML=[["{_adgroup}",paramVal(v.names.adgroup)],["{_campaign}",paramVal(v.names.campaign)],["{_strategy}",paramVal(v.names.strategy)]]
     .map(([p,val])=>`<tr>
       <td><span class="param-name">${esc(p)}</span></td>
       <td class="m" style="font-size:12.5px">${esc(val)}</td>
@@ -1030,6 +1035,8 @@ function renderChecks(){
       else add("ok","✓","No parameter collides with the landing page's own query string.");
     }
   }
+  if(VARIANTS.length&&/\s/.test(VARIANTS[0].names.campaign))
+    add("ok","\u2713","Custom parameter values are hyphenated. Google Ads Editor splits these on spaces, so <code>Search BL</code> becomes <code>Search-BL</code> in the tracking value while the campaign name itself keeps its spaces.");
   if(VARIANTS.some(v=>v.names.adgroup.length>250||v.names.campaign.length>250))
     add("bad","✕","<b>Some variants exceed the 250-character custom-parameter limit.</b>");
   if(TPL[CH].includes("ads_id=TBD"))
@@ -1048,10 +1055,10 @@ on("#btnCopyVar","click",()=>{
     VARIANTS.map(v=>[v.names.campaign,v.names.adgroup,v.names.strategy,v.url].join("\t")).join("\n"));});
 on("#btnCPtsv","click",()=>{
   const v=VARIANTS[PICK]; if(!v)return toast("No variant selected");
-  copy(`{_adgroup}\t${v.names.adgroup}\n{_campaign}\t${v.names.campaign}\n{_strategy}\t${v.names.strategy}`);});
+  copy(`{_adgroup}\t${paramVal(v.names.adgroup)}\n{_campaign}\t${paramVal(v.names.campaign)}\n{_strategy}\t${paramVal(v.names.strategy)}`);});
 on("#btnCPall","click",()=>{
   if(!VARIANTS.length)return toast("Nothing to copy");
-  copy(VARIANTS.map(v=>`${v.names.strategy}\n  {_adgroup}\t${v.names.adgroup}\n  {_campaign}\t${v.names.campaign}\n  {_strategy}\t${v.names.strategy}`).join("\n\n"));});
+  copy(VARIANTS.map(v=>`${v.names.strategy}\n  {_adgroup}\t${paramVal(v.names.adgroup)}\n  {_campaign}\t${paramVal(v.names.campaign)}\n  {_strategy}\t${paramVal(v.names.strategy)}`).join("\n\n"));});
 on("#btnOpen","click",()=>{
   const v=VARIANTS[PICK]; if(!v||!v.url)return toast("No URL yet");
   window.open(v.url,"_blank","noopener");});
@@ -1901,7 +1908,7 @@ function adFor(kws){
 /* ═══════════ full structure ═══════════ */
 let PLAN=[];
 /* Ads Editor takes custom parameters as one semicolon-joined cell */
-const custParam=n=>n?`{_adgroup}=${n.adgroup};{_campaign}=${n.campaign};{_strategy}=${n.strategy}`:"";
+const custParam=n=>n?`{_adgroup}=${paramVal(n.adgroup)};{_campaign}=${paramVal(n.campaign)};{_strategy}=${paramVal(n.strategy)}`:"";
 on("#stBuild","click",()=>{
   const b=brief();
   if(!b.proj)return toast("Fill in the project name on the Ad copy tab");
@@ -1936,7 +1943,7 @@ function drawPlan(){
       ${p.groups.map(g=>`<div style="padding:11px 13px;border-bottom:1px solid var(--line-soft)">
         <div class="m" style="font-family:var(--mono);font-size:12px;font-weight:600">${esc(g.name)}</div>
         <div class="mini" style="margin-top:4px">${g.kws.length} keywords \u00b7 ${g.ad.h.filter(x=>x[0]).length} headlines \u00b7 ${g.ad.d.filter(x=>x[0]).length} descriptions</div>
-        <div class="out sm" style="margin-top:6px;padding:7px 9px">{_campaign}=${esc(g.n.campaign)}<br>{_adgroup}=${esc(g.n.adgroup)}<br>{_strategy}=${esc(g.n.strategy)}</div>
+        <div class="out sm" style="margin-top:6px;padding:7px 9px">{_campaign}=${esc(paramVal(g.n.campaign))}<br>{_adgroup}=${esc(paramVal(g.n.adgroup))}<br>{_strategy}=${esc(paramVal(g.n.strategy))}</div>
         <div class="out sm" style="margin-top:7px;max-height:110px;overflow:auto">${esc(g.kws.slice(0,8).join("\n"))}${g.kws.length>8?"\n\u2026":""}</div>
       </div>`).join("")}
     </div>`).join("");
