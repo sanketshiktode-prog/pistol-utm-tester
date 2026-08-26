@@ -292,6 +292,7 @@ code{font-family:var(--mono);background:rgba(0,0,0,.05);padding:1px 4px;border-r
         <div class="btnrow">
           <button class="btn btn-pri btn-sm" id="impFetch">Read the landing page</button>
           <button class="btn btn-sm" id="impPasteBtn">Paste page text</button>
+          <button class="btn btn-sm" id="impManual">Fill it in myself</button>
         </div>
         <div class="f-note" style="margin-top:8px">Reads the URL above through a public text-extraction service, then fills the brief. Always check what it pulled before generating.</div>
         <textarea id="impPaste" class="hidden" rows="8" style="margin-top:10px" placeholder="Select the whole landing page (Ctrl+A, Ctrl+C) and paste it here, then press Read again."></textarea>
@@ -751,6 +752,9 @@ const VT_DEFAULTS={keyword:"qa-test-keyword",device:"m",adgroupid:"170000000001"
 
 /* ═══ helpers ═══ */
 const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
+/* Binds only if the element is there — a missing node warns instead of
+   halting the script and silently killing every listener after it. */
+function on(sel,ev,fn){const e=$(sel); if(e)e.addEventListener(ev,fn); else console.warn("missing element",sel);}
 const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const slug=s=>String(s||"").trim().replace(/\s+/g,"-").replace(/[^A-Za-z0-9\-_.]/g,"").replace(/-{2,}/g,"-").replace(/^-|-$/g,"");
 function toast(m){const t=$("#toast");t.textContent=m;t.classList.add("on");clearTimeout(t._t);t._t=setTimeout(()=>t.classList.remove("on"),1900);}
@@ -761,6 +765,47 @@ function copy(x){const d=()=>toast("Copied");
 const store={get(k,d){try{const v=localStorage.getItem(k);return v?JSON.parse(v):d;}catch(e){return d;}},
              set(k,v){try{localStorage.setItem(k,JSON.stringify(v));}catch(e){}}};
 const csvq=v=>`"${String(v??"").replace(/"/g,'""')}"`;
+
+/* ── copy helpers, declared before anything calls them ── */
+const ABBR=[[/\bApartments\b/gi,"Apts"],[/\bMinutes\b/gi,"Mins"],[/\bBedroom\b/gi,"BR"],
+  [/\band\b/g,"&"],[/\bAnd\b/g,"&"],[/\bWith\b/gi,"With"],[/\s{2,}/g," "]];
+const tc=s=>String(s||"").trim().replace(/\s+/g," ")
+  .replace(/\w\S*/g,w=>w[0].toUpperCase()+w.slice(1));
+function fit(s,max){
+  s=String(s||"").replace(/\s+/g," ").trim();
+  if(!s)return null;
+  if(s.length<=max)return s;
+  let t=s; for(const [re,rep] of ABBR){ t=t.replace(re,rep); if(t.length<=max)return t.trim(); }
+  return null;
+}
+function pick(cands,max,n,used){
+  const out=[];
+  for(const c of cands){
+    const f=fit(c,max); if(!f)continue;
+    const k=f.toLowerCase(); if(used.has(k))continue;
+    used.add(k); out.push(f); if(out.length>=n)break;
+  }
+  return out;
+}
+const lines=s=>String(s||"").split("\n").map(x=>x.trim()).filter(Boolean);
+function brief(){
+  const p=PROJ;
+  const price=(p.price||"").trim();
+  return {
+    proj:tc(p.proj)||tc(p.cfg&&"")||"", dev:tc(p.dev), micro:tc(p.micro), city:tc(p.city),
+    cfg:(p.cfg||"").trim(), price, offer:tc(p.offer), loc:(p.loc||"").trim(),
+    usps:lines(p.usps), marks:lines(p.marks), amen:lines(p.amen)
+  };
+}
+function compose(parts,max){
+  const p=parts.map(x=>String(x||"").replace(/\s+/g," ").trim()).filter(Boolean);
+  for(let n=p.length;n>0;n--){
+    let s=p.slice(0,n).join(". ");
+    if(!/[.!?]$/.test(s))s+=".";
+    const f=fit(s,max); if(f)return f;
+  }
+  return null;
+}
 function dl(name,text){const b=new Blob(["\uFEFF"+text],{type:"text/csv;charset=utf-8"});const a=document.createElement("a");
   a.href=URL.createObjectURL(b);a.download=name;document.body.appendChild(a);a.click();
   setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove();},400);}
@@ -820,12 +865,12 @@ function syncTicket(){
     ? ` &middot; ad copy reads <b>${esc(aedLabel())}</b>` : "";
   build();
 }
-$("#segRegion").addEventListener("click",e=>{
+on("#segRegion","click",e=>{
   const b=e.target.closest("button[data-rg]"); if(!b)return;
   REGION=b.dataset.rg;
   $$("#segRegion button").forEach(x=>x.setAttribute("aria-pressed",String(x===b)));
   fillUnits(); syncTicket();});
-$("#fxRate").addEventListener("input",syncTicket);
+on("#fxRate","input",syncTicket);
 ["tkA","tkB","tkAU","tkBU"].forEach(id=>{
   $("#"+id).addEventListener("input",syncTicket); $("#"+id).addEventListener("change",syncTicket);});
 
@@ -842,7 +887,7 @@ $("#inMatch").innerHTML=MATCH.map(([n,s])=>`<option value="${s}"${(s==="E"||s===
 $("#vtGrid").innerHTML=Object.keys(VT_DEFAULTS).map(k=>
   `<label class="f"><span class="f-lab">{${esc(k)}}</span><input type="text" data-vt="${k}" value="${esc(VT_DEFAULTS[k])}"></label>`).join("");
 $$("[data-vt]").forEach(i=>i.addEventListener("input",()=>{VT[i.dataset.vt]=i.value;build();}));
-$("#segChannel").addEventListener("click",e=>{const b=e.target.closest("button[data-ch]");if(!b)return;
+on("#segChannel","click",e=>{const b=e.target.closest("button[data-ch]");if(!b)return;
   CH=b.dataset.ch;$$("#segChannel button").forEach(x=>x.setAttribute("aria-pressed",String(x===b)));
   fillStrategies();build();});
 $$("[data-all]").forEach(b=>b.addEventListener("click",()=>{
@@ -910,7 +955,7 @@ function build(){
   renderCP(); renderAnat(); renderChecks();
   if(typeof fillVariantPickers==="function")fillVariantPickers();
 }
-$("#tblVar").addEventListener("click",e=>{
+on("#tblVar","click",e=>{
   if(e.target.closest("[data-copytext]"))return;
   const r=e.target.closest("tr[data-i]"); if(!r)return;
   PICK=+r.dataset.i;
@@ -982,21 +1027,21 @@ function renderChecks(){
 }
 
 /* ═══ exports ═══ */
-$("#btnCsvVar").addEventListener("click",()=>{
+on("#btnCsvVar","click",()=>{
   if(!VARIANTS.length)return toast("Nothing to export");
   dl("utm-variants.csv","campaign,adgroup,strategy,url\n"+
     VARIANTS.map(v=>[v.names.campaign,v.names.adgroup,v.names.strategy,v.url].map(csvq).join(",")).join("\n"));});
-$("#btnCopyVar").addEventListener("click",()=>{
+on("#btnCopyVar","click",()=>{
   if(!VARIANTS.length)return toast("Nothing to copy");
   copy("campaign\tadgroup\tstrategy\turl\n"+
     VARIANTS.map(v=>[v.names.campaign,v.names.adgroup,v.names.strategy,v.url].join("\t")).join("\n"));});
-$("#btnCPtsv").addEventListener("click",()=>{
+on("#btnCPtsv","click",()=>{
   const v=VARIANTS[PICK]; if(!v)return toast("No variant selected");
   copy(`{_adgroup}\t${v.names.adgroup}\n{_campaign}\t${v.names.campaign}\n{_strategy}\t${v.names.strategy}`);});
-$("#btnCPall").addEventListener("click",()=>{
+on("#btnCPall","click",()=>{
   if(!VARIANTS.length)return toast("Nothing to copy");
   copy(VARIANTS.map(v=>`${v.names.strategy}\n  {_adgroup}\t${v.names.adgroup}\n  {_campaign}\t${v.names.campaign}\n  {_strategy}\t${v.names.strategy}`).join("\n\n"));});
-$("#btnOpen").addEventListener("click",()=>{
+on("#btnOpen","click",()=>{
   const v=VARIANTS[PICK]; if(!v||!v.url)return toast("No URL yet");
   window.open(v.url,"_blank","noopener");});
 document.addEventListener("click",e=>{
@@ -1018,30 +1063,30 @@ function drawRows(){
     <button class="del" data-md="${i}" aria-label="Remove">×</button></div>`).join("")
     ||`<div class="empty">No strategies. Add one.</div>`;
 }
-$("#mRows").addEventListener("input",e=>{
+on("#mRows","input",e=>{
   const n=e.target.dataset.mn, s=e.target.dataset.ms;
   if(n!==undefined)DRAFT[+n][0]=e.target.value;
   if(s!==undefined)DRAFT[+s][1]=e.target.value;});
-$("#mRows").addEventListener("click",e=>{
+on("#mRows","click",e=>{
   const d=e.target.dataset.md; if(d===undefined)return;
   DRAFT.splice(+d,1); drawRows();});
-$("#btnManage").addEventListener("click",openModal);
-$("#mClose").addEventListener("click",()=>$("#modal").classList.remove("on"));
-$("#modal").addEventListener("click",e=>{if(e.target.id==="modal")$("#modal").classList.remove("on");});
-$("#mAdd").addEventListener("click",()=>{DRAFT.push(["",""]);drawRows();
+on("#btnManage","click",openModal);
+on("#mClose","click",()=>$("#modal").classList.remove("on"));
+on("#modal","click",e=>{if(e.target.id==="modal")$("#modal").classList.remove("on");});
+on("#mAdd","click",()=>{DRAFT.push(["",""]);drawRows();
   const last=$("#mRows").querySelector('.srow:last-child input'); if(last)last.focus();});
-$("#mReset").addEventListener("click",()=>{
+on("#mReset","click",()=>{
   if(!confirm("Reset this channel's strategies to the original list?"))return;
   DRAFT=DEFAULTS[CH].map(r=>[...r]); drawRows();});
-$("#mSave").addEventListener("click",()=>{
+on("#mSave","click",()=>{
   const clean=DRAFT.map(([n,s])=>[n.trim(),slug(s)]).filter(([n,s])=>n&&s);
   if(!clean.length)return toast("At least one strategy is needed");
   const seen=new Set();
   for(const [,s] of clean){ if(seen.has(s.toLowerCase()))return toast(`Duplicate shortform: ${s}`); seen.add(s.toLowerCase()); }
   STRATS[CH]=clean; store.set("pp_strats2",STRATS);
   $("#modal").classList.remove("on"); fillStrategies(); build(); toast("Saved");});
-$("#mExport").addEventListener("click",()=>{copy(JSON.stringify(STRATS,null,2));toast("JSON copied — share it with the team");});
-$("#mImport").addEventListener("click",()=>{
+on("#mExport","click",()=>{copy(JSON.stringify(STRATS,null,2));toast("JSON copied — share it with the team");});
+on("#mImport","click",()=>{
   const raw=prompt("Paste the exported JSON:"); if(!raw)return;
   try{
     const o=JSON.parse(raw);
@@ -1109,17 +1154,17 @@ function fillVariantPickers(){
     VARIANTS.map((v,i)=>`<option value="${i}">${esc(v.names.adgroup)}</option>`).join("");
   if([...sel.options].some(o=>o.value===keep))sel.value=keep;
 }
-$("#kwPick").addEventListener("change",()=>{
+on("#kwPick","change",()=>{
   const v=VARIANTS[+$("#kwPick").value]; if(!v)return;
   $("#kwCamp").value=v.names.campaign; $("#kwAdg").value=v.names.adgroup;});
-$("#kwCsv").addEventListener("click",()=>{
+on("#kwCsv","click",()=>{
   const arr=kwList(), mts=$$(".kwmt").filter(c=>c.checked).map(c=>c.value);
   if(!arr.length||!mts.length)return toast("Nothing to export");
   const camp=$("#kwCamp").value.trim(), adg=$("#kwAdg").value.trim();
   if(!camp||!adg)return toast("Campaign and ad group are needed for the editor file");
   const rows=[]; arr.forEach(k=>mts.forEach(mt=>rows.push([camp,adg,k,MTNAME[mt]])));
   dl("keywords-ads-editor.csv","Campaign,Ad group,Keyword,Match type\n"+rows.map(r=>r.map(csvq).join(",")).join("\n"));});
-$("#kwSheet").addEventListener("click",()=>{
+on("#kwSheet","click",()=>{
   const arr=kwList(); if(!arr.length)return toast("Nothing to copy");
   copy("Keywords\n"+arr.join("\n"));});
 
@@ -1209,7 +1254,7 @@ function adChecks(){
   if([PROJ.p1,PROJ.p2].some(x=>x&&x.length>PATH_MAX)) add("bad","✕",`<b>Display path over ${PATH_MAX} characters.</b>`);
   $("#acChecks").innerHTML=c.length?c.join(""):`<div class="empty">Nothing flagged.</div>`;
 }
-$("#hRows").addEventListener("input",e=>{
+on("#hRows","input",e=>{
   const t=e.target.dataset.ht; if(t===undefined)return;
   const g=cur(), i=+t; g.h[i][0]=e.target.value;
   const n=e.target.value.length, el=document.querySelector(`[data-hl="${i}"]`);
@@ -1217,13 +1262,13 @@ $("#hRows").addEventListener("input",e=>{
   e.target.classList.toggle("over",n>H_MAX);
   $("#hStat").textContent=`${g.h.filter(r=>r[0].trim()).length} / ${H_CAP} · max ${H_MAX}`;
   saveAd(); drawPreview(); adChecks();});
-$("#hRows").addEventListener("change",e=>{
+on("#hRows","change",e=>{
   const p=e.target.dataset.hp; if(p===undefined)return;
   cur().h[+p][1]=e.target.value; saveAd(); adChecks();});
-$("#hRows").addEventListener("click",e=>{
+on("#hRows","click",e=>{
   const d=e.target.dataset.hd; if(d===undefined)return;
   const g=cur(); g.h.splice(+d,1); if(!g.h.length)g.h.push(["",""]); saveAd(); drawAd();});
-$("#dRows").addEventListener("input",e=>{
+on("#dRows","input",e=>{
   const t=e.target.dataset.dt; if(t===undefined)return;
   const g=cur(), i=+t; g.d[i][0]=e.target.value;
   const n=e.target.value.length, el=document.querySelector(`[data-dl="${i}"]`);
@@ -1231,49 +1276,49 @@ $("#dRows").addEventListener("input",e=>{
   e.target.classList.toggle("over",n>D_MAX);
   $("#dStat").textContent=`${g.d.filter(r=>r[0].trim()).length} / ${D_CAP} · max ${D_MAX}`;
   saveAd(); drawPreview(); adChecks();});
-$("#dRows").addEventListener("change",e=>{
+on("#dRows","change",e=>{
   const p=e.target.dataset.dp; if(p===undefined)return;
   cur().d[+p][1]=e.target.value; saveAd(); adChecks();});
-$("#dRows").addEventListener("click",e=>{
+on("#dRows","click",e=>{
   const d=e.target.dataset.dd; if(d===undefined)return;
   const g=cur(); g.d.splice(+d,1); if(!g.d.length)g.d.push(["",""]); saveAd(); drawAd();});
-$("#hAdd").addEventListener("click",()=>{
+on("#hAdd","click",()=>{
   if(!ADCUR)return toast("Create an ad group first");
   const g=cur(); if(g.h.length>=H_CAP)return toast(`Google accepts ${H_CAP} headlines maximum`);
   g.h.push(["",""]); saveAd(); drawAd();
   const last=$("#hRows").querySelector(".acrow:last-child input"); if(last)last.focus();});
-$("#dAdd").addEventListener("click",()=>{
+on("#dAdd","click",()=>{
   if(!ADCUR)return toast("Create an ad group first");
   const g=cur(); if(g.d.length>=D_CAP)return toast(`Google accepts ${D_CAP} descriptions maximum`);
   g.d.push(["",""]); saveAd(); drawAd();
   const last=$("#dRows").querySelector(".acrow:last-child input"); if(last)last.focus();});
-$("#hPaste").addEventListener("click",()=>{
+on("#hPaste","click",()=>{
   if(!ADCUR)return toast("Create an ad group first");
   const raw=prompt("Paste headlines, one per line:"); if(!raw)return;
   const lines=raw.split("\n").map(s=>s.trim()).filter(Boolean).slice(0,H_CAP);
   const g=cur(); g.h=lines.map(l=>[l,""]);
   while(g.h.length<H_CAP)g.h.push(["",""]);
   saveAd(); drawAd(); toast(`${lines.length} headlines loaded`);});
-$("#acKw").addEventListener("input",()=>{
+on("#acKw","input",()=>{
   if(!ADCUR)return; cur().kw=$("#acKw").value;
   $("#acKwStat").textContent=String($("#acKw").value.split("\n").filter(s=>s.trim()).length); saveAd();});
-$("#acKwSend").addEventListener("click",()=>{
+on("#acKwSend","click",()=>{
   if(!ADCUR)return toast("Create an ad group first");
   $("#kwRaw").value=cur().kw||""; $("#kwAdg").value=ADCUR;
   const v=VARIANTS.find(v=>v.names.adgroup===ADCUR); if(v)$("#kwCamp").value=v.names.campaign;
   renderKw(); goTab("p-kw");});
-$("#acPick").addEventListener("change",()=>{ADCUR=$("#acPick").value;saveAd();drawAd();});
-$("#acNew").addEventListener("click",()=>{
+on("#acPick","change",()=>{ADCUR=$("#acPick").value;saveAd();drawAd();});
+on("#acNew","click",()=>{
   const n=prompt("Ad group name:", VARIANTS[PICK]?VARIANTS[PICK].names.adgroup:"");
   if(!n||!n.trim())return;
   const k=n.trim(); if(!ADG[k])ADG[k]=blankGroup();
   ADCUR=k; saveAd(); fillAdPicker(); drawAd();});
-$("#acFromVar").addEventListener("click",()=>{
+on("#acFromVar","click",()=>{
   if(!VARIANTS.length)return toast("Build variants on tab 01 first");
   let n=0; VARIANTS.forEach(v=>{if(!ADG[v.names.adgroup]){ADG[v.names.adgroup]=blankGroup();n++;}});
   if(!ADCUR)ADCUR=VARIANTS[0].names.adgroup;
   saveAd(); fillAdPicker(); drawAd(); toast(`${n} ad group${n===1?"":"s"} added`);});
-$("#acDel").addEventListener("click",()=>{
+on("#acDel","click",()=>{
   if(!ADCUR)return;
   if(!confirm(`Delete "${ADCUR}" and everything written in it?`))return;
   delete ADG[ADCUR]; ADCUR=Object.keys(ADG)[0]||""; saveAd(); fillAdPicker(); drawAd();});
@@ -1287,7 +1332,8 @@ Object.values(PROJ_FIELDS).forEach(id=>$("#"+id).addEventListener("input",()=>{
   $("#p2c").className="count"+(PROJ.p2.length>PATH_MAX?" bad":"");
   store.set("pp_proj",PROJ); drawPreview(); adChecks(); echoBrief();}));
 function echoBrief(){
-  const b=brief(), rows=[["Project",b.proj],["Developer",b.dev],["Micro-market",b.micro],["City",b.city],
+  let b; try{ b=brief(); }catch(e){ return; }
+  const rows=[["Project",b.proj],["Developer",b.dev],["Micro-market",b.micro],["City",b.city],
     ["Configuration",b.cfg],["Price",b.price],["USPs",b.usps.length||""],["Amenities",b.amen.length||""],
     ["Landmarks",b.marks.length||""]];
   const filled=rows.filter(r=>r[1]).length;
@@ -1314,13 +1360,13 @@ function sheetBlock(name,g){
   D.forEach((d,i)=>{out+=`${i+1}\t${d[0]}\t${d[0].length}\t${D_MAX}\t${d[1]||""}\n`;});
   return out;
 }
-$("#acSheet").addEventListener("click",()=>{
+on("#acSheet","click",()=>{
   if(!ADCUR)return toast("Create an ad group first");
   copy(sheetBlock(ADCUR,cur()));});
-$("#acAllSheet").addEventListener("click",()=>{
+on("#acAllSheet","click",()=>{
   const keys=Object.keys(ADG); if(!keys.length)return toast("No ad groups yet");
   copy(keys.map(k=>sheetBlock(k,ADG[k])).join("\n\n"));});
-$("#acEditor").addEventListener("click",()=>{
+on("#acEditor","click",()=>{
   const keys=Object.keys(ADG); if(!keys.length)return toast("No ad groups yet");
   const hdr=["Campaign","Ad group"];
   for(let i=1;i<=H_CAP;i++)hdr.push(`Headline ${i}`,`Headline ${i} position`);
@@ -1340,9 +1386,9 @@ renderKw();
 PROJ_KEYS.forEach(k=>{const el=$("#"+PROJ_FIELDS[k]); if(el)el.value=PROJ[k]||"";});
 $("#locMain").value=store.get("pp_locmain",PROJ.micro||"");
 $("#locAlt").value=store.get("pp_localt","");
-$("#locMain").addEventListener("input",()=>{store.set("pp_locmain",$("#locMain").value);});
-$("#locAlt").addEventListener("input",()=>{store.set("pp_localt",$("#locAlt").value);});
-$("#acMicro").addEventListener("input",()=>{ if(!$("#locMain").value.trim()){
+on("#locMain","input",()=>{store.set("pp_locmain",$("#locMain").value);});
+on("#locAlt","input",()=>{store.set("pp_localt",$("#locAlt").value);});
+on("#acMicro","input",()=>{ if(!$("#locMain").value.trim()){
   $("#locMain").value=$("#acMicro").value; store.set("pp_locmain",$("#locMain").value);} });
 $("#p1c").textContent=`${(PROJ.p1||"").length}/${PATH_MAX}`;
 $("#p2c").textContent=`${(PROJ.p2||"").length}/${PATH_MAX}`;
@@ -1487,15 +1533,15 @@ function asChecks(){
 }
 function drawAll(){drawSl();drawCo();drawSn();}
 
-$("#asBase").addEventListener("input",()=>{AS.base=$("#asBase").value;saveAs();drawSl();});
-$("#asFromProj").addEventListener("click",()=>{
+on("#asBase","input",()=>{AS.base=$("#asBase").value;saveAs();drawSl();});
+on("#asFromProj","click",()=>{
   if(!PROJ.url)return toast("Set the Final URL on the ad copy tab first");
   AS.base=PROJ.url; $("#asBase").value=PROJ.url; saveAs(); drawSl();});
-$("#asLoadSl").addEventListener("click",()=>{AS.sl=PRESET[$("#asPreset").value].sl.map(r=>[...r]);saveAs();drawSl();toast("Sitelinks loaded");});
-$("#asLoadCo").addEventListener("click",()=>{AS.co=[...PRESET[$("#asPreset").value].co];saveAs();drawCo();toast("Callouts loaded");});
-$("#asLoadSn").addEventListener("click",()=>{AS.sn=PRESET[$("#asPreset").value].sn.map(([h,v])=>[h,[...v]]);saveAs();drawSn();toast("Snippets loaded");});
+on("#asLoadSl","click",()=>{AS.sl=PRESET[$("#asPreset").value].sl.map(r=>[...r]);saveAs();drawSl();toast("Sitelinks loaded");});
+on("#asLoadCo","click",()=>{AS.co=[...PRESET[$("#asPreset").value].co];saveAs();drawCo();toast("Callouts loaded");});
+on("#asLoadSn","click",()=>{AS.sn=PRESET[$("#asPreset").value].sn.map(([h,v])=>[h,[...v]]);saveAs();drawSn();toast("Snippets loaded");});
 
-$("#slRows").addEventListener("input",e=>{
+on("#slRows","input",e=>{
   const d=e.target.dataset;
   if(d.slt!==undefined)AS.sl[+d.slt][0]=e.target.value;
   else if(d.sl1!==undefined)AS.sl[+d.sl1][1]=e.target.value;
@@ -1506,62 +1552,62 @@ $("#slRows").addEventListener("input",e=>{
   const key=d.slt!==undefined?"slt":d.sl1!==undefined?"sl1":d.sl2!==undefined?"sl2":"sls";
   const f=document.querySelector(`[data-${key}="${d.slt??d.sl1??d.sl2??d.sls}"]`);
   if(f){f.focus();f.setSelectionRange(f.value.length,f.value.length);}});
-$("#slRows").addEventListener("click",e=>{
+on("#slRows","click",e=>{
   const i=e.target.dataset.sld; if(i===undefined)return;
   AS.sl.splice(+i,1); saveAs(); drawSl();});
-$("#slAdd").addEventListener("click",()=>{AS.sl.push(["","","",""]);saveAs();drawSl();});
+on("#slAdd","click",()=>{AS.sl.push(["","","",""]);saveAs();drawSl();});
 
-$("#coRows").addEventListener("input",e=>{
+on("#coRows","input",e=>{
   const i=e.target.dataset.cot; if(i===undefined)return;
   AS.co[+i]=e.target.value; saveAs();
   const el=e.target.nextElementSibling, n=e.target.value.length;
   el.textContent=`${n}/${CO_MAX}`; el.className="len "+cls(n,CO_MAX);
   e.target.classList.toggle("over",n>CO_MAX);
   $("#coStat").textContent=`${AS.co.length} · 4+ recommended`; asChecks();});
-$("#coRows").addEventListener("click",e=>{
+on("#coRows","click",e=>{
   const i=e.target.dataset.cod; if(i===undefined)return;
   AS.co.splice(+i,1); saveAs(); drawCo();});
-$("#coAdd").addEventListener("click",()=>{AS.co.push("");saveAs();drawCo();
+on("#coAdd","click",()=>{AS.co.push("");saveAs();drawCo();
   const last=$("#coRows").querySelector(".acrow:last-child input"); if(last)last.focus();});
-$("#coPaste").addEventListener("click",()=>{
+on("#coPaste","click",()=>{
   const raw=prompt("Paste callouts, one per line:"); if(!raw)return;
   AS.co=raw.split("\n").map(s=>s.trim()).filter(Boolean).slice(0,20); saveAs(); drawCo();});
 
-$("#snRows").addEventListener("input",e=>{
+on("#snRows","input",e=>{
   const v=e.target.dataset.snv; if(v===undefined)return;
   const [i,j]=v.split(".").map(Number); AS.sn[i][1][j]=e.target.value; saveAs();
   const el=e.target.nextElementSibling, n=e.target.value.length;
   el.textContent=`${n}/${SN_MAX}`; el.className="len "+cls(n,SN_MAX);
   e.target.classList.toggle("over",n>SN_MAX); asChecks();});
-$("#snRows").addEventListener("change",e=>{
+on("#snRows","change",e=>{
   const i=e.target.dataset.snh; if(i===undefined)return;
   AS.sn[+i][0]=e.target.value; saveAs(); asChecks();});
-$("#snRows").addEventListener("click",e=>{
+on("#snRows","click",e=>{
   const d=e.target.dataset;
   if(d.snd!==undefined){AS.sn.splice(+d.snd,1);saveAs();drawSn();return;}
   if(d.sna!==undefined){AS.sn[+d.sna][1].push("");saveAs();drawSn();return;}
   if(d.snx!==undefined){const [i,j]=d.snx.split(".").map(Number);AS.sn[i][1].splice(j,1);saveAs();drawSn();}});
-$("#snAdd").addEventListener("click",()=>{AS.sn.push(["Amenities",["","",""]]);saveAs();drawSn();});
+on("#snAdd","click",()=>{AS.sn.push(["Amenities",["","",""]]);saveAs();drawSn();});
 
 /* exports */
-$("#slCopy").addEventListener("click",()=>{
+on("#slCopy","click",()=>{
   if(!AS.sl.length)return toast("No sitelinks yet");
   copy("SR\tSitelink text\tLen\tMax\tDescription 1\tLen\tMax\tDescription 2\tLen\tMax\tFinal URL\n"+
     AS.sl.map((r,i)=>[i+1,r[0],r[0].length,SL_T,r[1],r[1].length,SL_D,r[2],r[2].length,SL_D,slUrl(r[0],r[3])].join("\t")).join("\n"));});
-$("#slCsv").addEventListener("click",()=>{
+on("#slCsv","click",()=>{
   if(!AS.sl.length)return toast("No sitelinks yet");
   dl("sitelinks-ads-editor.csv","Sitelink text,Description line 1,Description line 2,Final URL\n"+
     AS.sl.map(r=>[r[0],r[1],r[2],slUrl(r[0],r[3])].map(csvq).join(",")).join("\n"));});
-$("#coCopy").addEventListener("click",()=>{
+on("#coCopy","click",()=>{
   if(!AS.co.length)return toast("No callouts yet");
   copy("SR\tCallout\tLen\tMax\n"+AS.co.map((t,i)=>[i+1,t,t.length,CO_MAX].join("\t")).join("\n"));});
-$("#coCsv").addEventListener("click",()=>{
+on("#coCsv","click",()=>{
   if(!AS.co.length)return toast("No callouts yet");
   dl("callouts-ads-editor.csv","Callout text\n"+AS.co.map(t=>csvq(t)).join("\n"));});
-$("#snCopy").addEventListener("click",()=>{
+on("#snCopy","click",()=>{
   if(!AS.sn.length)return toast("No snippets yet");
   copy(AS.sn.map(([hd,v])=>`${hd}\n`+v.filter(x=>x.trim()).map((x,i)=>`${i+1}\t${x}\t${x.length}\t${SN_MAX}`).join("\n")).join("\n\n"));});
-$("#snCsv").addEventListener("click",()=>{
+on("#snCsv","click",()=>{
   if(!AS.sn.length)return toast("No snippets yet");
   const hdr=["Header"]; for(let i=1;i<=10;i++)hdr.push(`Value ${i}`);
   dl("snippets-ads-editor.csv",hdr.map(csvq).join(",")+"\n"+
@@ -1572,36 +1618,6 @@ $("#snCsv").addEventListener("click",()=>{
 /* ═══════════ generator ═══════════
    Copy is assembled from the brief and filtered by character limit,
    so nothing that overflows ever reaches a row. */
-const ABBR=[[/\bApartments\b/gi,"Apts"],[/\bMinutes\b/gi,"Mins"],[/\bBedroom\b/gi,"BR"],
-  [/\band\b/g,"&"],[/\bAnd\b/g,"&"],[/\bWith\b/gi,"With"],[/\s{2,}/g," "]];
-const tc=s=>String(s||"").trim().replace(/\s+/g," ")
-  .replace(/\w\S*/g,w=>w[0].toUpperCase()+w.slice(1));
-function fit(s,max){
-  s=String(s||"").replace(/\s+/g," ").trim();
-  if(!s)return null;
-  if(s.length<=max)return s;
-  let t=s; for(const [re,rep] of ABBR){ t=t.replace(re,rep); if(t.length<=max)return t.trim(); }
-  return null;
-}
-function pick(cands,max,n,used){
-  const out=[];
-  for(const c of cands){
-    const f=fit(c,max); if(!f)continue;
-    const k=f.toLowerCase(); if(used.has(k))continue;
-    used.add(k); out.push(f); if(out.length>=n)break;
-  }
-  return out;
-}
-const lines=s=>String(s||"").split("\n").map(x=>x.trim()).filter(Boolean);
-function brief(){
-  const p=PROJ;
-  const price=(p.price||"").trim();
-  return {
-    proj:tc(p.proj)||tc(p.cfg&&"")||"", dev:tc(p.dev), micro:tc(p.micro), city:tc(p.city),
-    cfg:(p.cfg||"").trim(), price, offer:tc(p.offer), loc:(p.loc||"").trim(),
-    usps:lines(p.usps), marks:lines(p.marks), amen:lines(p.amen)
-  };
-}
 function genHeadlines(){
   const b=brief(); if(!b.proj)return null;
   const used=new Set(), out=[];
@@ -1623,15 +1639,6 @@ function genHeadlines(){
   while(out.length<H_CAP)out.push(["",""]);
   return out.slice(0,H_CAP);
 }
-function compose(parts,max){
-  const p=parts.map(x=>String(x||"").replace(/\s+/g," ").trim()).filter(Boolean);
-  for(let n=p.length;n>0;n--){
-    let s=p.slice(0,n).join(". ");
-    if(!/[.!?]$/.test(s))s+=".";
-    const f=fit(s,max); if(f)return f;
-  }
-  return null;
-}
 function genDescriptions(){
   const b=brief(); if(!b.proj)return null;
   const u1=tc(b.usps[0]||""), u2=tc(b.usps[1]||""), u3=tc(b.usps[2]||"");
@@ -1650,27 +1657,27 @@ function genDescriptions(){
   while(out.length<D_CAP)out.push(["",""]);
   return out;
 }
-$("#hGen").addEventListener("click",()=>{
+on("#hGen","click",()=>{
   if(!ADCUR)return toast("Create an ad group first");
   const g=genHeadlines();
   if(!g)return toast("Fill in the project name on this tab first");
   if(cur().h.some(r=>r[0].trim())&&!confirm("Replace the headlines already written here?"))return;
   cur().h=g; saveAd(); drawAd();
   toast(`${g.filter(r=>r[0]).length} headlines generated`);});
-$("#dGen").addEventListener("click",()=>{
+on("#dGen","click",()=>{
   if(!ADCUR)return toast("Create an ad group first");
   const g=genDescriptions();
   if(!g)return toast("Fill in the project name on this tab first");
   if(cur().d.some(r=>r[0].trim())&&!confirm("Replace the descriptions already written here?"))return;
   cur().d=g; saveAd(); drawAd();
   toast(`${g.filter(r=>r[0]).length} descriptions generated`);});
-$("#acPriceFromTk").addEventListener("click",()=>{
+on("#acPriceFromTk","click",()=>{
   const t=ticket(); if(!t)return toast("Set a ticket size on tab 01");
   const label=REGION==="ae"?aedLabel():"\u20b9 "+t.replace("CR"," Cr").replace("L"," Lakhs");
   $("#acPrice").value=label+"*"; $("#acPrice").dispatchEvent(new Event("input",{bubbles:true}));});
 
 /* keywords from the brief */
-$("#kwGen").addEventListener("click",()=>{
+on("#kwGen","click",()=>{
   const b=brief(); if(!b.proj)return toast("Fill in the project name on the ad copy tab");
   const P=b.proj, D=b.dev, M=b.micro, C=b.city;
   const roots=[P, M&&`${P} ${M}`, C&&`${P} ${C}`, M&&C&&`${P} ${M} ${C}`,
@@ -1690,7 +1697,7 @@ $("#kwGen").addEventListener("click",()=>{
   toast(`${clean.length} keywords generated`);});
 
 /* assets from the brief */
-$("#asGen").addEventListener("click",()=>{
+on("#asGen","click",()=>{
   const b=brief(); if(!b.proj)return toast("Fill in the project name on the ad copy tab");
   const where=[b.micro,b.city].filter(Boolean).join(", ");
   const u=b.usps.map(tc), m=b.marks.map(tc);
@@ -1785,12 +1792,12 @@ async function readLp(){
   $("#impStat").innerHTML='<span class="pill p-ok">read</span>';
   toast("Brief filled \u2014 check it on the Ad copy tab");
 }
-$("#impFetch").addEventListener("click",readLp);
-$("#impPasteBtn").addEventListener("click",()=>{$("#impPaste").classList.toggle("hidden");});
-$("#impManual").addEventListener("click",()=>{
+on("#impFetch","click",readLp);
+on("#impPasteBtn","click",()=>{$("#impPaste").classList.toggle("hidden");});
+on("#impManual","click",()=>{
   $("#impStat").innerHTML='<span class="pill p-mute">manual</span>';
   $("#impFound").innerHTML='<div class="callout">Type the brief into the fields below. Project name is the only one that is really needed \u2014 the more you fill, the better the generated copy.</div>';
-  const el=$("#acProj"); el.scrollIntoView({block:"center",behavior:"smooth"}); el.focus();});
+  const el=$("#acProj"); if(el){ if(el.scrollIntoView)el.scrollIntoView({block:"center",behavior:"smooth"}); el.focus(); }});
 
 /* ═══════════ keyword sets per strategy ═══════════ */
 const BLOCK_DEFAULT="reviews, review, resale, rent, rental, complaints, scam, fraud, jobs, careers";
@@ -1877,7 +1884,7 @@ function adFor(kws){
 let PLAN=[];
 /* Ads Editor takes custom parameters as one semicolon-joined cell */
 const custParam=n=>n?`{_adgroup}=${n.adgroup};{_campaign}=${n.campaign};{_strategy}=${n.strategy}`:"";
-$("#stBuild").addEventListener("click",()=>{
+on("#stBuild","click",()=>{
   const b=brief();
   if(!b.proj)return toast("Fill in the project name on the Ad copy tab");
   const strats=[...$("#inStrat").selectedOptions].map(o=>o.value);
@@ -1916,14 +1923,14 @@ function drawPlan(){
       </div>`).join("")}
     </div>`).join("");
 }
-$("#stKwCsv").addEventListener("click",()=>{
+on("#stKwCsv","click",()=>{
   if(!PLAN.length)return toast("Build the structure first");
   const rows=[];
   PLAN.forEach(p=>p.groups.forEach(g=>g.kws.forEach(k=>
     rows.push([p.campaign,g.name,k,MTNAME[g.mt]||"Broad"]))));
   dl("structure-keywords.csv","Campaign,Ad group,Keyword,Match type\n"+
     rows.map(r=>r.map(csvq).join(",")).join("\n"));});
-$("#stAdCsv").addEventListener("click",()=>{
+on("#stAdCsv","click",()=>{
   if(!PLAN.length)return toast("Build the structure first");
   const hdr=["Campaign","Ad group"];
   for(let i=1;i<=H_CAP;i++)hdr.push(`Headline ${i}`,`Headline ${i} position`);
@@ -1938,14 +1945,14 @@ $("#stAdCsv").addEventListener("click",()=>{
     rows.push(r);}));
   dl("structure-ads.csv",hdr.map(csvq).join(",")+"\n"+rows.map(r=>r.map(csvq).join(",")).join("\n"));});
 /* Tracking template and custom parameters live at ad group level. */
-$("#stCampCsv").addEventListener("click",()=>{
+on("#stCampCsv","click",()=>{
   if(!PLAN.length)return toast("Build the structure first");
   const rows=[];
   PLAN.forEach(p=>p.groups.forEach(g=>rows.push([p.campaign,g.name,TPL[CH],custParam(g.n)])));
   dl("structure-adgroups.csv",
     ["Campaign","Ad group","Tracking template","Custom parameter"].map(csvq).join(",")+"\n"+
     rows.map(r=>r.map(csvq).join(",")).join("\n"));});
-$("#stSheet").addEventListener("click",()=>{
+on("#stSheet","click",()=>{
   if(!PLAN.length)return toast("Build the structure first");
   let out="";
   PLAN.forEach(p=>{ out+=`CAMPAIGN\t${p.campaign}\n`;
