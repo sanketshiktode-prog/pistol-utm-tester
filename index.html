@@ -262,6 +262,7 @@ code{font-family:var(--mono);background:rgba(0,0,0,.05);padding:1px 4px;border-r
           <span class="f-lab">Match types
             <button class="mini-act" type="button" data-all="inMatch">select all</button></span>
           <select id="inMatch" multiple size="3"></select>
+          <span class="f-note">Phrase and Exact run in every Search campaign. Broad is optional.</span>
         </div>
 
         <div class="f">
@@ -668,8 +669,9 @@ const TPL={
  search:"{lpurl}&source_key=Website&utm_source=Website&utm_medium=ppmcc&utm_campaign=google-search&Keyword={keyword}&Device={device}&ads_id=TBD&ads_group_id={adgroupid}&ads_extension_id={extensionid}&ads_set_name={_adgroup}&campaign_id={campaignid}&campaign_name={_campaign}&keyword_type={matchtype}&physical_location={loc_physical_ms}&ad_strategy={_strategy}",
  demandgen:"{lpurl}&source_key=google-discovery&utm_source=google-discovery&utm_medium=ppmcc&utm_campaign=google-discovery&Keyword={keyword}&Device={device}&ads_id=TBD&ads_group_id={adgroupid}&ads_extension_id={extensionid}&ads_set_name={_adgroup}&campaign_id={campaignid}&campaign_name={_campaign}&keyword_type={matchtype}&physical_location={loc_physical_ms}&ad_strategy={_strategy}"};
 
+const CHANNEL={search:{full:"Search",short:"S"},demandgen:{full:"Demand Gen",short:"D"}};
 const DEFAULTS={
- search:[["Search Brand Location","S-BL"],["Search Brand Project Location","S-BPL"],["Search Brand Broad","S-BB"]],
+ search:[["Search Brand Location","BL"],["Search Brand Project Location","BPL"],["Search Brand Broad","BB"]],
  demandgen:[["Open","Op"],["Inmarket","In"],["Luxury","luxury"],["Investment","invest"],["Avid","avid"],
   ["News Portal","news-portal"],["News App","news-app"],["Property Portal URL","property-portal-url"],
   ["Property Portal Apps","property-portal-app"],["URL Brand","ub"],["Youtube Brand","yb"],
@@ -698,7 +700,15 @@ function dl(name,text){const b=new Blob([text],{type:"text/csv;charset=utf-8"});
 
 /* ═══ state ═══ */
 let CH="search", VT={...VT_DEFAULTS}, VARIANTS=[], PICK=0;
-let STRATS=store.get("pp_strats",null)||JSON.parse(JSON.stringify(DEFAULTS));
+let STRATS=store.get("pp_strats2",null);
+if(!STRATS){
+  const legacy=store.get("pp_strats",null);
+  STRATS = legacy
+    ? {search:(legacy.search||[]).map(([n,s])=>[n,String(s).replace(/^[SsDd]-/,"")]),
+       demandgen:(legacy.demandgen||[]).map(([n,s])=>[n,String(s).replace(/^[Dd]-/,"")])}
+    : JSON.parse(JSON.stringify(DEFAULTS));
+  store.set("pp_strats2",STRATS);
+}
 let DRAFT=null;
 
 /* ═══ ticket size — 45L / 6.45CR / 50L-1.2CR ═══ */
@@ -761,7 +771,7 @@ function fillStrategies(){
   $("#wrapMatch").classList.toggle("hidden",CH!=="search");
   $("#mgLabel").textContent=CH==="search"?"Search":"Demand Gen";
 }
-$("#inMatch").innerHTML=MATCH.map(([n,s])=>`<option value="${s}"${s==="E"?" selected":""}>${n} — ${s}</option>`).join("");
+$("#inMatch").innerHTML=MATCH.map(([n,s])=>`<option value="${s}"${(s==="E"||s==="P")?" selected":""}>${n} — ${s}</option>`).join("");
 $("#vtGrid").innerHTML=Object.keys(VT_DEFAULTS).map(k=>
   `<label class="f"><span class="f-lab">{${esc(k)}}</span><input type="text" data-vt="${k}" value="${esc(VT_DEFAULTS[k])}"></label>`).join("");
 $$("[data-vt]").forEach(i=>i.addEventListener("input",()=>{VT[i.dataset.vt]=i.value;build();}));
@@ -775,12 +785,17 @@ $$("[data-all]").forEach(b=>b.addEventListener("click",()=>{
   b.textContent=on?"clear":"select all"; build();}));
 
 /* ═══ naming ═══ */
+function clean(s){
+  return String(s||"").replace(/\s+/g," ").trim().replace(/[^A-Za-z0-9 \-_.&]/g,"");
+}
 function names(enq,strat,tk,mt,ch){
-  const e=slug(enq)||"ENQUIRY", t=slug(tk)||"ticketsize", search=ch==="search";
-  const campaign=search?`${e}-${strat}`:`${e}-${SEGMENT}-${strat}`;
-  return {campaign,
-    adgroup: search?`${campaign}-${t}-${mt}`:`${campaign}-${t}`,
-    strategy: search?`${strat}-${mt}`:`${SEGMENT}-${strat}`};
+  const e=clean(enq)||"ENQUIRY", t=slug(tk)||"ticketsize";
+  const C=CHANNEL[ch], search=ch==="search";
+  const campaign=`${e} ${C.full} ${strat}`;
+  const adgroup=search ? `${e} ${C.short}-${strat}-${t}-${mt}`
+                       : `${e} ${C.short}-${strat}-${t}`;
+  const strategy=search ? `${C.short}-${strat}-${mt}` : `${C.short}-${strat}`;
+  return {campaign,adgroup,strategy};
 }
 function assemble(lp,tplRaw,n){
   const hasQ=lp.includes("?"), tail=tplRaw.replace("{lpurl}","").replace(/^&/,"");
@@ -870,9 +885,15 @@ function renderChecks(){
   else add("ok","✓","Landing page URL parses and is HTTPS.");
 
   if(!enq) add("bad","✕","<b>No enquiry name.</b>");
-  else if(slug(enq)!==enq.replace(/\s+/g,"-"))
-    add("warn","!",`Enquiry name cleaned to <code>${esc(slug(enq))}</code>. Confirm the CRM enquiry matches exactly.`);
+  else if(clean(enq)!==enq.trim())
+    add("warn","!",`Enquiry name cleaned to <code>${esc(clean(enq))}</code>. Confirm the CRM enquiry matches exactly.`);
   else add("ok","✓","Enquiry name is clean — no characters that break a query string.");
+  if(CH==="search"){
+    const sel=[...$("#inMatch").selectedOptions].map(o=>o.value);
+    const missing=["E","P"].filter(x=>!sel.includes(x));
+    if(missing.length) add("warn","!",`<b>${missing.map(x=>x==="E"?"Exact":"Phrase").join(" and ")} not selected.</b> Both normally run in every Search campaign.`);
+    else add("ok","✓","Phrase and Exact are both covered.");
+  }
 
   if(!ticket()) add("warn","!","<b>No ticket size.</b> Ad group names will read <code>ticketsize</code>.");
   else add("ok","✓",`Ticket size resolves to <code>${esc(ticket())}</code>.`);
@@ -950,7 +971,7 @@ $("#mSave").addEventListener("click",()=>{
   if(!clean.length)return toast("At least one strategy is needed");
   const seen=new Set();
   for(const [,s] of clean){ if(seen.has(s.toLowerCase()))return toast(`Duplicate shortform: ${s}`); seen.add(s.toLowerCase()); }
-  STRATS[CH]=clean; store.set("pp_strats",STRATS);
+  STRATS[CH]=clean; store.set("pp_strats2",STRATS);
   $("#modal").classList.remove("on"); fillStrategies(); build(); toast("Saved");});
 $("#mExport").addEventListener("click",()=>{copy(JSON.stringify(STRATS,null,2));toast("JSON copied — share it with the team");});
 $("#mImport").addEventListener("click",()=>{
@@ -960,7 +981,7 @@ $("#mImport").addEventListener("click",()=>{
     if(!o.search||!o.demandgen)throw 0;
     STRATS={search:o.search.map(r=>[String(r[0]),slug(r[1])]).filter(r=>r[0]&&r[1]),
             demandgen:o.demandgen.map(r=>[String(r[0]),slug(r[1])]).filter(r=>r[0]&&r[1])};
-    store.set("pp_strats",STRATS); DRAFT=STRATS[CH].map(r=>[...r]); drawRows();
+    store.set("pp_strats2",STRATS); DRAFT=STRATS[CH].map(r=>[...r]); drawRows();
     fillStrategies(); build(); toast("Imported");
   }catch(e){toast("That JSON didn't parse");}});
 document.addEventListener("keydown",e=>{if(e.key==="Escape")$("#modal").classList.remove("on");});
