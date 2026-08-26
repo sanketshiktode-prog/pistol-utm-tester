@@ -342,6 +342,32 @@ code{font-family:var(--mono);background:rgba(0,0,0,.05);padding:1px 4px;border-r
       </div>
     </div>
     <div class="card">
+      <div class="card-hd"><h2>Campaign settings</h2><span class="hint">for the Editor file</span></div>
+      <div class="card-bd">
+        <div class="row2">
+          <label class="f"><span class="f-lab">Daily budget</span>
+            <input type="text" id="cgBudget" value="1000" inputmode="decimal"></label>
+          <label class="f"><span class="f-lab">Max CPC</span>
+            <input type="text" id="cgCpc" value="30" inputmode="decimal"></label>
+        </div>
+        <div class="row2">
+          <label class="f"><span class="f-lab">Campaign status</span>
+            <select id="cgStatus"><option>Paused</option><option>Enabled</option></select></label>
+          <label class="f"><span class="f-lab">Bid strategy</span>
+            <select id="cgBid">
+              <option>Maximize conversions</option><option>Manual CPC</option>
+              <option>Maximize clicks</option><option>Target CPA</option>
+            </select></label>
+        </div>
+        <label class="f"><span class="f-lab">Objective</span>
+          <input type="text" id="cgObj" value="Leads"></label>
+        <label class="f"><span class="f-lab">Conversion goals</span>
+          <input type="text" id="cgGoals" value="Submit lead form; Qualified Leads">
+          <span class="f-note">Objective and conversion goals are set once in the Google Ads interface — Editor has no column for them. They are carried into the sheet export as a reminder.</span></label>
+      </div>
+    </div>
+
+    <div class="card">
       <div class="card-hd"><h2>Locations</h2><span class="hint">for BL and BPL keywords</span></div>
       <div class="card-bd">
         <label class="f"><span class="f-lab">Primary micro-market</span>
@@ -680,10 +706,27 @@ code{font-family:var(--mono);background:rgba(0,0,0,.05);padding:1px 4px;border-r
     <div class="card-bd">
       <div class="btnrow">
         <button class="btn btn-pri" id="stBuild">Build full campaign structure</button>
+        <button class="btn btn-navy" id="stAll">Download everything (one CSV)</button>
         <button class="btn" id="stSheet">Copy as sheet</button>
         <button class="btn" id="stKwCsv">Keywords CSV</button>
+        <button class="btn btn-navy" id="stAllCsv">Download everything (one CSV)</button>
         <button class="btn" id="stAdCsv">Ads CSV</button>
         <button class="btn" id="stCampCsv">Ad groups + tracking CSV</button>
+      </div>
+      <div class="row2" style="margin-top:14px">
+        <label class="f"><span class="f-lab">Daily budget (per campaign)</span>
+          <input type="text" id="stBudget" placeholder="2000" inputmode="decimal"></label>
+        <label class="f"><span class="f-lab">Bid strategy</span>
+          <select id="stBid">
+            <option>Maximize conversions</option><option>Maximize clicks</option>
+            <option>Target CPA</option><option>Manual CPC</option>
+          </select></label>
+      </div>
+      <div class="row2">
+        <label class="f"><span class="f-lab">Campaign objective</span>
+          <input type="text" id="stObj" value="Leads"></label>
+        <label class="f"><span class="f-lab">Conversion goals</span>
+          <input type="text" id="stGoal" value="Submit lead form (Website);Qualified Leads"></label>
       </div>
       <div class="f-note" style="margin-top:10px">One pass builds a campaign per strategy, Phrase and Exact ad groups inside each, the keyword set for that strategy, and a full 15/4 ad in every ad group. Assets are rebuilt too. Tracking template and custom parameters are written at ad group level, one set per ad group.</div>
     </div>
@@ -1553,8 +1596,9 @@ function drawAll(){drawSl();drawCo();drawSn();}
 
 on("#asBase","input",()=>{AS.base=$("#asBase").value;saveAs();drawSl();});
 on("#asFromProj","click",()=>{
-  if(!PROJ.url)return toast("Set the Final URL on the ad copy tab first");
-  AS.base=PROJ.url; $("#asBase").value=PROJ.url; saveAs(); drawSl();});
+  const u=PROJ.url||$("#inLp").value.trim();
+  if(!u)return toast("Set the landing page URL first");
+  AS.base=u; $("#asBase").value=u; saveAs(); drawSl();});
 on("#asLoadSl","click",()=>{AS.sl=PRESET[$("#asPreset").value].sl.map(r=>[...r]);saveAs();drawSl();toast("Sitelinks loaded");});
 on("#asLoadCo","click",()=>{AS.co=[...PRESET[$("#asPreset").value].co];saveAs();drawCo();toast("Callouts loaded");});
 on("#asLoadSn","click",()=>{AS.sn=PRESET[$("#asPreset").value].sn.map(([h,v])=>[h,[...v]]);saveAs();drawSn();toast("Snippets loaded");});
@@ -1747,7 +1791,8 @@ on("#asGen","click",()=>{
   if(amen.length>=3)sn.push(["Amenities",amen]);
   if(where)sn.push(["Neighborhoods",[b.micro,b.city].filter(Boolean).map(x=>fit(x,SN_MAX)).filter(Boolean)]);
   AS.sl=sl; AS.co=co; AS.sn=sn.filter(s=>s[1].length>=3);
-  if(!AS.base&&PROJ.url){AS.base=PROJ.url;$("#asBase").value=PROJ.url;}
+  const baseUrl=PROJ.url||$("#inLp").value.trim();
+  if(!AS.base&&baseUrl){AS.base=baseUrl;$("#asBase").value=baseUrl;}
   saveAs(); drawAll(); toast("Sitelinks, callouts and snippets generated");});
 
 
@@ -1908,7 +1953,19 @@ function adFor(kws){
 /* ═══════════ full structure ═══════════ */
 let PLAN=[];
 /* Ads Editor takes custom parameters as one semicolon-joined cell */
-const custParam=n=>n?`{_adgroup}=${paramVal(n.adgroup)};{_campaign}=${paramVal(n.campaign)};{_strategy}=${paramVal(n.strategy)}`:"";
+/* Ads Editor separates custom parameters with a SPACE and each value must
+   itself be space-free. A semicolon is read as part of the value. */
+const custParam=n=>n?`{_adgroup}=${paramVal(n.adgroup)} {_campaign}=${paramVal(n.campaign)} {_strategy}=${paramVal(n.strategy)}`:"";
+/* Ads Editor reads one custom parameter per cell and splits on the first
+   "=", so three of them in a single column can never import. The values
+   are written straight into the tracking template instead — same final
+   URL, nothing left for Editor to mis-parse. */
+function inlineTpl(n){
+  return TPL[CH]
+    .replace("{_adgroup}",paramVal(n.adgroup))
+    .replace("{_campaign}",paramVal(n.campaign))
+    .replace("{_strategy}",paramVal(n.strategy));
+}
 on("#stBuild","click",()=>{
   const b=brief();
   if(!b.proj)return toast("Fill in the project name on the Ad copy tab");
@@ -1973,13 +2030,181 @@ on("#stAdCsv","click",()=>{
 on("#stCampCsv","click",()=>{
   if(!PLAN.length)return toast("Build the structure first");
   const rows=[];
-  PLAN.forEach(p=>p.groups.forEach(g=>rows.push([p.campaign,g.name,TPL[CH],custParam(g.n)])));
+  PLAN.forEach(p=>p.groups.forEach(g=>rows.push([p.campaign,g.name,"Enabled",inlineTpl(g.n)])));
   dl("structure-adgroups.csv",
-    ["Campaign","Ad group","Tracking template","Custom parameter"].map(csvq).join(",")+"\n"+
+    ["Campaign","Ad group","Status","Tracking template"].map(csvq).join(",")+"\n"+
     rows.map(r=>r.map(csvq).join(",")).join("\n"));});
+
+/* ═══════════ one file: campaigns, ad groups, keywords, ads, assets ═══════════
+   Ads Editor reads a mixed CSV and decides each row's entity type from
+   which columns are filled, so the whole build travels in a single import. */
+on("#stAllCsv","click",()=>{
+  if(!PLAN.length)return toast("Build the structure first");
+  const lp=PROJ.url||$("#inLp").value.trim();
+  const budget=($("#stBudget").value||"").trim();
+  const bid=$("#stBid").value, obj=$("#stObj").value, goal=$("#stGoal").value;
+
+  const hdr=["Campaign","Campaign type","Campaign status","Campaign daily budget",
+    "Bid strategy type","Campaign objective","Conversion goals",
+    "Ad group","Ad group status","Tracking template",
+    "Keyword","Criterion type","Ad type"];
+  for(let i=1;i<=H_CAP;i++)hdr.push(`Headline ${i}`,`Headline ${i} position`);
+  for(let i=1;i<=D_CAP;i++)hdr.push(`Description ${i}`,`Description ${i} position`);
+  hdr.push("Path 1","Path 2","Final URL",
+    "Callout text","Sitelink text","Sitelink description 1","Sitelink description 2","Sitelink final URL",
+    "Structured snippet header","Structured snippet values");
+
+  const blank=()=>Object.fromEntries(hdr.map(k=>[k,""]));
+  const rows=[];
+  const chType=CH==="search"?"Search":"Demand Gen";
+
+  PLAN.forEach(p=>{
+    /* campaign */
+    const c=blank();
+    c["Campaign"]=p.campaign; c["Campaign type"]=chType; c["Campaign status"]="Paused";
+    c["Campaign daily budget"]=budget; c["Bid strategy type"]=bid;
+    c["Campaign objective"]=obj; c["Conversion goals"]=goal;
+    rows.push(c);
+
+    p.groups.forEach(g=>{
+      /* ad group, carrying its own tracking template */
+      const a=blank();
+      a["Campaign"]=p.campaign; a["Ad group"]=g.name; a["Ad group status"]="Enabled";
+      a["Tracking template"]=inlineTpl(g.n);
+      rows.push(a);
+
+      /* keywords */
+      g.kws.forEach(k=>{
+        const r=blank();
+        r["Campaign"]=p.campaign; r["Ad group"]=g.name;
+        r["Keyword"]=g.mt==="E"?`[${k}]`:g.mt==="P"?`"${k}"`:k;
+        r["Criterion type"]=MTNAME[g.mt]||"Broad";
+        rows.push(r);
+      });
+
+      /* the responsive search ad */
+      const ad=blank();
+      ad["Campaign"]=p.campaign; ad["Ad group"]=g.name;
+      ad["Ad type"]=CH==="search"?"Responsive search ad":"Responsive display ad";
+      g.ad.h.forEach((x,i)=>{ if(x[0]){ ad[`Headline ${i+1}`]=x[0]; ad[`Headline ${i+1} position`]=x[1]||""; } });
+      g.ad.d.forEach((x,i)=>{ if(x[0]){ ad[`Description ${i+1}`]=x[0]; ad[`Description ${i+1} position`]=x[1]||""; } });
+      ad["Path 1"]=PROJ.p1; ad["Path 2"]=PROJ.p2; ad["Final URL"]=lp;
+      rows.push(ad);
+    });
+
+    /* assets, attached to each campaign */
+    AS.co.filter(Boolean).forEach(t=>{
+      const r=blank(); r["Campaign"]=p.campaign; r["Callout text"]=t; rows.push(r);});
+    AS.sl.filter(s=>s[0]).forEach(s=>{
+      const r=blank(); r["Campaign"]=p.campaign;
+      r["Sitelink text"]=s[0]; r["Sitelink description 1"]=s[1]; r["Sitelink description 2"]=s[2];
+      r["Sitelink final URL"]=slUrl(s[0],s[3])||lp; rows.push(r);});
+    AS.sn.forEach(([head,vals])=>{
+      const v=vals.filter(x=>x.trim()); if(v.length<3)return;
+      const r=blank(); r["Campaign"]=p.campaign;
+      r["Structured snippet header"]=head; r["Structured snippet values"]=v.join(";"); rows.push(r);});
+  });
+
+  dl("google-ads-full-build.csv",
+    hdr.map(csvq).join(",")+"\n"+rows.map(r=>hdr.map(k=>csvq(r[k])).join(",")).join("\n"));
+  toast(`${rows.length} rows exported`);
+});
+
+
+/* ═══════════ one file: campaigns, ad groups, keywords, ads, assets ═══════════
+   Ads Editor reads a single CSV where every row shares the same columns and
+   the populated cells decide the row type. Empty cells are expected. */
+const MT_WRAP={E:k=>`[${k}]`,P:k=>`"${k}"`,B:k=>k};
+const MT_CRIT={E:"Exact",P:"Phrase",B:"Broad"};
+function masterCsv(){
+  const H=[];
+  H.push("Campaign","Campaign Type","Campaign Status","Budget","Budget type","Bid Strategy Type",
+    "Ad group","Ad Group Status","Max CPC","Tracking template","Custom parameter",
+    "Keyword","Criterion Type","Status","Final URL","Path 1","Path 2");
+  for(let i=1;i<=H_CAP;i++)H.push(`Headline ${i}`,`Headline ${i} position`);
+  for(let i=1;i<=D_CAP;i++)H.push(`Description ${i}`,`Description ${i} position`);
+  H.push("Callout text","Sitelink text","Sitelink description 1","Sitelink description 2",
+    "Sitelink final URL","Structured snippet header","Structured snippet values");
+  const idx={}; H.forEach((k,i)=>{ if(!(k in idx))idx[k]=i; });
+  const blank=()=>new Array(H.length).fill("");
+  const put=(r,k,v)=>{ if(idx[k]!==undefined)r[idx[k]]=v==null?"":String(v); };
+  const rows=[];
+  const lp=PROJ.url||$("#inLp").value.trim();
+  const budget=$("#cgBudget")?$("#cgBudget").value.trim():"";
+  const cpc=$("#cgCpc")?$("#cgCpc").value.trim():"";
+  const cstat=$("#cgStatus")?$("#cgStatus").value:"Paused";
+  const bid=$("#cgBid")?$("#cgBid").value:"Maximize conversions";
+  const seenCamp=new Set();
+
+  PLAN.forEach(p=>{
+    if(!seenCamp.has(p.campaign)){
+      seenCamp.add(p.campaign);
+      const r=blank();
+      put(r,"Campaign",p.campaign); put(r,"Campaign Type","Search");
+      put(r,"Campaign Status",cstat); put(r,"Budget",budget);
+      put(r,"Budget type","Daily"); put(r,"Bid Strategy Type",bid);
+      rows.push(r);
+    }
+    p.groups.forEach(g=>{
+      const a=blank();
+      put(a,"Campaign",p.campaign); put(a,"Ad group",g.name);
+      put(a,"Ad Group Status","Enabled"); put(a,"Max CPC",cpc);
+      put(a,"Tracking template",TPL[CH]); put(a,"Custom parameter",custParam(g.n));
+      rows.push(a);
+
+      g.kws.forEach(k=>{
+        const r=blank();
+        put(r,"Campaign",p.campaign); put(r,"Ad group",g.name);
+        put(r,"Keyword",(MT_WRAP[g.mt]||MT_WRAP.B)(k));
+        put(r,"Criterion Type",MT_CRIT[g.mt]||"Broad");
+        put(r,"Status","Enabled");
+        rows.push(r);
+      });
+
+      const ad=blank();
+      put(ad,"Campaign",p.campaign); put(ad,"Ad group",g.name);
+      put(ad,"Status","Enabled"); put(ad,"Final URL",lp);
+      put(ad,"Path 1",PROJ.p1); put(ad,"Path 2",PROJ.p2);
+      for(let i=0;i<H_CAP;i++){ const x=g.ad.h[i];
+        if(x&&x[0]){ put(ad,`Headline ${i+1}`,x[0]); put(ad,`Headline ${i+1} position`,x[1]||""); } }
+      for(let i=0;i<D_CAP;i++){ const x=g.ad.d[i];
+        if(x&&x[0]){ put(ad,`Description ${i+1}`,x[0]); put(ad,`Description ${i+1} position`,x[1]||""); } }
+      rows.push(ad);
+    });
+  });
+
+  /* assets attach at campaign level, one set per campaign */
+  [...seenCamp].forEach(camp=>{
+    AS.co.filter(Boolean).forEach(t=>{
+      const r=blank(); put(r,"Campaign",camp); put(r,"Callout text",t);
+      put(r,"Status","Enabled"); rows.push(r);
+    });
+    AS.sl.filter(x=>x[0]).forEach(s=>{
+      const r=blank(); put(r,"Campaign",camp);
+      put(r,"Sitelink text",s[0]); put(r,"Sitelink description 1",s[1]);
+      put(r,"Sitelink description 2",s[2]); put(r,"Sitelink final URL",slUrl(s[0],s[3])||lp);
+      put(r,"Status","Enabled"); rows.push(r);
+    });
+    AS.sn.forEach(([hd,vals])=>{
+      const v=vals.filter(x=>x.trim()); if(v.length<3)return;
+      const r=blank(); put(r,"Campaign",camp);
+      put(r,"Structured snippet header",hd);
+      put(r,"Structured snippet values",v.join(";"));
+      put(r,"Status","Enabled"); rows.push(r);
+    });
+  });
+  return H.map(csvq).join(",")+"\n"+rows.map(r=>r.map(csvq).join(",")).join("\n");
+}
+on("#stAll","click",()=>{
+  if(!PLAN.length)return toast("Build the structure first");
+  dl("google-ads-import.csv",masterCsv());
+  const goals=$("#cgGoals")?$("#cgGoals").value:"";
+  toast(`Exported. Set objective and goals in the interface: ${goals}`);
+});
+
 on("#stSheet","click",()=>{
   if(!PLAN.length)return toast("Build the structure first");
-  let out="";
+  let out=`OBJECTIVE\t${$("#cgObj")?$("#cgObj").value:""}\nCONVERSION GOALS\t${$("#cgGoals")?$("#cgGoals").value:""}\nBUDGET\t${$("#cgBudget")?$("#cgBudget").value:""}\nBID STRATEGY\t${$("#cgBid")?$("#cgBid").value:""}\n\n`;
   PLAN.forEach(p=>{ out+=`CAMPAIGN\t${p.campaign}\n`;
     p.groups.forEach(g=>{ out+=`\nAD GROUP\t${g.name}\n`;
       out+=`SR\tHeadline\tLength\tMax\tPin\tKeyword\n`;
