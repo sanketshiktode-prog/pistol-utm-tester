@@ -300,6 +300,47 @@ code{font-family:var(--mono);background:rgba(0,0,0,.05);padding:1px 4px;border-r
     </div>
 
     <div class="card">
+      <div class="card-hd"><h2>Project brief</h2></div>
+      <div class="card-bd">
+        <label class="f"><span class="f-lab">Final URL</span>
+          <input type="text" id="acUrl" placeholder="https://thesymphonyatdubai.com/imtiaz/" spellcheck="false"></label>
+        <div class="row2">
+          <label class="f"><span class="f-lab">Project</span>
+            <input type="text" id="acProj" placeholder="Kolte Patil Vyana"></label>
+          <label class="f"><span class="f-lab">Developer</span>
+            <input type="text" id="acDev" placeholder="Kolte Patil"></label>
+        </div>
+        <div class="row2">
+          <label class="f"><span class="f-lab">Micro-market</span>
+            <input type="text" id="acMicro" placeholder="Vadgaon"></label>
+          <label class="f"><span class="f-lab">City</span>
+            <input type="text" id="acCity" placeholder="Pune"></label>
+        </div>
+        <label class="f"><span class="f-lab">Configuration</span>
+          <input type="text" id="acCfg" placeholder="2, 2.5 &amp; 3 BHK"></label>
+        <label class="f"><span class="f-lab">Price</span>
+          <input type="text" id="acPrice" placeholder="₹ 85 Lakhs*">
+          <span class="f-note"><button class="mini-act" type="button" id="acPriceFromTk" style="margin:0">pull from ticket size</button></span></label>
+        <label class="f"><span class="f-lab">Location line</span>
+          <input type="text" id="acLoc" placeholder="Vadgaon Khurd, Pune"></label>
+        <label class="f"><span class="f-lab">Offer / hook</span>
+          <input type="text" id="acOffer" placeholder="New Launch"></label>
+        <label class="f"><span class="f-lab">USPs — one per line</span>
+          <textarea id="acUsps" rows="5" placeholder="21 Acre Township&#10;70% Open-To-Sky Spaces&#10;50+ Modern Amenities&#10;Riverside Development"></textarea></label>
+        <label class="f"><span class="f-lab">Amenities — one per line</span>
+          <textarea id="acAmen" rows="4" placeholder="Swimming Pool&#10;Gymnasium&#10;Clubhouse&#10;Jogging Track"></textarea></label>
+        <label class="f"><span class="f-lab">Landmarks — Name - Time</span>
+          <textarea id="acMarks" rows="4" placeholder="Hinjewadi IT Park - 25 Mins&#10;Pune Airport - 45 Mins&#10;Kothrud - 20 Mins"></textarea></label>
+        <div class="row2">
+          <label class="f"><span class="f-lab">Path 1 <span class="count" id="p1c">0/15</span></span>
+            <input type="text" id="acP1" list="pathList" placeholder="New-Launch"></label>
+          <label class="f"><span class="f-lab">Path 2 <span class="count" id="p2c">0/15</span></span>
+            <input type="text" id="acP2" list="pathList" placeholder="Enquire-Now"></label>
+        </div>
+        <div class="f-note">Everything downstream — keywords, headlines, descriptions, callouts, sitelinks — is built from these fields. Shared across every ad group in this browser.</div>
+      </div>
+    </div>
+    <div class="card">
       <div class="card-hd"><h2>Locations</h2><span class="hint">for BL and BPL keywords</span></div>
       <div class="card-bd">
         <label class="f"><span class="f-lab">Primary micro-market</span>
@@ -475,49 +516,16 @@ code{font-family:var(--mono);background:rgba(0,0,0,.05);padding:1px 4px;border-r
         </div>
       </div>
     </div>
-    <div class="card">
-      <div class="card-hd"><h2>Project reference</h2></div>
-      <div class="card-bd">
-        <label class="f"><span class="f-lab">Final URL</span>
-          <input type="text" id="acUrl" placeholder="https://thesymphonyatdubai.com/imtiaz/" spellcheck="false"></label>
-        <div class="row2">
-          <label class="f"><span class="f-lab">Project</span>
-            <input type="text" id="acProj" placeholder="Kolte Patil Vyana"></label>
-          <label class="f"><span class="f-lab">Developer</span>
-            <input type="text" id="acDev" placeholder="Kolte Patil"></label>
-        </div>
-        <div class="row2">
-          <label class="f"><span class="f-lab">Micro-market</span>
-            <input type="text" id="acMicro" placeholder="Vadgaon"></label>
-          <label class="f"><span class="f-lab">City</span>
-            <input type="text" id="acCity" placeholder="Pune"></label>
-        </div>
-        <label class="f"><span class="f-lab">Configuration</span>
-          <input type="text" id="acCfg" placeholder="2, 2.5 &amp; 3 BHK"></label>
-        <label class="f"><span class="f-lab">Price</span>
-          <input type="text" id="acPrice" placeholder="₹ 85 Lakhs*">
-          <span class="f-note"><button class="mini-act" type="button" id="acPriceFromTk" style="margin:0">pull from ticket size</button></span></label>
-        <label class="f"><span class="f-lab">Location line</span>
-          <input type="text" id="acLoc" placeholder="Vadgaon Khurd, Pune"></label>
-        <label class="f"><span class="f-lab">Offer / hook</span>
-          <input type="text" id="acOffer" placeholder="New Launch"></label>
-        <label class="f"><span class="f-lab">USPs — one per line</span>
-          <textarea id="acUsps" rows="5" placeholder="21 Acre Township&#10;70% Open-To-Sky Spaces&#10;50+ Modern Amenities&#10;Riverside Development"></textarea></label>
-        <label class="f"><span class="f-lab">Amenities — one per line</span>
-          <textarea id="acAmen" rows="4" placeholder="Swimming Pool&#10;Gymnasium&#10;Clubhouse&#10;Jogging Track"></textarea></label>
-        <label class="f"><span class="f-lab">Landmarks — Name - Time</span>
-          <textarea id="acMarks" rows="4" placeholder="Hinjewadi IT Park - 25 Mins&#10;Pune Airport - 45 Mins&#10;Kothrud - 20 Mins"></textarea></label>
-        <div class="row2">
-          <label class="f"><span class="f-lab">Path 1 <span class="count" id="p1c">0/15</span></span>
-            <input type="text" id="acP1" list="pathList" placeholder="New-Launch"></label>
-          <label class="f"><span class="f-lab">Path 2 <span class="count" id="p2c">0/15</span></span>
-            <input type="text" id="acP2" list="pathList" placeholder="Enquire-Now"></label>
-        </div>
-        <div class="f-note">Shared across every ad group in this browser.</div>
-      </div>
-    </div>
   </div>
   <div>
+    <div class="card">
+      <div class="card-hd"><h2>Brief</h2><span class="hint" id="briefEcho">not filled</span></div>
+      <div class="card-bd">
+        <div class="callout">Project details live on the <b>Tracking URLs</b> tab, under Project brief. Everything generated here reads from there.</div>
+        <div id="briefSummary" style="margin-top:12px"></div>
+      </div>
+    </div>
+
     <div class="card">
       <div class="card-hd"><h2>Headlines</h2><span class="hint" id="hStat">0 / 15 · max 30</span></div>
       <div class="card-bd">
@@ -674,9 +682,9 @@ code{font-family:var(--mono);background:rgba(0,0,0,.05);padding:1px 4px;border-r
         <button class="btn" id="stSheet">Copy as sheet</button>
         <button class="btn" id="stKwCsv">Keywords CSV</button>
         <button class="btn" id="stAdCsv">Ads CSV</button>
-        <button class="btn" id="stCampCsv">Campaigns + tracking CSV</button>
+        <button class="btn" id="stCampCsv">Ad groups + tracking CSV</button>
       </div>
-      <div class="f-note" style="margin-top:10px">One pass builds a campaign per strategy, Phrase and Exact ad groups inside each, the keyword set for that strategy, and a full 15/4 ad in every ad group. Assets are rebuilt too.</div>
+      <div class="f-note" style="margin-top:10px">One pass builds a campaign per strategy, Phrase and Exact ad groups inside each, the keyword set for that strategy, and a full 15/4 ad in every ad group. Assets are rebuilt too. Tracking template and custom parameters are written at ad group level, one set per ad group.</div>
     </div>
   </div>
   <div class="card">
@@ -1277,7 +1285,18 @@ Object.values(PROJ_FIELDS).forEach(id=>$("#"+id).addEventListener("input",()=>{
   $("#p1c").className="count"+(PROJ.p1.length>PATH_MAX?" bad":"");
   $("#p2c").textContent=`${PROJ.p2.length}/${PATH_MAX}`;
   $("#p2c").className="count"+(PROJ.p2.length>PATH_MAX?" bad":"");
-  store.set("pp_proj",PROJ); drawPreview(); adChecks();}));
+  store.set("pp_proj",PROJ); drawPreview(); adChecks(); echoBrief();}));
+function echoBrief(){
+  const b=brief(), rows=[["Project",b.proj],["Developer",b.dev],["Micro-market",b.micro],["City",b.city],
+    ["Configuration",b.cfg],["Price",b.price],["USPs",b.usps.length||""],["Amenities",b.amen.length||""],
+    ["Landmarks",b.marks.length||""]];
+  const filled=rows.filter(r=>r[1]).length;
+  const st=$("#briefEcho"); if(st)st.innerHTML=b.proj
+    ? `<span class="pill p-ok">${filled}/9 filled</span>` : `<span class="pill p-bad">not filled</span>`;
+  const el=$("#briefSummary"); if(!el)return;
+  el.innerHTML=`<table class="kv"><tbody>`+rows.map(([k,v])=>
+    `<tr><td>${k}</td><td class="right m">${v?esc(String(v)):'<span class="pill p-mute">\u2014</span>'}</td></tr>`).join("")+`</tbody></table>`;
+}
 
 function sheetBlock(name,g){
   const H=g.h.filter(r=>r[0].trim()), D=g.d.filter(r=>r[0].trim());
@@ -1328,7 +1347,7 @@ $("#acMicro").addEventListener("input",()=>{ if(!$("#locMain").value.trim()){
 $("#p1c").textContent=`${(PROJ.p1||"").length}/${PATH_MAX}`;
 $("#p2c").textContent=`${(PROJ.p2||"").length}/${PATH_MAX}`;
 if(!ADG[ADCUR])ADCUR=Object.keys(ADG)[0]||"";
-fillAdPicker(); drawAd(); fillVariantPickers();
+fillAdPicker(); drawAd(); fillVariantPickers(); echoBrief();
 
 /* ═══════════ 04 assets ═══════════ */
 const SL_T=25, SL_D=35, CO_MAX=25, SN_MAX=25;
@@ -1768,6 +1787,10 @@ async function readLp(){
 }
 $("#impFetch").addEventListener("click",readLp);
 $("#impPasteBtn").addEventListener("click",()=>{$("#impPaste").classList.toggle("hidden");});
+$("#impManual").addEventListener("click",()=>{
+  $("#impStat").innerHTML='<span class="pill p-mute">manual</span>';
+  $("#impFound").innerHTML='<div class="callout">Type the brief into the fields below. Project name is the only one that is really needed \u2014 the more you fill, the better the generated copy.</div>';
+  const el=$("#acProj"); el.scrollIntoView({block:"center",behavior:"smooth"}); el.focus();});
 
 /* ═══════════ keyword sets per strategy ═══════════ */
 const BLOCK_DEFAULT="reviews, review, resale, rent, rental, complaints, scam, fraud, jobs, careers";
@@ -1905,21 +1928,22 @@ $("#stAdCsv").addEventListener("click",()=>{
   const hdr=["Campaign","Ad group"];
   for(let i=1;i<=H_CAP;i++)hdr.push(`Headline ${i}`,`Headline ${i} position`);
   for(let i=1;i<=D_CAP;i++)hdr.push(`Description ${i}`,`Description ${i} position`);
-  hdr.push("Final URL","Path 1","Path 2","Tracking template","Custom parameter");
+  hdr.push("Final URL","Path 1","Path 2");
   const rows=[];
   PLAN.forEach(p=>p.groups.forEach(g=>{
     const r=[p.campaign,g.name];
     for(let i=0;i<H_CAP;i++)r.push(g.ad.h[i]?g.ad.h[i][0]:"",g.ad.h[i]?g.ad.h[i][1]:"");
     for(let i=0;i<D_CAP;i++)r.push(g.ad.d[i]?g.ad.d[i][0]:"",g.ad.d[i]?g.ad.d[i][1]:"");
-    r.push(PROJ.url||$("#inLp").value.trim(),PROJ.p1,PROJ.p2,TPL[CH],custParam(g.n));
+    r.push(PROJ.url||$("#inLp").value.trim(),PROJ.p1,PROJ.p2);
     rows.push(r);}));
   dl("structure-ads.csv",hdr.map(csvq).join(",")+"\n"+rows.map(r=>r.map(csvq).join(",")).join("\n"));});
+/* Tracking template and custom parameters live at ad group level. */
 $("#stCampCsv").addEventListener("click",()=>{
   if(!PLAN.length)return toast("Build the structure first");
-  const lp=PROJ.url||$("#inLp").value.trim();
-  const rows=PLAN.map(p=>[p.campaign,TPL[CH],custParam(p.groups[0].n),lp]);
-  dl("structure-campaigns.csv",
-    ["Campaign","Tracking template","Custom parameter","Final URL"].map(csvq).join(",")+"\n"+
+  const rows=[];
+  PLAN.forEach(p=>p.groups.forEach(g=>rows.push([p.campaign,g.name,TPL[CH],custParam(g.n)])));
+  dl("structure-adgroups.csv",
+    ["Campaign","Ad group","Tracking template","Custom parameter"].map(csvq).join(",")+"\n"+
     rows.map(r=>r.map(csvq).join(",")).join("\n"));});
 $("#stSheet").addEventListener("click",()=>{
   if(!PLAN.length)return toast("Build the structure first");
