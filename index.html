@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+<script src="https://accounts.google.com/gsi/client" async defer></script>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Search Ops Toolkit · PropertyPistol</title>
@@ -204,6 +205,12 @@ code{font-family:var(--mono);background:rgba(0,0,0,.05);padding:1px 4px;border-r
     <div class="wordmark">Search Ops Toolkit <span>· Google Ads</span></div>
     <div class="spacer"></div>
     <div class="badge-env" id="varCount">0 VARIANTS</div>
+    <div id="userChip" class="hidden" style="display:flex;align-items:center;gap:9px">
+      <div class="divider-v"></div>
+      <span id="userName" style="font-size:12.5px;font-weight:500"></span>
+      <span id="userRole" class="pill p-mute"></span>
+      <button class="btn btn-sm" id="signOut">Sign out</button>
+    </div>
   </div>
 </header>
 
@@ -319,6 +326,17 @@ code{font-family:var(--mono);background:rgba(0,0,0,.05);padding:1px 4px;border-r
         </div>
         <label class="f"><span class="f-lab">Configuration</span>
           <input type="text" id="acCfg" placeholder="Enter configuration"></label>
+        <div class="row2">
+          <label class="f"><span class="f-lab">Price phrasing</span>
+            <select id="acPriceMode">
+              <option value="Starting At">Starting At</option>
+              <option value="From">From</option>
+              <option value="Onwards">Onwards</option>
+              <option value="All Inclusive">All Inclusive</option>
+            </select></label>
+          <label class="f"><span class="f-lab">All-in price?</span>
+            <select id="acAllIn"><option value="">Not stated</option><option value="yes">Yes, all inclusive</option><option value="no">No, plus charges</option></select></label>
+        </div>
         <label class="f"><span class="f-lab">Price</span>
           <input type="text" id="acPrice" placeholder="Enter starting price">
           <span class="f-note"><button class="mini-act" type="button" id="acPriceFromTk" style="margin:0">pull from ticket size</button></span></label>
@@ -577,12 +595,18 @@ code{font-family:var(--mono);background:rgba(0,0,0,.05);padding:1px 4px;border-r
       </div>
     </div>
     <div class="card">
-      <div class="card-hd"><h2>Keywords for this ad group</h2><span class="hint" id="acKwStat">0</span></div>
+      <div class="card-hd"><h2>Keywords in this ad group</h2>
+        <span class="hint" id="acKwStat">0</span></div>
       <div class="card-bd">
-        <textarea id="acKw" rows="6" spellcheck="false" placeholder="Enter one keyword per line"></textarea>
-        <div class="btnrow" style="margin-top:10px">
-          <button class="btn btn-sm" id="acKwSend">Send to keyword wrapper →</button>
+        <div id="acKwList" style="max-height:340px;overflow:auto"></div>
+        <div class="btnrow" style="margin-top:12px">
+          <input type="text" id="acKwNew" placeholder="Add a keyword and press Enter" spellcheck="false" style="flex:1;min-width:220px">
+          <button class="btn btn-sm" id="acKwAdd">Add</button>
+          <button class="btn btn-sm" id="acKwEdit">Edit as text</button>
+          <button class="btn btn-sm" id="acKwSend">Send to wrapper →</button>
         </div>
+        <textarea id="acKw" rows="7" spellcheck="false" class="hidden" style="margin-top:10px" placeholder="Enter one keyword per line"></textarea>
+        <div class="f-note" style="margin-top:8px">Removing a keyword here removes it from the export for this ad group only.</div>
       </div>
     </div>
     <div class="card">
@@ -707,6 +731,7 @@ code{font-family:var(--mono);background:rgba(0,0,0,.05);padding:1px 4px;border-r
       <div class="btnrow">
         <button class="btn btn-pri" id="stBuild">Build full campaign structure</button>
         <button class="btn btn-navy" id="stAll">Download everything (one CSV)</button>
+        <button class="btn" id="stAssetsCsv">Assets CSV (one campaign)</button>
         <button class="btn" id="stSheet">Copy as sheet</button>
         <button class="btn" id="stKwCsv">Keywords CSV</button>
         <button class="btn btn-navy" id="stAllCsv">Download everything (one CSV)</button>
@@ -774,6 +799,19 @@ code{font-family:var(--mono);background:rgba(0,0,0,.05);padding:1px 4px;border-r
 <div class="foot">PropertyPistol marketing ops · campaign naming and tracking URL builder</div>
 <div class="toast" id="toast"></div>
 
+<div class="modal" id="gate" style="background:rgba(20,22,28,.94)">
+  <div class="modal-box" style="max-width:440px;margin-top:8vh">
+    <div class="modal-hd"><h2>Sign in</h2></div>
+    <div class="modal-bd">
+      <p style="margin:0 0 16px;font-size:13.5px;color:var(--ink-soft)">
+        This workspace is restricted to <b id="gateDomain">propertypistol.com</b> accounts.</p>
+      <div id="gateBtn"></div>
+      <div id="gateMsg" style="margin-top:14px"></div>
+      <div class="f-note" style="margin-top:18px">Every build and export is recorded against your account.</div>
+    </div>
+  </div>
+</div>
+
 <script>
 /* ═══ tracking templates from the sheet ═══ */
 const TPL={
@@ -833,7 +871,7 @@ function pick(cands,max,n,used){
 const lines=s=>String(s||"").split("\n").map(x=>x.trim()).filter(Boolean);
 const FMAP={url:"acUrl",cfg:"acCfg",price:"acPrice",loc:"acLoc",p1:"acP1",p2:"acP2",
   proj:"acProj",dev:"acDev",micro:"acMicro",city:"acCity",offer:"acOffer",
-  usps:"acUsps",marks:"acMarks",amen:"acAmen"};
+  usps:"acUsps",marks:"acMarks",amen:"acAmen",priceMode:"acPriceMode",allIn:"acAllIn"};
 /* Pull straight from the inputs every time. Nothing downstream can then
    run on a stale copy of the brief. */
 function syncProj(){
@@ -1233,8 +1271,8 @@ on("#kwSheet","click",()=>{
 const H_MAX=30, D_MAX=90, H_CAP=15, D_CAP=4, PATH_MAX=15;
 let ADG=store.get("pp_adgroups",null)||{};
 let ADCUR=store.get("pp_adcur","")||"";
-const PROJ_KEYS=["url","cfg","price","loc","p1","p2","proj","dev","micro","city","offer","usps","marks","amen"];
-let PROJ=Object.assign({url:"",cfg:"",price:"",loc:"",p1:"",p2:"",proj:"",dev:"",micro:"",city:"",offer:"",usps:"",marks:"",amen:""},store.get("pp_proj",{}));
+const PROJ_KEYS=["url","cfg","price","loc","p1","p2","proj","dev","micro","city","offer","usps","marks","amen","priceMode","allIn"];
+let PROJ=Object.assign({url:"",cfg:"",price:"",loc:"",p1:"",p2:"",proj:"",dev:"",micro:"",city:"",offer:"",usps:"",marks:"",amen:"",priceMode:"Starting At",allIn:""},store.get("pp_proj",{}));
 const blankGroup=()=>({h:Array.from({length:H_CAP},()=>["",""]),d:Array.from({length:D_CAP},()=>["",""]),kw:""});
 function cur(){ if(!ADG[ADCUR])ADG[ADCUR]=blankGroup(); return ADG[ADCUR]; }
 const saveAd=()=>{store.set("pp_adgroups",ADG);store.set("pp_adcur",ADCUR);};
@@ -1272,10 +1310,9 @@ function drawAd(){
         <option value="1"${r[1]==="1"?" selected":""}>Pin 1</option>
         <option value="2"${r[1]==="2"?" selected":""}>Pin 2</option></select>
       <button class="del" data-dd="${i}" aria-label="Remove">×</button></div>`;}).join("");
-  $("#acKw").value=g.kw||"";
+  drawKwList();
   $("#hStat").textContent=`${g.h.filter(r=>r[0].trim()).length} / ${H_CAP} · max ${H_MAX}`;
   $("#dStat").textContent=`${g.d.filter(r=>r[0].trim()).length} / ${D_CAP} · max ${D_MAX}`;
-  $("#acKwStat").textContent=String((g.kw||"").split("\n").filter(s=>s.trim()).length);
   drawPreview(); adChecks();
 }
 function drawPreview(){
@@ -1386,7 +1423,7 @@ on("#acDel","click",()=>{
 const PROJ_FIELDS={url:"acUrl",cfg:"acCfg",price:"acPrice",loc:"acLoc",p1:"acP1",p2:"acP2",
   proj:"acProj",dev:"acDev",micro:"acMicro",city:"acCity",offer:"acOffer",usps:"acUsps",marks:"acMarks",amen:"acAmen"};
 Object.values(PROJ_FIELDS).forEach(id=>$("#"+id).addEventListener("input",()=>{
-  PROJ_KEYS.forEach(k=>PROJ[k]=$("#"+PROJ_FIELDS[k]).value);
+  PROJ_KEYS.forEach(k=>{const e=$("#"+PROJ_FIELDS[k]); if(e)PROJ[k]=e.value;});
   $("#p1c").textContent=`${PROJ.p1.length}/${PATH_MAX}`;
   $("#p1c").className="count"+(PROJ.p1.length>PATH_MAX?" bad":"");
   $("#p2c").textContent=`${PROJ.p2.length}/${PATH_MAX}`;
@@ -1796,78 +1833,269 @@ on("#asGen","click",()=>{
   saveAs(); drawAll(); toast("Sitelinks, callouts and snippets generated");});
 
 
-/* ═══════════ landing page import ═══════════
-   A browser can't read another domain directly, so the page text
-   comes back through a public extractor. Everything it finds is
-   dropped into editable fields — none of it is trusted blindly. */
-const AMENITY_WORDS=["Swimming Pool","Infinity Pool","Gymnasium","Gym","Clubhouse","Jogging Track",
-  "Yoga Deck","Kids Play Area","Kids Pool","Amphitheatre","Landscaped Garden","Sky Lounge",
-  "Multipurpose Court","Tennis Court","Badminton Court","Cricket Net","Skating Rink","Co-Working",
-  "Banquet Hall","Party Lawn","Senior Citizen Area","Pet Park","Cycling Track","Spa","Sauna",
-  "Concierge","Barbecue","Rooftop Deck","Meditation Zone","Indoor Games"];
-function extract(txt){
-  const T=txt.replace(/\r/g," ");
-  const out={};
-  let m=T.match(/^Title:\s*(.+)$/mi)||T.match(/^#\s+(.+)$/m);
-  if(m) out.title=m[1].split(/[|\u2013\u2014\-]{1,2}/)[0].trim().slice(0,60);
-  m=T.match(/(?:\u20b9|Rs\.?|INR)\s*([\d.,]+)\s*(Lakhs?|Lacs?|Cr\.?|Crores?)/i);
-  if(m) out.price=`\u20b9 ${m[1]} ${/^l/i.test(m[2])?"Lakhs":"Cr"}*`;
-  if(!out.price){ m=T.match(/AED\s*([\d.,]+)\s*(M|Million|K|Thousand)?/i);
-    if(m) out.price=`AED ${m[1]}${m[2]?" "+m[2].toUpperCase()[0]:""}*`; }
-  m=T.match(/((?:\d+(?:\.\d+)?\s*(?:,|&|and|\/)\s*)*\d+(?:\.\d+)?)\s*BHK/i);
-  if(m) out.cfg=`${m[1].replace(/\s*,\s*/g,", ").replace(/\s*&\s*/g," & ")} BHK`;
-  if(!out.cfg){ const br=[...new Set((T.match(/\b(?:Studio|\d\s*BR)\b/gi)||[]).map(s=>s.replace(/\s+/g,"").toUpperCase()))];
-    if(br.length) out.cfg=br.slice(0,4).join(", "); }
-  m=T.match(/\bby\s+([A-Z][A-Za-z]+(?:\s+[A-Z][A-Za-z]+){0,2})\s+(?:Group|Developers?|Realty|Builders?|Properties)/);
-  if(m) out.dev=m[1]+" "+m[0].split(/\s+/).pop();
-  const am=AMENITY_WORDS.filter(a=>new RegExp("\\b"+a.replace(/[.*+?^${}()|[\]\\]/g,"\\$&")+"\\b","i").test(T));
-  if(am.length) out.amen=am.slice(0,12);
-  const marks=[...T.matchAll(/([A-Z][A-Za-z .'\-]{3,34}?)\s*[\u2013\u2014\-:]{1,2}\s*(\d{1,3}\s*(?:mins?|minutes?|km))/gi)]
-    .map(x=>`${x[1].trim()} - ${x[2].replace(/\s+/g," ").trim()}`);
-  if(marks.length) out.marks=[...new Set(marks)].slice(0,6);
-  const usps=[...T.matchAll(/(\d{1,3}(?:\+|%)?\s*(?:Acre|Acres|Storey|Floors?|Towers?|Amenities|Open))[^\n.,;]{0,28}/gi)]
-    .map(x=>tc(x[0].trim())).filter(s=>s.length<=30);
-  if(usps.length) out.usps=[...new Set(usps)].slice(0,6);
+
+/* ═══════════ access control ═══════════
+   Google Identity Services gives a real, named sign-in. The gate below is
+   client-side, so treat it as a door with a lock, not a vault: anyone able
+   to edit the page can walk past it. Real enforcement happens in the Apps
+   Script that receives the log — it verifies the token with Google and
+   rejects anything outside the domain. Configure both. */
+const AUTH={
+  clientId : "779938081992-vecfdvvm61lalugpo3sa64bvqlhjfjqq.apps.googleusercontent.com",                                   // Google OAuth client ID
+  logUrl   : "https://script.google.com/macros/s/AKfycbxOAsPoL6GJ6p8EhhjEk0UroQmSiTaE2coPmgAH8EGDwfN-xaPDggwlkROezmwQ6iV3/exec",                                   // Apps Script web app URL
+  domain   : "propertypistol.com",
+  admin    : "sanket.shiktode@propertypistol.com"
+};
+let USER=null;
+function b64url(s){try{return JSON.parse(decodeURIComponent(atob(s.replace(/-/g,"+").replace(/_/g,"/"))
+  .split("").map(c=>"%"+("00"+c.charCodeAt(0).toString(16)).slice(-2)).join("")));}catch(e){return null;}}
+function logEvent(action,detail){
+  if(!AUTH.logUrl||!USER)return;
+  try{
+    fetch(AUTH.logUrl,{method:"POST",mode:"no-cors",headers:{"Content-Type":"text/plain"},
+      body:JSON.stringify({credential:USER.credential,email:USER.email,name:USER.name,
+        action,detail:String(detail||"").slice(0,500),ts:new Date().toISOString()})});
+  }catch(e){}
+}
+function showUser(){
+  $("#gate").classList.remove("on");
+  $("#userChip").classList.remove("hidden");
+  $("#userName").textContent=USER.name||USER.email;
+  const admin=USER.email.toLowerCase()===AUTH.admin.toLowerCase();
+  $("#userRole").textContent=admin?"ADMIN":"USER";
+  $("#userRole").className="pill "+(admin?"p-ok":"p-mute");
+}
+function onCredential(res){
+  const p=b64url((res.credential||"").split(".")[1]||"");
+  if(!p)return $("#gateMsg").innerHTML='<div class="check c-bad"><span class="ic">\u2715</span><span>Could not read that sign-in.</span></div>';
+  const dom=(p.hd||"").toLowerCase(), email=(p.email||"").toLowerCase();
+  if(dom!==AUTH.domain&&!email.endsWith("@"+AUTH.domain)){
+    $("#gateMsg").innerHTML=`<div class="check c-bad"><span class="ic">\u2715</span><span><b>${esc(email)}</b> is outside ${esc(AUTH.domain)}. Sign in with your work account.</span></div>`;
+    return;
+  }
+  USER={email,name:p.name||email,picture:p.picture,credential:res.credential};
+  try{sessionStorage.setItem("pp_user",JSON.stringify(USER));}catch(e){}
+  showUser(); logEvent("sign-in","");
+}
+function initAuth(){
+  $("#gateDomain").textContent=AUTH.domain;
+  if(!AUTH.clientId){
+    $("#gate").classList.remove("on");
+    $("#userChip").classList.remove("hidden");
+    $("#userName").textContent="Sign-in not configured";
+    $("#userRole").textContent="OPEN"; $("#userRole").className="pill p-warn";
+    return;
+  }
+  try{const s=sessionStorage.getItem("pp_user"); if(s){USER=JSON.parse(s);showUser();return;}}catch(e){}
+  $("#gate").classList.add("on");
+  const start=()=>{
+    if(!(window.google&&google.accounts&&google.accounts.id))return setTimeout(start,300);
+    google.accounts.id.initialize({client_id:AUTH.clientId,callback:onCredential,
+      hd:AUTH.domain,auto_select:true});
+    google.accounts.id.renderButton($("#gateBtn"),{theme:"outline",size:"large",width:360,text:"signin_with"});
+  };
+  start();
+}
+on("#signOut","click",()=>{
+  logEvent("sign-out","");
+  try{sessionStorage.removeItem("pp_user");}catch(e){}
+  if(window.google&&google.accounts&&google.accounts.id)google.accounts.id.disableAutoSelect();
+  location.reload();
+});
+
+/* ═══════════ landing page capture ═══════════
+   Four passes over the page: structured data, meta tags, labelled
+   fields, then free text. Whatever each pass finds is shown with its
+   source so you can see what is solid and what is a guess. */
+const READERS=[
+  u=>`https://r.jina.ai/${u}`,
+  u=>`https://api.allorigins.win/raw?url=${encodeURIComponent(u)}`,
+  u=>`https://corsproxy.io/?${encodeURIComponent(u)}`,
+  u=>`https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(u)}`
+];
+const AMEN_DICT=["Swimming Pool","Infinity Pool","Kids Pool","Gymnasium","Gym","Clubhouse","Club House",
+ "Jogging Track","Yoga Deck","Yoga Zone","Kids Play Area","Amphitheatre","Amphitheater","Landscaped Garden",
+ "Sky Lounge","Multipurpose Court","Multipurpose Hall","Tennis Court","Badminton Court","Basketball Court",
+ "Cricket Net","Skating Rink","Co-Working","Coworking","Banquet Hall","Party Lawn","Senior Citizen",
+ "Pet Park","Cycling Track","Spa","Sauna","Steam Room","Concierge","Barbecue","Barbeque","Rooftop Deck",
+ "Meditation Zone","Indoor Games","Squash Court","Library","Creche","Day Care","Business Centre",
+ "Swimming","Sports Court","Open Gym","Reflexology","Pergola","Gazebo","Water Feature","Toddler Zone"];
+function stripTags(html){
+  return html.replace(/<script[\s\S]*?<\/script>/gi," ").replace(/<style[\s\S]*?<\/style>/gi," ")
+    .replace(/<[^>]+>/g," ").replace(/&nbsp;/gi," ").replace(/&amp;/gi,"&")
+    .replace(/&#8377;|&rupee;/gi,"\u20b9").replace(/&[a-z]+;/gi," ").replace(/\s+/g," ");
+}
+function jsonLd(html){
+  const out=[];
+  const re=/<script[^>]+application\/ld\+json[^>]*>([\s\S]*?)<\/script>/gi; let m;
+  while((m=re.exec(html))){ try{ const j=JSON.parse(m[1].trim());
+    (Array.isArray(j)?j:[j]).forEach(x=>out.push(x)); }catch(e){} }
   return out;
 }
+function metaOf(html,prop){
+  const re=new RegExp(`<meta[^>]+(?:property|name)=["']${prop}["'][^>]+content=["']([^"']+)["']`,"i");
+  const m=html.match(re); if(m)return m[1].trim();
+  const re2=new RegExp(`<meta[^>]+content=["']([^"']+)["'][^>]+(?:property|name)=["']${prop}["']`,"i");
+  const m2=html.match(re2); return m2?m2[1].trim():"";
+}
+function capture(raw){
+  const isHtml=/<\/?[a-z][\s\S]*>/i.test(raw);
+  const html=isHtml?raw:"";
+  const T=isHtml?stripTags(raw):raw.replace(/\s+/g," ");
+  const g={}, src={};
+  const take=(k,v,from)=>{ if(v&&!g[k]){ g[k]=String(v).trim(); src[k]=from; } };
+
+  /* 1 — structured data */
+  jsonLd(html).forEach(j=>{
+    take("proj",j.name,"structured data");
+    if(j.address){ take("micro",j.address.addressLocality,"structured data");
+      take("city",j.address.addressRegion||j.address.addressLocality,"structured data"); }
+    if(j.offers){ const o=Array.isArray(j.offers)?j.offers[0]:j.offers;
+      if(o&&o.price)take("price",(o.priceCurrency==="AED"?"AED ":"\u20b9")+o.price,"structured data"); }
+    if(j.brand)take("dev",typeof j.brand==="string"?j.brand:j.brand.name,"structured data");
+  });
+
+  /* 2 — meta tags */
+  if(html){
+    const t=metaOf(html,"og:title")||(html.match(/<title[^>]*>([^<]+)<\/title>/i)||[])[1]||"";
+    take("proj",t.split(/[|\u2013\u2014]|\s-\s/)[0].trim(),"page title");
+    take("desc",metaOf(html,"og:description")||metaOf(html,"description"),"meta description");
+    const site=metaOf(html,"og:site_name"); take("dev",site,"meta");
+  } else {
+    const t=(T.match(/^Title:\s*(.+?)$/mi)||[])[1]; take("proj",t?t.split(/[|\u2013\u2014]|\s-\s/)[0].trim():"","page title");
+  }
+
+  /* 3 — labelled fields, e.g. "Configuration : 2 & 3 BHK" */
+  const label=(names,key,from)=>{
+    const re=new RegExp(`(?:${names})\\s*[:\\-\u2013]\\s*([^|\\n\u2022]{2,60})`,"i");
+    const m=T.match(re); if(m)take(key,m[1].trim().replace(/\\s{2,}/g," "),from);
+  };
+  label("configuration|configurations|typology|unit types?","cfg","labelled field");
+  label("price|pricing|starting price|starts at","price","labelled field");
+  label("location|address|micro market","loc","labelled field");
+  label("developer|builder|by","dev","labelled field");
+  label("possession|handover","possession","labelled field");
+  label("rera|rera no\\.?|rera number","rera","labelled field");
+
+  /* 4 — free text */
+  let m;
+  if(!g.price){
+    m=T.match(/(?:\u20b9|Rs\.?|INR)\s*([\d.,]+)\s*(Lakhs?|Lacs?|Cr\.?|Crores?)/i);
+    if(m)take("price",`\u20b9${m[1]} ${/^l/i.test(m[2])?"Lakhs":"Cr"}`,"page text");
+  }
+  if(!g.price){ m=T.match(/AED\s*([\d.,]+)\s*(M|Million|K|Thousand)?/i);
+    if(m)take("price",`AED ${m[1]}${m[2]?" "+m[2][0].toUpperCase():""}`,"page text"); }
+  g.allIn = /all[\s-]?inclusive|all[\s-]?in\s+price|inclusive of all/i.test(T) ? "yes"
+          : /\+\s*(?:gst|stamp duty|registration|other charges)|plus\s+(?:gst|taxes|charges)/i.test(T) ? "no" : "";
+  if(!g.cfg){
+    m=T.match(/((?:\d+(?:\.\d+)?\s*(?:,|&|and|\/)\s*)*\d+(?:\.\d+)?)\s*BHK/i);
+    if(m)take("cfg",`${m[1].replace(/\s*,\s*/g,", ").replace(/\s*&\s*/g," & ")} BHK`,"page text");
+  }
+  if(!g.cfg){ const br=[...new Set((T.match(/\b(?:Studio|\d\s?BR)\b/gi)||[]).map(s=>s.replace(/\s+/g,"").toUpperCase()))];
+    if(br.length)take("cfg",br.slice(0,4).join(", "),"page text"); }
+  if(!g.rera){ m=T.match(/\b([A-Z]\d{5,}[A-Z0-9]*)\b/); if(m)take("rera",m[1],"page text"); }
+
+  const amen=[...new Set(AMEN_DICT.filter(a=>new RegExp("\\b"+a.replace(/[.*+?^${}()|[\]\\]/g,"\\$&")+"\\b","i").test(T)))];
+  const marks=[...new Set([...T.matchAll(/([A-Z][A-Za-z .'\-]{3,34}?)\s*[\u2013\u2014\-:]{1,2}\s*(\d{1,3}\s*(?:mins?|minutes?|km))/gi)]
+    .map(x=>`${x[1].trim()} - ${x[2].replace(/\s+/g," ")}`))];
+  const usps=[...new Set([...T.matchAll(/(\d{1,3}(?:\+|%)?)\s*(Acres?|Storey|Storeys|Floors?|Towers?|Amenities|Units?)\b[^.,;|\n]{0,20}/gi)]
+    .map(x=>tc(x[0].trim())).filter(s=>s.length<=30))];
+  return {g,src,amen:amen.slice(0,14),marks:marks.slice(0,8),usps:usps.slice(0,8),chars:T.length};
+}
 async function readLp(){
-  const url=$("#inLp").value.trim();
-  const pasted=$("#impPaste").value.trim();
-  let txt=pasted;
+  const url=$("#inLp").value.trim(), pasted=$("#impPaste").value.trim();
+  let txt=pasted, via=pasted?"pasted text":"";
   if(!txt){
     if(!url)return toast("Put the landing page URL in first");
-    $("#impStat").textContent="reading\u2026";
-    const tries=[`https://r.jina.ai/${url}`,
-                 `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`];
-    for(const t of tries){
-      try{ const r=await fetch(t); if(!r.ok)continue; txt=await r.text(); if(txt&&txt.length>200)break; }
+    $("#impStat").innerHTML='<span class="pill p-mute">reading\u2026</span>';
+    for(const mk of READERS){
+      try{ const r=await fetch(mk(url)); if(!r.ok)continue;
+        const t=await r.text(); if(t&&t.length>400){txt=t;via=new URL(mk(url)).hostname;break;} }
       catch(e){}
     }
   }
   if(!txt||txt.length<200){
     $("#impStat").innerHTML='<span class="pill p-bad">blocked</span>';
     $("#impPaste").classList.remove("hidden");
-    return toast("Couldn't reach the page \u2014 paste the text instead");
+    $("#impFound").innerHTML=`<div class="callout warn">Every reader was blocked by the site. Open the page, select all, copy, and paste it into the box above \u2014 the parser treats pasted HTML and plain text the same way.</div>`;
+    return;
   }
-  const g=extract(txt);
-  const set=(id,v)=>{ if(v&&!$("#"+id).value){ $("#"+id).value=v; $("#"+id).dispatchEvent(new Event("input",{bubbles:true})); } };
-  set("acProj",g.title); set("acPrice",g.price); set("acCfg",g.cfg); set("acDev",g.dev);
-  if(g.usps) set("acUsps",g.usps.join("\n"));
-  if(g.marks) set("acMarks",g.marks.join("\n"));
-  if(g.amen) set("acAmen",g.amen.join("\n"));
-  const rows=[["Project",g.title],["Developer",g.dev],["Configuration",g.cfg],["Price",g.price],
-    ["USPs",(g.usps||[]).length],["Landmarks",(g.marks||[]).length],["Amenities",(g.amen||[]).length]];
-  $("#impFound").innerHTML=`<table class="kv"><tbody>`+rows.map(([k,v])=>
-    `<tr><td>${k}</td><td class="right m">${v?esc(String(v)):'<span class="pill p-bad">not found</span>'}</td></tr>`).join("")+`</tbody></table>`;
+  const r=capture(txt);
+  const set=(id,v)=>{ const e=$("#"+id); if(e&&v&&!e.value){ e.value=v; e.dispatchEvent(new Event("input",{bubbles:true})); } };
+  set("acProj",r.g.proj); set("acDev",r.g.dev); set("acCfg",r.g.cfg);
+  set("acPrice",r.g.price); set("acLoc",r.g.loc);
+  if(r.g.allIn){ const e=$("#acAllIn"); if(e&&!e.value){e.value=r.g.allIn;e.dispatchEvent(new Event("change",{bubbles:true}));} }
+  if(r.usps.length)set("acUsps",r.usps.join("\n"));
+  if(r.amen.length)set("acAmen",r.amen.join("\n"));
+  if(r.marks.length)set("acMarks",r.marks.join("\n"));
+  const row=(k,v,s)=>`<tr><td>${k}</td><td class="m">${v?esc(String(v)):'<span class="pill p-bad">not found</span>'}</td>
+    <td class="right"><span class="pill ${v?"p-ok":"p-mute"}">${v?esc(s||"page text"):"\u2014"}</span></td></tr>`;
+  $("#impFound").innerHTML=`<table class="kv"><tbody>
+    ${row("Project",r.g.proj,r.src.proj)}${row("Developer",r.g.dev,r.src.dev)}
+    ${row("Configuration",r.g.cfg,r.src.cfg)}${row("Price",r.g.price,r.src.price)}
+    ${row("All-inclusive",r.g.allIn,"page text")}${row("Location",r.g.loc,r.src.loc)}
+    ${row("Possession",r.g.possession,r.src.possession)}${row("RERA",r.g.rera,r.src.rera)}
+    ${row("USPs",r.usps.length||"","page text")}${row("Amenities",r.amen.length||"","dictionary match")}
+    ${row("Landmarks",r.marks.length||"","page text")}
+    </tbody></table><div class="f-note" style="margin-top:8px">Read ${r.chars.toLocaleString()} characters via ${esc(via)}. Only empty fields were filled \u2014 nothing you typed was overwritten.</div>`;
   $("#impStat").innerHTML='<span class="pill p-ok">read</span>';
-  toast("Brief filled \u2014 check it on the Ad copy tab");
+  logEvent("lp-read",url);
+  toast("Brief filled \u2014 check it before generating");
 }
-on("#impFetch","click",readLp);
-on("#impPasteBtn","click",()=>{$("#impPaste").classList.toggle("hidden");});
-on("#impManual","click",()=>{
-  $("#impStat").innerHTML='<span class="pill p-mute">manual</span>';
-  $("#impFound").innerHTML='<div class="callout">Type the brief into the fields below. Project name is the only one that is really needed \u2014 the more you fill, the better the generated copy.</div>';
-  const el=$("#acProj"); if(el){ if(el.scrollIntoView)el.scrollIntoView({block:"center",behavior:"smooth"}); el.focus(); }});
+
+
+/* ═══════════ price wording ═══════════ */
+function pricePhrase(){
+  const p=(PROJ.price||"").trim(); if(!p)return "";
+  const mode=$("#acPriceMode")?$("#acPriceMode").value:"Starting At";
+  const allIn=$("#acAllIn")?$("#acAllIn").value:"";
+  if(mode==="Onwards")return `${p} Onwards*`;
+  if(mode==="All Inclusive"||allIn==="yes")return `${p} All Inclusive*`;
+  return `${mode} ${p}*`;
+}
+const priceShort=()=>{const p=(PROJ.price||"").trim();return p?p+"*":"";};
+
+/* ═══════════ keyword review inside an ad group ═══════════ */
+function kwOf(){ return (cur().kw||"").split("\n").map(s=>s.trim()).filter(Boolean); }
+function setKw(list){ cur().kw=list.join("\n"); saveAd(); drawKwList(); }
+function drawKwList(){
+  if(!ADCUR||!ADG[ADCUR]){ $("#acKwList").innerHTML=`<div class="empty">No ad group selected.</div>`;
+    $("#acKwStat").textContent="0"; return; }
+  const list=kwOf();
+  $("#acKwStat").textContent=`${list.length} keyword${list.length===1?"":"s"}`;
+  $("#acKwList").innerHTML=list.length
+    ? list.map((k,i)=>`<div class="acrow" style="grid-template-columns:26px 1fr 30px;margin-bottom:5px">
+        <span class="sr">${i+1}</span>
+        <input type="text" data-kwi="${i}" value="${esc(k)}" spellcheck="false" style="font-family:var(--mono);font-size:12.5px">
+        <button class="del" data-kwx="${i}" aria-label="Remove">\u00d7</button></div>`).join("")
+    : `<div class="empty">No keywords yet. Build the structure or add them below.</div>`;
+  $("#acKw").value=list.join("\n");
+}
+on("#acKwList","input",e=>{ const i=e.target.dataset.kwi; if(i===undefined)return;
+  const l=kwOf(); l[+i]=e.target.value; cur().kw=l.join("\n"); saveAd();
+  $("#acKwStat").textContent=`${l.filter(Boolean).length} keywords`; });
+on("#acKwList","click",e=>{ const i=e.target.dataset.kwx; if(i===undefined)return;
+  const l=kwOf(); l.splice(+i,1); setKw(l); syncPlanKw(); });
+function addKw(){
+  const v=$("#acKwNew").value.trim(); if(!v)return;
+  const l=kwOf();
+  v.split(/[\n,]/).map(s=>s.trim()).filter(Boolean).forEach(k=>{ if(!l.some(x=>x.toLowerCase()===k.toLowerCase()))l.push(k); });
+  $("#acKwNew").value=""; setKw(l); syncPlanKw();
+}
+on("#acKwAdd","click",addKw);
+on("#acKwNew","keydown",e=>{ if(e.key==="Enter"){e.preventDefault();addKw();} });
+on("#acKwEdit","click",()=>{
+  const ta=$("#acKw"), open=!ta.classList.contains("hidden");
+  if(open){ setKw(ta.value.split("\n").map(s=>s.trim()).filter(Boolean)); syncPlanKw(); ta.classList.add("hidden"); }
+  else { ta.value=kwOf().join("\n"); ta.classList.remove("hidden"); ta.focus(); }
+});
+/* edits made here must reach the export */
+function syncPlanKw(){
+  PLAN.forEach(p=>p.groups.forEach(g=>{
+    if(ADG[g.name]) g.kws=(ADG[g.name].kw||"").split("\n").map(s=>s.trim()).filter(Boolean);
+  }));
+  if(typeof drawPlan==="function")drawPlan();
+}
 
 /* ═══════════ keyword sets per strategy ═══════════ */
 const BLOCK_DEFAULT="reviews, review, resale, rent, rental, complaints, scam, fraud, jobs, careers";
@@ -1917,12 +2145,17 @@ function adFor(kws){
   const b=brief(), used=new Set(), H=[];
   const kwH=kws.filter(k=>!blocked(k)).slice(0,14).map(k=>tc(k));
   pick(kwH,H_MAX,5,used).forEach(t=>H.push([t,"1"]));
-  const money=[b.cfg&&b.price?`${b.cfg} From ${b.price}`:"",
-    b.cfg&&b.price?`Luxury ${b.cfg} At ${b.price}`:"",
-    b.cfg&&b.price?`${b.cfg} | ${b.price}`:"",
+  const mode=$("#acPriceMode")?$("#acPriceMode").value:"Starting At";
+  const allIn=$("#acAllIn")?$("#acAllIn").value:"";
+  const P=(b.price||"").trim();
+  const money=[
+    b.cfg&&P?(mode==="Onwards"?`${b.cfg} ${P} Onwards`:`${b.cfg} ${mode} ${P}`):"",
+    b.cfg&&P?`Luxury ${b.cfg} At ${P}`:"",
+    b.cfg&&P?`${b.cfg} | ${P}`:"",
+    P&&allIn==="yes"?`${P} All Inclusive`:"",
     b.cfg?`Spacious ${b.cfg} Homes`:"",
-    b.price?`Homes Starting ${b.price}`:"",
-    b.cfg&&b.price?`Premium ${b.cfg} ${b.price}`:""].filter(Boolean);
+    P?`Homes ${mode==="Onwards"?P+" Onwards":mode+" "+P}`:"",
+    b.cfg&&P?`Premium ${b.cfg} ${P}`:""].filter(Boolean);
   pick(money,H_MAX,5,used).forEach(t=>H.push([t,"2"]));
   const usp=pick(b.usps.map(tc),H_MAX,4,used);
   usp.forEach(t=>H.push([t,"3"]));
@@ -1936,15 +2169,21 @@ function adFor(kws){
   const u=b.usps.map(tc), m=b.marks.map(tc);
   const where=[b.micro||locList()[0],b.city].filter(Boolean).join(", ");
   const dUsed=new Set();
+  const price=pricePhrase();
+  const CTA=["Book A Free Site Visit","Download The Brochure","Enquire For Floor Plans","Get The Price List"];
+  /* pinned 1 — project, location, configuration, price */
   const p1=pick([
-    compose([`${b.proj} ${b.micro||locList()[0]} \u2014 ${b.cfg}`, b.price&&`From ${b.price}`, u[0]],D_MAX),
-    compose([`${b.cfg} At ${b.proj}, ${where}`, b.price&&`From ${b.price}`, "Book A Free Site Visit"],D_MAX),
-    compose([`${b.proj} In ${where}`, b.cfg&&`${b.cfg} From ${b.price}`, u[1]||u[0]],D_MAX)
+    compose([`${b.proj}, ${where}`, b.cfg, price],D_MAX),
+    compose([`${b.cfg} At ${b.proj}, ${where}`, price],D_MAX),
+    compose([`${b.proj} ${b.micro||""} \u2014 ${b.cfg}`, price],D_MAX),
+    compose([`${b.proj} In ${where}`, b.cfg&&`${b.cfg} ${price}`],D_MAX)
   ].filter(Boolean),D_MAX,2,dUsed).map(t=>[t,"1"]);
+  /* pinned 2 — USP and a call to action */
   const p2=pick([
-    compose([u[0]&&u[1]?`${u[0]} & ${u[1]} At ${b.proj}`:`${u[0]||"Premium Homes"} At ${b.proj}`,"Download The Brochure"],D_MAX),
-    compose([u[2]||u[0]||"World-Class Amenities", m[0], "Get Price List"],D_MAX),
-    compose([`${b.offer||"New Launch"} At ${b.proj}`, u[3]||u[1]||"", "Enquire Now"],D_MAX)
+    compose([u[0]&&u[1]?`${u[0]} & ${u[1]}`:(u[0]||"Premium Homes"), CTA[0]],D_MAX),
+    compose([u[2]||u[1]||u[0]||"World-Class Amenities", m[0], CTA[1]],D_MAX),
+    compose([`${b.offer||"New Launch"} At ${b.proj}`, u[3]||u[0]||"", CTA[2]],D_MAX),
+    compose([m[0]||u[0]||"Prime Location", CTA[3]],D_MAX)
   ].filter(Boolean),D_MAX,2,dUsed).map(t=>[t,"2"]);
   const D=[...p1,...p2]; while(D.length<D_CAP)D.push(["",""]);
   return {h:H.slice(0,H_CAP),d:D.slice(0,D_CAP)};
@@ -1988,6 +2227,7 @@ on("#stBuild","click",()=>{
   ADCUR=PLAN[0].groups[0].name; saveAd(); fillAdPicker(); drawAd();
   $("#asGen").click();
   drawPlan();
+  logEvent("build",`${PLAN.length} campaigns`);
   $("#stStat").innerHTML=`<span class="pill p-ok">${PLAN.length} campaigns \u00b7 ${PLAN.reduce((a,p)=>a+p.groups.length,0)} ad groups</span>`;
   toast("Structure built");
 });
@@ -2175,8 +2415,8 @@ function masterCsv(){
     });
   });
 
-  /* assets attach at campaign level, one set per campaign */
-  [...seenCamp].forEach(camp=>{
+  /* assets go against the first campaign only — copy them across in Editor */
+  [...seenCamp].slice(0,1).forEach(camp=>{
     AS.co.filter(Boolean).forEach(t=>{
       const r=blank(); put(r,"Campaign",camp); put(r,"Callout text",t);
       put(r,"Status","Enabled"); rows.push(r);
@@ -2200,10 +2440,28 @@ function masterCsv(){
 on("#stAll","click",()=>{
   if(!PLAN.length)return toast("Build the structure first");
   dl("google-ads-import.csv",masterCsv());
+  logEvent("export","full structure");
   const goals=$("#cgGoals")?$("#cgGoals").value:"";
   toast(`Exported. Set objective and goals in the interface: ${goals}`);
 });
 
+/* Assets are the same for every campaign, so the file carries one name
+   and you paste it across the rest. */
+on("#stAssetsCsv","click",()=>{
+  if(!PLAN.length)return toast("Build the structure first");
+  const camp=PLAN[0].campaign;
+  const lp=PROJ.url||$("#inLp").value.trim();
+  const H=["Campaign","Callout text","Sitelink text","Sitelink description 1","Sitelink description 2",
+    "Sitelink final URL","Structured snippet header","Structured snippet values","Status"];
+  const rows=[];
+  AS.co.filter(Boolean).forEach(t=>rows.push([camp,t,"","","","","","","Enabled"]));
+  AS.sl.filter(x=>x[0]).forEach(s=>rows.push([camp,"",s[0],s[1],s[2],slUrl(s[0],s[3])||lp,"","","Enabled"]));
+  AS.sn.forEach(([hd,v])=>{ const vv=v.filter(x=>x.trim()); if(vv.length<3)return;
+    rows.push([camp,"","","","","",hd,vv.join(";"),"Enabled"]); });
+  if(!rows.length)return toast("No assets yet — generate them on the Assets tab");
+  dl("assets-one-campaign.csv",H.map(csvq).join(",")+"\n"+rows.map(r=>r.map(csvq).join(",")).join("\n"));
+  logEvent("export","assets");
+});
 on("#stSheet","click",()=>{
   if(!PLAN.length)return toast("Build the structure first");
   let out=`OBJECTIVE\t${$("#cgObj")?$("#cgObj").value:""}\nCONVERSION GOALS\t${$("#cgGoals")?$("#cgGoals").value:""}\nBUDGET\t${$("#cgBudget")?$("#cgBudget").value:""}\nBID STRATEGY\t${$("#cgBid")?$("#cgBid").value:""}\n\n`;
@@ -2224,6 +2482,8 @@ $("#asBase").value=AS.base||"";
 drawAll();
 
 
+
+initAuth();
 </script>
 </body>
 </html>
