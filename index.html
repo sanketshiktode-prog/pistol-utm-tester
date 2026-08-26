@@ -241,12 +241,12 @@ code{font-family:var(--mono);background:rgba(0,0,0,.05);padding:1px 4px;border-r
 
         <label class="f">
           <span class="f-lab">Landing page URL <em>*</em></span>
-          <input type="url" id="inLp" placeholder="https://www.propertypistol.com/project/..." spellcheck="false">
+          <input type="url" id="inLp" placeholder="https://yourproject.com/" spellcheck="false">
         </label>
 
         <label class="f">
           <span class="f-lab">CRM enquiry name <em>*</em></span>
-          <input type="text" id="inEnq" placeholder="Kolte Patil Vyana Pune" spellcheck="false">
+          <input type="text" id="inEnq" placeholder="Enter CRM enquiry name" spellcheck="false">
           <span class="f-note">Spaces become hyphens. Must match the CRM enquiry exactly.</span>
         </label>
 
@@ -269,7 +269,7 @@ code{font-family:var(--mono);background:rgba(0,0,0,.05);padding:1px 4px;border-r
         <div class="f">
           <span class="f-lab">Ticket size <span id="tkCur" class="pill p-mute">INR</span></span>
           <div class="ticket">
-            <input type="text" id="tkA" placeholder="45" inputmode="decimal" spellcheck="false">
+            <input type="text" id="tkA" placeholder="Amount" inputmode="decimal" spellcheck="false">
             <select id="tkAU"></select>
             <span class="dash">–</span>
             <input type="text" id="tkB" placeholder="optional" inputmode="decimal" spellcheck="false">
@@ -304,34 +304,34 @@ code{font-family:var(--mono);background:rgba(0,0,0,.05);padding:1px 4px;border-r
       <div class="card-hd"><h2>Project brief</h2></div>
       <div class="card-bd">
         <label class="f"><span class="f-lab">Final URL</span>
-          <input type="text" id="acUrl" placeholder="https://thesymphonyatdubai.com/imtiaz/" spellcheck="false"></label>
+          <input type="text" id="acUrl" placeholder="https://yourproject.com/" spellcheck="false"></label>
         <div class="row2">
           <label class="f"><span class="f-lab">Project</span>
-            <input type="text" id="acProj" placeholder="Kolte Patil Vyana"></label>
+            <input type="text" id="acProj" placeholder="Enter project name"></label>
           <label class="f"><span class="f-lab">Developer</span>
-            <input type="text" id="acDev" placeholder="Kolte Patil"></label>
+            <input type="text" id="acDev" placeholder="Enter developer name"></label>
         </div>
         <div class="row2">
           <label class="f"><span class="f-lab">Micro-market</span>
-            <input type="text" id="acMicro" placeholder="Vadgaon"></label>
+            <input type="text" id="acMicro" placeholder="Enter micro-market"></label>
           <label class="f"><span class="f-lab">City</span>
-            <input type="text" id="acCity" placeholder="Pune"></label>
+            <input type="text" id="acCity" placeholder="Enter city"></label>
         </div>
         <label class="f"><span class="f-lab">Configuration</span>
-          <input type="text" id="acCfg" placeholder="2, 2.5 &amp; 3 BHK"></label>
+          <input type="text" id="acCfg" placeholder="Enter configuration"></label>
         <label class="f"><span class="f-lab">Price</span>
-          <input type="text" id="acPrice" placeholder="₹ 85 Lakhs*">
+          <input type="text" id="acPrice" placeholder="Enter starting price">
           <span class="f-note"><button class="mini-act" type="button" id="acPriceFromTk" style="margin:0">pull from ticket size</button></span></label>
         <label class="f"><span class="f-lab">Location line</span>
-          <input type="text" id="acLoc" placeholder="Vadgaon Khurd, Pune"></label>
+          <input type="text" id="acLoc" placeholder="Enter location line"></label>
         <label class="f"><span class="f-lab">Offer / hook</span>
-          <input type="text" id="acOffer" placeholder="New Launch"></label>
+          <input type="text" id="acOffer" placeholder="Enter offer or hook"></label>
         <label class="f"><span class="f-lab">USPs — one per line</span>
-          <textarea id="acUsps" rows="5" placeholder="21 Acre Township&#10;70% Open-To-Sky Spaces&#10;50+ Modern Amenities&#10;Riverside Development"></textarea></label>
+          <textarea id="acUsps" rows="5" placeholder="Enter one USP per line"></textarea></label>
         <label class="f"><span class="f-lab">Amenities — one per line</span>
-          <textarea id="acAmen" rows="4" placeholder="Swimming Pool&#10;Gymnasium&#10;Clubhouse&#10;Jogging Track"></textarea></label>
+          <textarea id="acAmen" rows="4" placeholder="Enter one amenity per line"></textarea></label>
         <label class="f"><span class="f-lab">Landmarks — Name - Time</span>
-          <textarea id="acMarks" rows="4" placeholder="Hinjewadi IT Park - 25 Mins&#10;Pune Airport - 45 Mins&#10;Kothrud - 20 Mins"></textarea></label>
+          <textarea id="acMarks" rows="4" placeholder="Enter one landmark per line, as Name - Time"></textarea></label>
         <div class="row2">
           <label class="f"><span class="f-lab">Path 1 <span class="count" id="p1c">0/15</span></span>
             <input type="text" id="acP1" list="pathList" placeholder="New-Launch"></label>
@@ -345,9 +345,9 @@ code{font-family:var(--mono);background:rgba(0,0,0,.05);padding:1px 4px;border-r
       <div class="card-hd"><h2>Locations</h2><span class="hint">for BL and BPL keywords</span></div>
       <div class="card-bd">
         <label class="f"><span class="f-lab">Primary micro-market</span>
-          <input type="text" id="locMain" placeholder="Vadgaon" spellcheck="false"></label>
+          <input type="text" id="locMain" placeholder="Enter primary micro-market" spellcheck="false"></label>
         <label class="f"><span class="f-lab">Secondary locations — one per line</span>
-          <textarea id="locAlt" rows="4" spellcheck="false" placeholder="Dadar West&#10;Matunga&#10;Prabhadevi"></textarea>
+          <textarea id="locAlt" rows="4" spellcheck="false" placeholder="Enter one extra location per line"></textarea>
           <span class="f-note">Every location gets its own Brand-Location and Brand-Project-Location keyword set.</span></label>
       </div>
     </div>
@@ -445,7 +445,7 @@ code{font-family:var(--mono);background:rgba(0,0,0,.05);padding:1px 4px;border-r
     <div class="card">
       <div class="card-hd"><h2>Paste keywords</h2><span class="hint" id="kwIn">0 lines</span></div>
       <div class="card-bd">
-        <textarea id="kwRaw" rows="14" spellcheck="false" placeholder="imtiaz dubai&#10;imtiaz projects in dubai&#10;imtiaz developments dubai&#10;imtiaz property dubai&#10;imtiaz real estate dubai"></textarea>
+        <textarea id="kwRaw" rows="14" spellcheck="false" placeholder="Enter one keyword per line"></textarea>
         <div class="f-note">One per line, or comma separated. Both work.</div>
         <div class="btnrow" style="margin-top:10px">
           <button class="btn btn-pri btn-sm" id="kwGen">Generate from brief</button>
@@ -472,9 +472,9 @@ code{font-family:var(--mono);background:rgba(0,0,0,.05);padding:1px 4px;border-r
       <div class="card-hd"><h2>Editor export</h2></div>
       <div class="card-bd">
         <label class="f"><span class="f-lab">Campaign</span>
-          <input type="text" id="kwCamp" placeholder="pick a variant below or type it" spellcheck="false"></label>
+          <input type="text" id="kwCamp" placeholder="Enter campaign name" spellcheck="false"></label>
         <label class="f"><span class="f-lab">Ad group</span>
-          <input type="text" id="kwAdg" placeholder="Ad group name" spellcheck="false"></label>
+          <input type="text" id="kwAdg" placeholder="Enter ad group name" spellcheck="false"></label>
         <label class="f"><span class="f-lab">Fill from a variant</span>
           <select id="kwPick"><option value="">— build variants on tab 01 —</option></select></label>
       </div>
@@ -553,7 +553,7 @@ code{font-family:var(--mono);background:rgba(0,0,0,.05);padding:1px 4px;border-r
     <div class="card">
       <div class="card-hd"><h2>Keywords for this ad group</h2><span class="hint" id="acKwStat">0</span></div>
       <div class="card-bd">
-        <textarea id="acKw" rows="6" spellcheck="false" placeholder="imtiaz nad al sheba dubai&#10;imtiaz bu kadra dubai"></textarea>
+        <textarea id="acKw" rows="6" spellcheck="false" placeholder="Enter one keyword per line"></textarea>
         <div class="btnrow" style="margin-top:10px">
           <button class="btn btn-sm" id="acKwSend">Send to keyword wrapper →</button>
         </div>
@@ -589,7 +589,7 @@ code{font-family:var(--mono);background:rgba(0,0,0,.05);padding:1px 4px;border-r
       <div class="card-hd"><h2>Base URL</h2></div>
       <div class="card-bd">
         <label class="f"><span class="f-lab">Sitelink base</span>
-          <input type="text" id="asBase" placeholder="https://koltepatilvyanaa.com/" spellcheck="false">
+          <input type="text" id="asBase" placeholder="https://yourproject.com/" spellcheck="false">
           <span class="f-note">Each sitelink appends <code>?sitelink=</code> plus a slug of its own text.</span></label>
         <div class="btnrow">
           <button class="btn btn-sm" id="asFromProj">Use the ad copy URL</button>
@@ -788,8 +788,19 @@ function pick(cands,max,n,used){
   return out;
 }
 const lines=s=>String(s||"").split("\n").map(x=>x.trim()).filter(Boolean);
+const FMAP={url:"acUrl",cfg:"acCfg",price:"acPrice",loc:"acLoc",p1:"acP1",p2:"acP2",
+  proj:"acProj",dev:"acDev",micro:"acMicro",city:"acCity",offer:"acOffer",
+  usps:"acUsps",marks:"acMarks",amen:"acAmen"};
+/* Pull straight from the inputs every time. Nothing downstream can then
+   run on a stale copy of the brief. */
+function syncProj(){
+  if(typeof PROJ==="undefined")return {};
+  for(const k in FMAP){ const e=$("#"+FMAP[k]); if(e)PROJ[k]=e.value; }
+  try{store.set("pp_proj",PROJ);}catch(e){}
+  return PROJ;
+}
 function brief(){
-  const p=PROJ;
+  const p=syncProj();
   const price=(p.price||"").trim();
   return {
     proj:tc(p.proj)||tc(p.cfg&&"")||"", dev:tc(p.dev), micro:tc(p.micro), city:tc(p.city),
@@ -1058,8 +1069,8 @@ function openModal(){
 }
 function drawRows(){
   $("#mRows").innerHTML=DRAFT.map((r,i)=>`<div class="srow">
-    <input type="text" data-mn="${i}" value="${esc(r[0])}" placeholder="Search Brand Location">
-    <input type="text" data-ms="${i}" value="${esc(r[1])}" placeholder="S-BL">
+    <input type="text" data-mn="${i}" value="${esc(r[0])}" placeholder="Enter strategy name">
+    <input type="text" data-ms="${i}" value="${esc(r[1])}" placeholder="Shortform">
     <button class="del" data-md="${i}" aria-label="Remove">×</button></div>`).join("")
     ||`<div class="empty">No strategies. Add one.</div>`;
 }
@@ -1196,7 +1207,7 @@ function drawAd(){
   const g=cur();
   $("#hRows").innerHTML=g.h.map((r,i)=>{const n=r[0].length;
     return `<div class="acrow"><span class="sr">${i+1}</span>
-      <input type="text" data-ht="${i}" value="${esc(r[0])}" maxlength="120" class="${n>H_MAX?"over":""}" placeholder="Imtiaz Nad Al Sheba Dubai">
+      <input type="text" data-ht="${i}" value="${esc(r[0])}" maxlength="120" class="${n>H_MAX?"over":""}" placeholder="Enter headline">
       <span class="len ${lenClass(n,H_MAX)}" data-hl="${i}">${n}/${H_MAX}</span>
       <select data-hp="${i}"><option value=""${r[1]===""?" selected":""}>—</option>
         <option value="1"${r[1]==="1"?" selected":""}>Pin 1</option>
@@ -1205,7 +1216,7 @@ function drawAd(){
       <button class="del" data-hd="${i}" aria-label="Remove">×</button></div>`;}).join("");
   $("#dRows").innerHTML=g.d.map((r,i)=>{const n=r[0].length;
     return `<div class="acrow"><span class="sr">${i+1}</span>
-      <input type="text" data-dt="${i}" value="${esc(r[0])}" maxlength="200" class="${n>D_MAX?"over":""}" placeholder="1/2/3 BR Apartments Starting at AED 774K with 60/40 Pay Plan">
+      <input type="text" data-dt="${i}" value="${esc(r[0])}" maxlength="200" class="${n>D_MAX?"over":""}" placeholder="Enter description">
       <span class="len ${lenClass(n,D_MAX)}" data-dl="${i}">${n}/${D_MAX}</span>
       <select data-dp="${i}"><option value=""${r[1]===""?" selected":""}>—</option>
         <option value="1"${r[1]==="1"?" selected":""}>Pin 1</option>
@@ -1456,20 +1467,20 @@ function drawSl(){
     return `<div style="border:1px solid var(--line);border-radius:5px;padding:12px;margin-bottom:10px">
       <div class="acrow" style="grid-template-columns:26px 1fr 62px 30px">
         <span class="sr">${i+1}</span>
-        <input type="text" data-slt="${i}" value="${esc(t)}" class="${t.length>SL_T?"over":""}" placeholder="Download Brochure">
+        <input type="text" data-slt="${i}" value="${esc(t)}" class="${t.length>SL_T?"over":""}" placeholder="Enter sitelink text">
         <span class="len ${cls(t.length,SL_T)}">${t.length}/${SL_T}</span>
         <button class="del" data-sld="${i}" aria-label="Remove">×</button></div>
       <div class="acrow" style="grid-template-columns:26px 1fr 62px 30px">
         <span class="sr"></span>
-        <input type="text" data-sl1="${i}" value="${esc(d1)}" class="${d1.length>SL_D?"over":""}" placeholder="Get Complete Project Details">
+        <input type="text" data-sl1="${i}" value="${esc(d1)}" class="${d1.length>SL_D?"over":""}" placeholder="Enter description line 1">
         <span class="len ${cls(d1.length,SL_D)}">${d1.length}/${SL_D}</span><span></span></div>
       <div class="acrow" style="grid-template-columns:26px 1fr 62px 30px;margin-bottom:6px">
         <span class="sr"></span>
-        <input type="text" data-sl2="${i}" value="${esc(d2)}" class="${d2.length>SL_D?"over":""}" placeholder="Floor Plans, Pricing & Offers">
+        <input type="text" data-sl2="${i}" value="${esc(d2)}" class="${d2.length>SL_D?"over":""}" placeholder="Enter description line 2">
         <span class="len ${cls(d2.length,SL_D)}">${d2.length}/${SL_D}</span><span></span></div>
       <div class="acrow" style="grid-template-columns:26px 1fr 30px;margin-bottom:6px">
         <span class="sr">URL</span>
-        <input type="text" data-sls="${i}" value="${esc(r[3]||slugWord(t))}" placeholder="brochure" spellcheck="false" style="font-family:var(--mono);font-size:12px">
+        <input type="text" data-sls="${i}" value="${esc(r[3]||slugWord(t))}" placeholder="url word" spellcheck="false" style="font-family:var(--mono);font-size:12px">
         <span></span></div>
       <div class="out sm" style="padding:7px 9px">${u?esc(u):"Set the base URL to generate the link"}</div>
     </div>`;}).join(""):`<div class="empty">No sitelinks yet. Add one or load a starter set.</div>`;
@@ -1480,7 +1491,7 @@ function drawCo(){
   $("#coRows").innerHTML=AS.co.length?AS.co.map((t,i)=>
     `<div class="acrow" style="grid-template-columns:26px 1fr 62px 30px">
       <span class="sr">${i+1}</span>
-      <input type="text" data-cot="${i}" value="${esc(t)}" class="${t.length>CO_MAX?"over":""}" placeholder="Zero Brokerage">
+      <input type="text" data-cot="${i}" value="${esc(t)}" class="${t.length>CO_MAX?"over":""}" placeholder="Enter callout">
       <span class="len ${cls(t.length,CO_MAX)}">${t.length}/${CO_MAX}</span>
       <button class="del" data-cod="${i}" aria-label="Remove">×</button></div>`).join("")
     :`<div class="empty">No callouts yet.</div>`;
@@ -1498,7 +1509,7 @@ function drawSn(){
       <div style="margin-top:8px">${vals.map((v,j)=>
         `<div class="acrow" style="grid-template-columns:26px 1fr 62px 30px">
           <span class="sr">${j+1}</span>
-          <input type="text" data-snv="${i}.${j}" value="${esc(v)}" class="${v.length>SN_MAX?"over":""}" placeholder="Swimming Pool">
+          <input type="text" data-snv="${i}.${j}" value="${esc(v)}" class="${v.length>SN_MAX?"over":""}" placeholder="Enter value">
           <span class="len ${cls(v.length,SN_MAX)}">${v.length}/${SN_MAX}</span>
           <button class="del" data-snx="${i}.${j}" aria-label="Remove">×</button></div>`).join("")}</div>
       <div class="btnrow" style="margin-top:6px"><button class="btn btn-sm" data-sna="${i}">Add value</button></div>
@@ -1657,15 +1668,22 @@ function genDescriptions(){
   while(out.length<D_CAP)out.push(["",""]);
   return out;
 }
+function ensureGroup(){
+  if(ADCUR&&ADG[ADCUR])return true;
+  const name=(VARIANTS[PICK]&&VARIANTS[PICK].names.adgroup)
+    || (brief().proj?brief().proj+" Ad Group":"Ad Group 1");
+  if(!ADG[name])ADG[name]=blankGroup();
+  ADCUR=name; saveAd(); fillAdPicker(); drawAd(); return true;
+}
 on("#hGen","click",()=>{
-  if(!ADCUR)return toast("Create an ad group first");
+  ensureGroup();
   const g=genHeadlines();
   if(!g)return toast("Fill in the project name on this tab first");
   if(cur().h.some(r=>r[0].trim())&&!confirm("Replace the headlines already written here?"))return;
   cur().h=g; saveAd(); drawAd();
   toast(`${g.filter(r=>r[0]).length} headlines generated`);});
 on("#dGen","click",()=>{
-  if(!ADCUR)return toast("Create an ad group first");
+  ensureGroup();
   const g=genDescriptions();
   if(!g)return toast("Fill in the project name on this tab first");
   if(cur().d.some(r=>r[0].trim())&&!confirm("Replace the descriptions already written here?"))return;
