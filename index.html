@@ -730,8 +730,8 @@ code{font-family:var(--mono);background:rgba(0,0,0,.05);padding:1px 4px;border-r
     <div class="card-bd">
       <div class="btnrow">
         <button class="btn btn-pri" id="stBuild">Build full campaign structure</button>
-        <button class="btn btn-navy" id="stAll">Download everything (one CSV)</button>
-        <button class="btn" id="stAssetsCsv">Assets CSV (one campaign)</button>
+        <button class="btn btn-navy" id="stAll">Download import files</button>
+        <button class="btn" id="stAssetsCsv">Assets only (one campaign)</button>
         <button class="btn" id="stSheet">Copy as sheet</button>
         <button class="btn" id="stKwCsv">Keywords CSV</button>
         <button class="btn btn-navy" id="stAllCsv">Download everything (one CSV)</button>
@@ -753,6 +753,7 @@ code{font-family:var(--mono);background:rgba(0,0,0,.05);padding:1px 4px;border-r
         <label class="f"><span class="f-lab">Conversion goals</span>
           <input type="text" id="stGoal" value="Submit lead form (Website);Qualified Leads"></label>
       </div>
+      <div class="callout" style="margin:10px 0">Import the files in number order: campaigns, ad groups, keywords, ads, then the asset files. Editor needs the parent to exist before the child. Before posting, set <b>EU political ads</b> and the campaign objective in Editor — neither has a CSV column.</div>
       <div class="f-note" style="margin-top:10px">One pass builds a campaign per strategy, Phrase and Exact ad groups inside each, the keyword set for that strategy, and a full 15/4 ad in every ad group. Assets are rebuilt too. Tracking template and custom parameters are written at ad group level, one set per ad group.</div>
     </div>
   </div>
@@ -1841,8 +1842,8 @@ on("#asGen","click",()=>{
    Script that receives the log — it verifies the token with Google and
    rejects anything outside the domain. Configure both. */
 const AUTH={
-  clientId : "779938081992-vecfdvvm61lalugpo3sa64bvqlhjfjqq.apps.googleusercontent.com",                                   // Google OAuth client ID
-  logUrl   : "https://script.google.com/macros/s/AKfycbxOAsPoL6GJ6p8EhhjEk0UroQmSiTaE2coPmgAH8EGDwfN-xaPDggwlkROezmwQ6iV3/exec",                                   // Apps Script web app URL
+  clientId : "",                                   // Google OAuth client ID
+  logUrl   : "",                                   // Apps Script web app URL
   domain   : "propertypistol.com",
   admin    : "sanket.shiktode@propertypistol.com"
 };
@@ -1880,10 +1881,18 @@ function onCredential(res){
 function initAuth(){
   $("#gateDomain").textContent=AUTH.domain;
   if(!AUTH.clientId){
-    $("#gate").classList.remove("on");
-    $("#userChip").classList.remove("hidden");
-    $("#userName").textContent="Sign-in not configured";
-    $("#userRole").textContent="OPEN"; $("#userRole").className="pill p-warn";
+    $("#gate").classList.add("on");
+    $("#gateBtn").innerHTML=`<div class="check c-warn"><span class="ic">!</span><span>
+      <b>Sign-in is not switched on yet.</b> It needs a Google OAuth client ID, which has to be
+      created inside the PropertyPistol Google Cloud account — nobody outside it can make one.
+      Follow SETUP.md, then paste the ID into <code>AUTH.clientId</code> at the top of the script.</span></div>
+      <button class="btn btn-pri" id="gateSkip" style="margin-top:14px;width:100%">Continue without signing in</button>`;
+    on("#gateSkip","click",()=>{
+      $("#gate").classList.remove("on");
+      $("#userChip").classList.remove("hidden");
+      $("#userName").textContent="Not signed in";
+      $("#userRole").textContent="OPEN"; $("#userRole").className="pill p-bad";
+    });
     return;
   }
   try{const s=sessionStorage.getItem("pp_user"); if(s){USER=JSON.parse(s);showUser();return;}}catch(e){}
@@ -2437,10 +2446,63 @@ function masterCsv(){
   });
   return H.map(csvq).join(",")+"\n"+rows.map(r=>r.map(csvq).join(",")).join("\n");
 }
+/* One combined sheet forces Editor to guess each row's entity from which
+   cells are filled, and it guessed wrong: keyword rows came back as
+   "Ambiguous row type" because the file also carried a Campaign Type
+   column. Separate files remove the guesswork — each one holds a single
+   entity and only the columns that entity uses. */
+function entityFiles(){
+  const lp=PROJ.url||$("#inLp").value.trim();
+  const budget=$("#cgBudget")?$("#cgBudget").value.trim():"";
+  const cpc=$("#cgCpc")?$("#cgCpc").value.trim():"";
+  const cstat=$("#cgStatus")?$("#cgStatus").value:"Paused";
+  const bid=$("#cgBid")?$("#cgBid").value:"Maximize conversions";
+  const mk=(hdr,rows)=>hdr.map(csvq).join(",")+"\n"+rows.map(r=>r.map(csvq).join(",")).join("\n");
+  const files=[];
+
+  const camps=[...new Set(PLAN.map(p=>p.campaign))];
+  files.push(["1-campaigns.csv",mk(
+    ["Campaign","Campaign Type","Campaign Status","Budget","Budget type","Bid Strategy Type","Networks"],
+    camps.map(c=>[c,"Search",cstat,budget,"Daily",bid,"Google Search;Search Partners"]))]);
+
+  const ag=[]; PLAN.forEach(p=>p.groups.forEach(g=>
+    ag.push([p.campaign,g.name,"Enabled",cpc,TPL[CH],custParam(g.n)])));
+  files.push(["2-adgroups.csv",mk(
+    ["Campaign","Ad group","Ad Group Status","Max CPC","Tracking template","Custom parameter"],ag)]);
+
+  const kw=[]; PLAN.forEach(p=>p.groups.forEach(g=>g.kws.forEach(k=>
+    kw.push([p.campaign,g.name,k,MT_CRIT[g.mt]||"Broad","Enabled"]))));
+  files.push(["3-keywords.csv",mk(
+    ["Campaign","Ad group","Keyword","Match type","Status"],kw)]);
+
+  const adHdr=["Campaign","Ad group","Status","Final URL","Path 1","Path 2"];
+  for(let i=1;i<=H_CAP;i++)adHdr.push(`Headline ${i}`,`Headline ${i} position`);
+  for(let i=1;i<=D_CAP;i++)adHdr.push(`Description ${i}`,`Description ${i} position`);
+  const ads=[]; PLAN.forEach(p=>p.groups.forEach(g=>{
+    const r=[p.campaign,g.name,"Enabled",lp,PROJ.p1,PROJ.p2];
+    for(let i=0;i<H_CAP;i++)r.push(g.ad.h[i]&&g.ad.h[i][0]?g.ad.h[i][0]:"",g.ad.h[i]&&g.ad.h[i][0]?(g.ad.h[i][1]||""):"");
+    for(let i=0;i<D_CAP;i++)r.push(g.ad.d[i]&&g.ad.d[i][0]?g.ad.d[i][0]:"",g.ad.d[i]&&g.ad.d[i][0]?(g.ad.d[i][1]||""):"");
+    ads.push(r);}));
+  files.push(["4-ads.csv",mk(adHdr,ads)]);
+
+  /* assets carry the first campaign only — copy across in Editor */
+  const one=camps[0]||"";
+  const co=AS.co.filter(Boolean).map(t=>[one,t,"Enabled"]);
+  if(co.length)files.push(["5-callouts.csv",mk(["Campaign","Callout text","Status"],co)]);
+  const sl=AS.sl.filter(x=>x[0]).map(s=>[one,s[0],s[1],s[2],slUrl(s[0],s[3])||lp,"Enabled"]);
+  if(sl.length)files.push(["6-sitelinks.csv",mk(
+    ["Campaign","Sitelink text","Sitelink description 1","Sitelink description 2","Sitelink final URL","Status"],sl)]);
+  const sn=AS.sn.map(([hd,v])=>{const vv=v.filter(x=>x.trim());return vv.length>=3?[one,hd,vv.join(";"),"Enabled"]:null;}).filter(Boolean);
+  if(sn.length)files.push(["7-snippets.csv",mk(
+    ["Campaign","Structured snippet header","Structured snippet values","Status"],sn)]);
+  return files;
+}
 on("#stAll","click",()=>{
   if(!PLAN.length)return toast("Build the structure first");
-  dl("google-ads-import.csv",masterCsv());
-  logEvent("export","full structure");
+  const files=entityFiles();
+  files.forEach(([n,t],i)=>setTimeout(()=>dl(n,t),i*500));
+  toast(`${files.length} files — import them in number order`);
+  logEvent("export","import files");
   const goals=$("#cgGoals")?$("#cgGoals").value:"";
   toast(`Exported. Set objective and goals in the interface: ${goals}`);
 });
