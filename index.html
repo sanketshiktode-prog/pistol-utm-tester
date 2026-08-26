@@ -421,6 +421,9 @@ code{font-family:var(--mono);background:rgba(0,0,0,.05);padding:1px 4px;border-r
         <label class="chk"><input type="checkbox" id="kwDedupe" checked> Remove duplicates</label>
         <label class="chk"><input type="checkbox" id="kwPunct" checked> Strip punctuation Google ignores</label>
         <label class="chk"><input type="checkbox" id="kwGroup"> Group output by match type</label>
+        <label class="f" style="margin-top:12px"><span class="f-lab">Exclude any keyword containing</span>
+          <input type="text" id="kwBlock" value="reviews, review, resale, rent, rental, complaints, scam, fraud, jobs, careers" spellcheck="false">
+          <span class="f-note">Comma separated. Applies to generated keywords and to the headlines built from them.</span></label>
       </div>
     </div>
     <div class="card">
@@ -506,9 +509,9 @@ code{font-family:var(--mono);background:rgba(0,0,0,.05);padding:1px 4px;border-r
           <textarea id="acMarks" rows="4" placeholder="Hinjewadi IT Park - 25 Mins&#10;Pune Airport - 45 Mins&#10;Kothrud - 20 Mins"></textarea></label>
         <div class="row2">
           <label class="f"><span class="f-lab">Path 1 <span class="count" id="p1c">0/15</span></span>
-            <input type="text" id="acP1" placeholder="Imtiaz"></label>
+            <input type="text" id="acP1" list="pathList" placeholder="New-Launch"></label>
           <label class="f"><span class="f-lab">Path 2 <span class="count" id="p2c">0/15</span></span>
-            <input type="text" id="acP2" placeholder="Dubai"></label>
+            <input type="text" id="acP2" list="pathList" placeholder="Enquire-Now"></label>
         </div>
         <div class="f-note">Shared across every ad group in this browser.</div>
       </div>
@@ -671,6 +674,7 @@ code{font-family:var(--mono);background:rgba(0,0,0,.05);padding:1px 4px;border-r
         <button class="btn" id="stSheet">Copy as sheet</button>
         <button class="btn" id="stKwCsv">Keywords CSV</button>
         <button class="btn" id="stAdCsv">Ads CSV</button>
+        <button class="btn" id="stCampCsv">Campaigns + tracking CSV</button>
       </div>
       <div class="f-note" style="margin-top:10px">One pass builds a campaign per strategy, Phrase and Exact ad groups inside each, the keyword set for that strategy, and a full 15/4 ad in every ad group. Assets are rebuilt too.</div>
     </div>
@@ -683,6 +687,14 @@ code{font-family:var(--mono);background:rgba(0,0,0,.05);padding:1px 4px;border-r
 
 
 
+<datalist id="pathList">
+  <option value="New-Launch"></option><option value="Enquire-Now"></option>
+  <option value="Visit-Site"></option><option value="Book-Now"></option>
+  <option value="Site-Visit"></option><option value="Floor-Plans"></option>
+  <option value="Price-List"></option><option value="Brochure"></option>
+  <option value="Get-Details"></option><option value="Offers"></option>
+  <option value="Pre-Launch"></option><option value="Limited-Units"></option>
+</datalist>
 </main>
 
 <div class="modal" id="modal">
@@ -741,7 +753,7 @@ function copy(x){const d=()=>toast("Copied");
 const store={get(k,d){try{const v=localStorage.getItem(k);return v?JSON.parse(v):d;}catch(e){return d;}},
              set(k,v){try{localStorage.setItem(k,JSON.stringify(v));}catch(e){}}};
 const csvq=v=>`"${String(v??"").replace(/"/g,'""')}"`;
-function dl(name,text){const b=new Blob([text],{type:"text/csv;charset=utf-8"});const a=document.createElement("a");
+function dl(name,text){const b=new Blob(["\uFEFF"+text],{type:"text/csv;charset=utf-8"});const a=document.createElement("a");
   a.href=URL.createObjectURL(b);a.download=name;document.body.appendChild(a);a.click();
   setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove();},400);}
 
@@ -1644,8 +1656,8 @@ $("#kwGen").addEventListener("click",()=>{
   const P=b.proj, D=b.dev, M=b.micro, C=b.city;
   const roots=[P, M&&`${P} ${M}`, C&&`${P} ${C}`, M&&C&&`${P} ${M} ${C}`,
     D&&`${D} ${M||C}`, D&&D!==P?D:""].filter(Boolean);
-  const tails=["","price","price list","brochure","floor plan","floor plans","reviews","location",
-    "possession date","payment plan","apartments","flats","new launch","booking","offers"];
+  const tails=["","price","price list","brochure","floor plan","floor plans","location",
+    "payment plan","apartments","flats","new launch","booking","offers"];
   const cfgs=(b.cfg||"").split(/[,&]/).map(s=>s.trim()).filter(Boolean);
   const out=[];
   roots.forEach(r=>tails.forEach(t=>out.push((r+" "+t).trim())));
@@ -1672,8 +1684,8 @@ $("#asGen").addEventListener("click",()=>{
     ["Amenities & Highlights", d(u[1]||u[0]||"","World-Class Modern Amenities"),"Designed For Every Age Group"],
     ["Location & Connectivity", d(m[0]||"","Connected To The Whole City"), d(m[1]||"","Prime Address, Easy Access")]
   ].map(r=>[fit(r[0],SL_T)||r[0].slice(0,SL_T),r[1],r[2]]);
-  const coCands=[...b.amen.map(tc), ...m, ...u, b.offer, "Zero Brokerage","RERA Registered",
-    "Free Site Visit","Instant Call Back"].filter(Boolean).map(tc);
+  /* callouts come only from what the project actually offers */
+  const coCands=[...u, ...b.amen.map(tc), ...m].filter(Boolean).map(tc);
   const used=new Set(), co=pick(coCands,CO_MAX,10,used);
   const cfgVals=(b.cfg||"").split(/[,&]/).map(s=>s.trim()).filter(Boolean)
     .map(s=>fit(tc(s),SN_MAX)).filter(Boolean);
@@ -1758,6 +1770,15 @@ $("#impFetch").addEventListener("click",readLp);
 $("#impPasteBtn").addEventListener("click",()=>{$("#impPaste").classList.toggle("hidden");});
 
 /* ═══════════ keyword sets per strategy ═══════════ */
+const BLOCK_DEFAULT="reviews, review, resale, rent, rental, complaints, scam, fraud, jobs, careers";
+function blockWords(){
+  const el=$("#kwBlock");
+  return (el&&el.value||BLOCK_DEFAULT).split(",").map(s=>s.trim().toLowerCase()).filter(Boolean);
+}
+function blocked(s){
+  const t=" "+String(s).toLowerCase()+" ";
+  return blockWords().some(w=>t.includes(" "+w+" ")||t.includes(" "+w));
+}
 function locList(){
   const main=$("#locMain").value.trim()||PROJ.micro;
   const alt=lines($("#locAlt").value);
@@ -1766,7 +1787,7 @@ function locList(){
 function kwForStrategy(code){
   const b=brief(), P=b.proj, D=b.dev||P, C=b.city, locs=locList();
   const c=String(code).toUpperCase(), out=[];
-  const tails=["","price","price list","brochure","floor plan","payment plan","possession","reviews","new launch"];
+  const tails=["","price","price list","brochure","floor plan","payment plan","new launch","booking"];
   if(c.includes("BPL")){
     const devPrefix=P.toLowerCase().startsWith(D.toLowerCase());
     locs.forEach(L=>{ out.push(P, `${P} ${L}`, `${P} ${L} ${C}`);
@@ -1775,7 +1796,7 @@ function kwForStrategy(code){
     tails.forEach(t=>t&&out.push(`${P} ${t}`));
     if(C)out.push(`${P} ${C}`);
   } else if(c.includes("BB")){
-    out.push(D, `${D} ${C}`, `${D} projects`, `${D} new launch`, `${D} reviews`,
+    out.push(D, `${D} ${C}`, `${D} projects`, `${D} new launch`,
       `${D} properties`, `${D} upcoming projects`, `${D} new project ${C}`);
     tails.forEach(t=>t&&out.push(`${D} ${t}`));
   } else { /* BL and anything else: brand + location */
@@ -1785,7 +1806,7 @@ function kwForStrategy(code){
   }
   const seen=new Set();
   return out.map(s=>String(s).toLowerCase().replace(/\s+/g," ").trim())
-    .filter(s=>s&&s.split(" ").length<=10&&s.length<=80&&!seen.has(s)&&seen.add(s));
+    .filter(s=>s&&s.split(" ").length<=10&&s.length<=80&&!blocked(s)&&!seen.has(s)&&seen.add(s));
 }
 
 /* ═══════════ ad builder with the pin plan ═══════════
@@ -1794,7 +1815,7 @@ function kwForStrategy(code){
    Pin 3  4 USPs and 1 call to action                       */
 function adFor(kws){
   const b=brief(), used=new Set(), H=[];
-  const kwH=kws.slice(0,14).map(k=>tc(k));
+  const kwH=kws.filter(k=>!blocked(k)).slice(0,14).map(k=>tc(k));
   pick(kwH,H_MAX,5,used).forEach(t=>H.push([t,"1"]));
   const money=[b.cfg&&b.price?`${b.cfg} From ${b.price}`:"",
     b.cfg&&b.price?`Luxury ${b.cfg} At ${b.price}`:"",
@@ -1808,8 +1829,7 @@ function adFor(kws){
   const cta=pick(["Book A Free Site Visit","Download Brochure Now","Get Price List Instantly",
     "Enquire For Floor Plans"],H_MAX,1,used);
   cta.forEach(t=>H.push([t,"3"]));
-  const fillers=pick([...b.marks.map(tc),"Zero Brokerage Assured","Limited Units Available",
-    "Instant Call Back","RERA Registered Project"],H_MAX,H_CAP-H.length,used);
+  const fillers=pick([...b.marks.map(tc),...b.amen.map(tc)],H_MAX,H_CAP-H.length,used);
   fillers.forEach(t=>H.push([t,"3"]));
   while(H.length<H_CAP)H.push(["",""]);
 
@@ -1832,6 +1852,8 @@ function adFor(kws){
 
 /* ═══════════ full structure ═══════════ */
 let PLAN=[];
+/* Ads Editor takes custom parameters as one semicolon-joined cell */
+const custParam=n=>n?`{_adgroup}=${n.adgroup};{_campaign}=${n.campaign};{_strategy}=${n.strategy}`:"";
 $("#stBuild").addEventListener("click",()=>{
   const b=brief();
   if(!b.proj)return toast("Fill in the project name on the Ad copy tab");
@@ -1847,7 +1869,7 @@ $("#stBuild").addEventListener("click",()=>{
       const n=names(enq,s,tk,mt,CH);
       const ad=adFor(kws);
       ADG[n.adgroup]={h:ad.h,d:ad.d,kw:kws.join("\n")};
-      return {name:n.adgroup,mt,kws,ad};
+      return {name:n.adgroup,mt,kws,ad,n};
     });
     PLAN.push({strat:s,campaign:names(enq,s,tk,mts[0],CH).campaign,groups});
   });
@@ -1866,6 +1888,7 @@ function drawPlan(){
       ${p.groups.map(g=>`<div style="padding:11px 13px;border-bottom:1px solid var(--line-soft)">
         <div class="m" style="font-family:var(--mono);font-size:12px;font-weight:600">${esc(g.name)}</div>
         <div class="mini" style="margin-top:4px">${g.kws.length} keywords \u00b7 ${g.ad.h.filter(x=>x[0]).length} headlines \u00b7 ${g.ad.d.filter(x=>x[0]).length} descriptions</div>
+        <div class="out sm" style="margin-top:6px;padding:7px 9px">{_campaign}=${esc(g.n.campaign)}<br>{_adgroup}=${esc(g.n.adgroup)}<br>{_strategy}=${esc(g.n.strategy)}</div>
         <div class="out sm" style="margin-top:7px;max-height:110px;overflow:auto">${esc(g.kws.slice(0,8).join("\n"))}${g.kws.length>8?"\n\u2026":""}</div>
       </div>`).join("")}
     </div>`).join("");
@@ -1882,14 +1905,22 @@ $("#stAdCsv").addEventListener("click",()=>{
   const hdr=["Campaign","Ad group"];
   for(let i=1;i<=H_CAP;i++)hdr.push(`Headline ${i}`,`Headline ${i} position`);
   for(let i=1;i<=D_CAP;i++)hdr.push(`Description ${i}`,`Description ${i} position`);
-  hdr.push("Final URL","Path 1","Path 2");
+  hdr.push("Final URL","Path 1","Path 2","Tracking template","Custom parameter");
   const rows=[];
   PLAN.forEach(p=>p.groups.forEach(g=>{
     const r=[p.campaign,g.name];
     for(let i=0;i<H_CAP;i++)r.push(g.ad.h[i]?g.ad.h[i][0]:"",g.ad.h[i]?g.ad.h[i][1]:"");
     for(let i=0;i<D_CAP;i++)r.push(g.ad.d[i]?g.ad.d[i][0]:"",g.ad.d[i]?g.ad.d[i][1]:"");
-    r.push(PROJ.url,PROJ.p1,PROJ.p2); rows.push(r);}));
+    r.push(PROJ.url||$("#inLp").value.trim(),PROJ.p1,PROJ.p2,TPL[CH],custParam(g.n));
+    rows.push(r);}));
   dl("structure-ads.csv",hdr.map(csvq).join(",")+"\n"+rows.map(r=>r.map(csvq).join(",")).join("\n"));});
+$("#stCampCsv").addEventListener("click",()=>{
+  if(!PLAN.length)return toast("Build the structure first");
+  const lp=PROJ.url||$("#inLp").value.trim();
+  const rows=PLAN.map(p=>[p.campaign,TPL[CH],custParam(p.groups[0].n),lp]);
+  dl("structure-campaigns.csv",
+    ["Campaign","Tracking template","Custom parameter","Final URL"].map(csvq).join(",")+"\n"+
+    rows.map(r=>r.map(csvq).join(",")).join("\n"));});
 $("#stSheet").addEventListener("click",()=>{
   if(!PLAN.length)return toast("Build the structure first");
   let out="";
