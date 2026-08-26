@@ -211,6 +211,7 @@ code{font-family:var(--mono);background:rgba(0,0,0,.05);padding:1px 4px;border-r
   <button class="tab" role="tab" aria-selected="true" data-panel="p-url"><span class="num">01</span>Tracking URLs</button>
   <button class="tab" role="tab" aria-selected="false" data-panel="p-kw"><span class="num">02</span>Keyword wrapper</button>
   <button class="tab" role="tab" aria-selected="false" data-panel="p-ad"><span class="num">03</span>Ad copy</button>
+  <button class="tab" role="tab" aria-selected="false" data-panel="p-as"><span class="num">04</span>Assets</button>
 </div></nav>
 
 <main class="wrap">
@@ -221,6 +222,14 @@ code{font-family:var(--mono);background:rgba(0,0,0,.05);padding:1px 4px;border-r
     <div class="card">
       <div class="card-hd"><h2>Inputs</h2></div>
       <div class="card-bd">
+        <div class="f">
+          <span class="f-lab">Market</span>
+          <div class="seg" id="segRegion">
+            <button type="button" data-rg="in" aria-pressed="true">India ₹</button>
+            <button type="button" data-rg="ae" aria-pressed="false">Dubai AED</button>
+          </div>
+        </div>
+
         <label class="f">
           <span class="f-lab">Channel</span>
           <div class="seg" id="segChannel">
@@ -256,15 +265,21 @@ code{font-family:var(--mono);background:rgba(0,0,0,.05);padding:1px 4px;border-r
         </div>
 
         <div class="f">
-          <span class="f-lab">Ticket size</span>
+          <span class="f-lab">Ticket size <span id="tkCur" class="pill p-mute">INR</span></span>
           <div class="ticket">
             <input type="text" id="tkA" placeholder="45" inputmode="decimal" spellcheck="false">
-            <select id="tkAU"><option value="L">Lakh</option><option value="CR">Crore</option></select>
+            <select id="tkAU"></select>
             <span class="dash">–</span>
             <input type="text" id="tkB" placeholder="optional" inputmode="decimal" spellcheck="false">
-            <select id="tkBU"><option value="L">Lakh</option><option value="CR" selected>Crore</option></select>
+            <select id="tkBU"></select>
           </div>
-          <span class="f-note">Output: <code id="tkOut">ticketsize</code>. Leave the second box empty for a single value.</span>
+          <span class="f-note">Tracking value: <code id="tkOut">ticketsize</code><span id="tkConv"></span></span>
+        </div>
+
+        <div class="f hidden" id="fxWrap">
+          <span class="f-lab">AED → INR rate</span>
+          <input type="text" id="fxRate" value="26.0" inputmode="decimal" spellcheck="false">
+          <span class="f-note">Ad copy stays in AED; the tracking parameter carries the converted INR figure. Update this when the rate moves.</span>
         </div>
       </div>
     </div>
@@ -502,6 +517,98 @@ code{font-family:var(--mono);background:rgba(0,0,0,.05);padding:1px 4px;border-r
   </div>
 </div>
 </section>
+<!-- ══════ 04 ASSETS ══════ -->
+<section class="panel" id="p-as">
+<div class="split">
+  <div class="sticky-col">
+    <div class="card">
+      <div class="card-hd"><h2>Base URL</h2></div>
+      <div class="card-bd">
+        <label class="f"><span class="f-lab">Sitelink base</span>
+          <input type="text" id="asBase" placeholder="https://koltepatilvyanaa.com/" spellcheck="false">
+          <span class="f-note">Each sitelink appends <code>?sitelink=</code> plus a slug of its own text.</span></label>
+        <div class="btnrow">
+          <button class="btn btn-sm" id="asFromProj">Use the ad copy URL</button>
+        </div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-hd"><h2>Starter sets</h2></div>
+      <div class="card-bd">
+        <label class="f"><span class="f-lab">Market</span>
+          <select id="asPreset">
+            <option value="in">India residential</option>
+            <option value="ae">Dubai residential</option>
+          </select></label>
+        <div class="btnrow">
+          <button class="btn btn-sm btn-navy" id="asLoadSl">Load sitelinks</button>
+          <button class="btn btn-sm btn-navy" id="asLoadCo">Load callouts</button>
+          <button class="btn btn-sm btn-navy" id="asLoadSn">Load snippets</button>
+        </div>
+        <div class="f-note" style="margin-top:10px">Everything loads as editable rows — treat them as a starting point, not final copy.</div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-hd"><h2>Limits</h2></div>
+      <div class="card-bd">
+        <table class="kv"><tbody>
+          <tr><td>Sitelink text</td><td class="right m">25</td></tr>
+          <tr><td>Sitelink description</td><td class="right m">35 each</td></tr>
+          <tr><td>Callout</td><td class="right m">25</td></tr>
+          <tr><td>Snippet value</td><td class="right m">25</td></tr>
+          <tr><td>Snippet values</td><td class="right m">3 – 10</td></tr>
+        </tbody></table>
+      </div>
+    </div>
+  </div>
+
+  <div>
+    <div class="card">
+      <div class="card-hd"><h2>Sitelinks</h2><span class="hint" id="slStat">0</span></div>
+      <div class="card-bd">
+        <div id="slRows"></div>
+        <div class="btnrow" style="margin-top:10px">
+          <button class="btn btn-sm" id="slAdd">Add sitelink</button>
+          <button class="btn btn-pri btn-sm" id="slCopy">Copy as sheet block</button>
+          <button class="btn btn-sm" id="slCsv">Ads Editor CSV</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-hd"><h2>Callouts</h2><span class="hint" id="coStat">0</span></div>
+      <div class="card-bd">
+        <div class="achd" style="grid-template-columns:26px 1fr 62px 30px"><span>SR</span><span>Callout</span><span>Length</span><span></span></div>
+        <div id="coRows"></div>
+        <div class="btnrow" style="margin-top:10px">
+          <button class="btn btn-sm" id="coAdd">Add callout</button>
+          <button class="btn btn-sm" id="coPaste">Paste a list</button>
+          <button class="btn btn-pri btn-sm" id="coCopy">Copy</button>
+          <button class="btn btn-sm" id="coCsv">Ads Editor CSV</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-hd"><h2>Structured snippets</h2><span class="hint" id="snStat">0</span></div>
+      <div class="card-bd">
+        <div id="snRows"></div>
+        <div class="btnrow" style="margin-top:10px">
+          <button class="btn btn-sm" id="snAdd">Add snippet</button>
+          <button class="btn btn-pri btn-sm" id="snCopy">Copy</button>
+          <button class="btn btn-sm" id="snCsv">Ads Editor CSV</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-hd"><h2>Checks</h2></div>
+      <div class="card-bd" id="asChecks"><div class="empty">Nothing added yet.</div></div>
+    </div>
+  </div>
+</div>
+</section>
+
 
 </main>
 
@@ -570,19 +677,53 @@ let STRATS=store.get("pp_strats",null)||JSON.parse(JSON.stringify(DEFAULTS));
 let DRAFT=null;
 
 /* ═══ ticket size — 45L / 6.45CR / 50L-1.2CR ═══ */
-function num(v){
-  const n=parseFloat(String(v).replace(/[^0-9.]/g,""));
-  if(!isFinite(n)) return null;
-  return String(parseFloat(n.toFixed(2)));
+let REGION="in";
+const UNITS={in:[["L","Lakh"],["CR","Crore"]], ae:[["K","Thousand"],["M","Million"]]};
+function num(v){const n=parseFloat(String(v).replace(/[^0-9.]/g,""));return isFinite(n)?parseFloat(n.toFixed(4)):null;}
+const trim=n=>String(parseFloat(Number(n).toFixed(2)));
+function fillUnits(){
+  const list=UNITS[REGION];
+  [["#tkAU",0],["#tkBU",1]].forEach(([sel,def])=>{
+    const el=$(sel), keep=el.value;
+    el.innerHTML=list.map(([v,n])=>`<option value="${v}">${n}</option>`).join("");
+    el.value=list.some(u=>u[0]===keep)?keep:list[def][0];
+  });
+  $("#tkCur").textContent=REGION==="in"?"INR":"AED";
+  $("#fxWrap").classList.toggle("hidden",REGION==="in");
 }
+function aedToRupees(a,unit){
+  const fx=num($("#fxRate").value)||26;
+  return a*(unit==="M"?1e6:1e3)*fx;
+}
+const inrLabel=r=> r>=1e7 ? trim(r/1e7)+"CR" : trim(r/1e5)+"L";
 function ticket(){
   const a=num($("#tkA").value), b=num($("#tkB").value);
   if(a===null) return "";
-  const one=a+$("#tkAU").value;
-  if(b===null) return one;
-  return one+"-"+b+$("#tkBU").value;
+  if(REGION==="in"){
+    const one=trim(a)+$("#tkAU").value;
+    return b===null?one:one+"-"+trim(b)+$("#tkBU").value;
+  }
+  const one=inrLabel(aedToRupees(a,$("#tkAU").value));
+  return b===null?one:one+"-"+inrLabel(aedToRupees(b,$("#tkBU").value));
 }
-function syncTicket(){ $("#tkOut").textContent=ticket()||"ticketsize"; build(); }
+function aedLabel(){
+  const a=num($("#tkA").value), b=num($("#tkB").value);
+  if(a===null)return "";
+  const one=`AED ${trim(a)}${$("#tkAU").value}`;
+  return b===null?one:one+` – ${trim(b)}${$("#tkBU").value}`;
+}
+function syncTicket(){
+  $("#tkOut").textContent=ticket()||"ticketsize";
+  $("#tkConv").innerHTML = REGION==="ae"&&ticket()
+    ? ` &middot; ad copy reads <b>${esc(aedLabel())}</b>` : "";
+  build();
+}
+$("#segRegion").addEventListener("click",e=>{
+  const b=e.target.closest("button[data-rg]"); if(!b)return;
+  REGION=b.dataset.rg;
+  $$("#segRegion button").forEach(x=>x.setAttribute("aria-pressed",String(x===b)));
+  fillUnits(); syncTicket();});
+$("#fxRate").addEventListener("input",syncTicket);
 ["tkA","tkB","tkAU","tkBU"].forEach(id=>{
   $("#"+id).addEventListener("input",syncTicket); $("#"+id).addEventListener("change",syncTicket);});
 
@@ -800,7 +941,7 @@ $("#mImport").addEventListener("click",()=>{
 document.addEventListener("keydown",e=>{if(e.key==="Escape")$("#modal").classList.remove("on");});
 
 /* ═══ boot ═══ */
-fillStrategies(); syncTicket();
+fillStrategies(); fillUnits(); syncTicket();
 
 /* ═══════════ tabs ═══════════ */
 $$(".tab").forEach(t=>t.addEventListener("click",()=>{
@@ -874,7 +1015,7 @@ const H_MAX=30, D_MAX=90, H_CAP=15, D_CAP=4, PATH_MAX=15;
 let ADG=store.get("pp_adgroups",null)||{};
 let ADCUR=store.get("pp_adcur","")||"";
 let PROJ=store.get("pp_proj",{url:"",cfg:"",price:"",loc:"",p1:"",p2:""});
-const blankGroup=()=>({h:[["",""]],d:[["",""]],kw:""});
+const blankGroup=()=>({h:Array.from({length:H_CAP},()=>["",""]),d:Array.from({length:D_CAP},()=>["",""]),kw:""});
 function cur(){ if(!ADG[ADCUR])ADG[ADCUR]=blankGroup(); return ADG[ADCUR]; }
 const saveAd=()=>{store.set("pp_adgroups",ADG);store.set("pp_adcur",ADCUR);};
 function fillAdPicker(){
@@ -996,7 +1137,8 @@ $("#hPaste").addEventListener("click",()=>{
   if(!ADCUR)return toast("Create an ad group first");
   const raw=prompt("Paste headlines, one per line:"); if(!raw)return;
   const lines=raw.split("\n").map(s=>s.trim()).filter(Boolean).slice(0,H_CAP);
-  const g=cur(); g.h=lines.map(l=>[l,""]); if(!g.h.length)g.h=[["",""]];
+  const g=cur(); g.h=lines.map(l=>[l,""]);
+  while(g.h.length<H_CAP)g.h.push(["",""]);
   saveAd(); drawAd(); toast(`${lines.length} headlines loaded`);});
 $("#acKw").addEventListener("input",()=>{
   if(!ADCUR)return; cur().kw=$("#acKw").value;
@@ -1075,6 +1217,210 @@ $("#p1c").textContent=`${(PROJ.p1||"").length}/${PATH_MAX}`;
 $("#p2c").textContent=`${(PROJ.p2||"").length}/${PATH_MAX}`;
 if(!ADG[ADCUR])ADCUR=Object.keys(ADG)[0]||"";
 fillAdPicker(); drawAd(); fillVariantPickers();
+
+/* ═══════════ 04 assets ═══════════ */
+const SL_T=25, SL_D=35, CO_MAX=25, SN_MAX=25;
+const SN_HEADERS=["Amenities","Brands","Courses","Degree programs","Destinations","Featured hotels",
+  "Insurance coverage","Models","Neighborhoods","Service catalog","Shows","Styles","Types"];
+let AS=store.get("pp_assets",null)||{base:"",sl:[],co:[],sn:[]};
+const saveAs=()=>store.set("pp_assets",AS);
+const slugLink=s=>String(s||"").toLowerCase().replace(/[^a-z0-9]+/g,"");
+
+const PRESET={
+ in:{
+  sl:[["Download Brochure","Get Complete Project Details","Floor Plans, Pricing & Offers"],
+      ["Price & Payment Plan","Complete Costing Details Inside","No Hidden Charges, Zero Brokerage"],
+      ["Book A Free Site Visit","Pick A Slot That Suits You","Instant Call Back From Our Team"],
+      ["Master & Floor Plans","Township Layout And Unit Plans","See Every Configuration Inside"],
+      ["Amenities & Highlights","50+ World-Class Amenities","70% Open-To-Sky Green Spaces"],
+      ["Location & Connectivity","Hinjewadi IT Park In 25 Mins","Airport 45 Mins, NH-48 Access"]],
+  co:["Zero Brokerage","RERA Registered","Free Site Visit","Instant Call Back","New Launch Offer",
+      "21 Acre Township","70% Open Spaces","50+ Amenities","Riverside Development","Assured Best Price"],
+  sn:[["Types",["2 BHK","2.5 BHK","3 BHK"]],
+      ["Amenities",["Swimming Pool","Gymnasium","Clubhouse","Jogging Track","Kids Play Area","Yoga Deck"]]]
+ },
+ ae:{
+  sl:[["Download Brochure","Get Complete Project Details","Floor Plans, Pricing & Offers"],
+      ["Payment Plan","60/40 Payment Plan Available","Post-Handover Options Inside"],
+      ["Book A Viewing","Private Tour With Our Advisor","Instant Call Back From Our Team"],
+      ["Floor Plans & Layouts","Studio To 3 BR Layouts","See Every Configuration Inside"],
+      ["Amenities & Lifestyle","Resort-Style Facilities","Pool, Gym And Landscaped Decks"],
+      ["Location & Connectivity","Downtown Dubai In 12 Minutes","DIFC 15 Mins, Airport 18 Mins"]],
+  co:["0% Commission","Freehold Ownership","Golden Visa Eligible","60/40 Payment Plan","DLD Registered",
+      "Post-Handover Plan","Free Consultation","Direct From Developer","Prime Location","Limited Units"],
+  sn:[["Types",["Studio","1 BR","2 BR","3 BR"]],
+      ["Amenities",["Swimming Pool","Gymnasium","Concierge","Kids Play Area","Landscaped Deck"]]]
+ }
+};
+
+function slUrl(text){
+  const base=(AS.base||"").trim(); if(!base)return "";
+  const s=slugLink(text); if(!s)return base;
+  return base+(base.includes("?")?"&":"?")+"sitelink="+s;
+}
+function cls(n,max){return n>max?"bad":n>max-3?"edge":"";}
+
+function drawSl(){
+  $("#slRows").innerHTML=AS.sl.length?AS.sl.map((r,i)=>{
+    const [t,d1,d2]=r, u=slUrl(t);
+    return `<div style="border:1px solid var(--line);border-radius:5px;padding:12px;margin-bottom:10px">
+      <div class="acrow" style="grid-template-columns:26px 1fr 62px 30px">
+        <span class="sr">${i+1}</span>
+        <input type="text" data-slt="${i}" value="${esc(t)}" class="${t.length>SL_T?"over":""}" placeholder="Download Brochure">
+        <span class="len ${cls(t.length,SL_T)}">${t.length}/${SL_T}</span>
+        <button class="del" data-sld="${i}" aria-label="Remove">×</button></div>
+      <div class="acrow" style="grid-template-columns:26px 1fr 62px 30px">
+        <span class="sr"></span>
+        <input type="text" data-sl1="${i}" value="${esc(d1)}" class="${d1.length>SL_D?"over":""}" placeholder="Get Complete Project Details">
+        <span class="len ${cls(d1.length,SL_D)}">${d1.length}/${SL_D}</span><span></span></div>
+      <div class="acrow" style="grid-template-columns:26px 1fr 62px 30px;margin-bottom:6px">
+        <span class="sr"></span>
+        <input type="text" data-sl2="${i}" value="${esc(d2)}" class="${d2.length>SL_D?"over":""}" placeholder="Floor Plans, Pricing & Offers">
+        <span class="len ${cls(d2.length,SL_D)}">${d2.length}/${SL_D}</span><span></span></div>
+      <div class="out sm" style="padding:7px 9px">${u?esc(u):"Set the base URL to generate the link"}</div>
+    </div>`;}).join(""):`<div class="empty">No sitelinks yet. Add one or load a starter set.</div>`;
+  $("#slStat").textContent=`${AS.sl.length} · 4+ recommended`;
+  asChecks();
+}
+function drawCo(){
+  $("#coRows").innerHTML=AS.co.length?AS.co.map((t,i)=>
+    `<div class="acrow" style="grid-template-columns:26px 1fr 62px 30px">
+      <span class="sr">${i+1}</span>
+      <input type="text" data-cot="${i}" value="${esc(t)}" class="${t.length>CO_MAX?"over":""}" placeholder="Zero Brokerage">
+      <span class="len ${cls(t.length,CO_MAX)}">${t.length}/${CO_MAX}</span>
+      <button class="del" data-cod="${i}" aria-label="Remove">×</button></div>`).join("")
+    :`<div class="empty">No callouts yet.</div>`;
+  $("#coStat").textContent=`${AS.co.length} · 4+ recommended`;
+  asChecks();
+}
+function drawSn(){
+  $("#snRows").innerHTML=AS.sn.length?AS.sn.map((s,i)=>{
+    const [hd,vals]=s;
+    return `<div style="border:1px solid var(--line);border-radius:5px;padding:12px;margin-bottom:10px">
+      <div class="acrow" style="grid-template-columns:26px 1fr 30px">
+        <span class="sr">${i+1}</span>
+        <select data-snh="${i}">${SN_HEADERS.map(x=>`<option value="${esc(x)}"${x===hd?" selected":""}>${esc(x)}</option>`).join("")}</select>
+        <button class="del" data-snd="${i}" aria-label="Remove">×</button></div>
+      <div style="margin-top:8px">${vals.map((v,j)=>
+        `<div class="acrow" style="grid-template-columns:26px 1fr 62px 30px">
+          <span class="sr">${j+1}</span>
+          <input type="text" data-snv="${i}.${j}" value="${esc(v)}" class="${v.length>SN_MAX?"over":""}" placeholder="Swimming Pool">
+          <span class="len ${cls(v.length,SN_MAX)}">${v.length}/${SN_MAX}</span>
+          <button class="del" data-snx="${i}.${j}" aria-label="Remove">×</button></div>`).join("")}</div>
+      <div class="btnrow" style="margin-top:6px"><button class="btn btn-sm" data-sna="${i}">Add value</button></div>
+    </div>`;}).join(""):`<div class="empty">No snippets yet.</div>`;
+  $("#snStat").textContent=`${AS.sn.length}`;
+  asChecks();
+}
+function asChecks(){
+  const c=[], add=(l,ic,h)=>c.push(`<div class="check c-${l}"><span class="ic">${ic}</span><span>${h}</span></div>`);
+  if(!AS.base) add("warn","!","<b>No base URL.</b> Sitelink final URLs can't be generated.");
+  const slT=AS.sl.filter(r=>r[0].length>SL_T), slD=AS.sl.filter(r=>r[1].length>SL_D||r[2].length>SL_D);
+  if(slT.length) add("bad","✕",`<b>${slT.length} sitelink text${slT.length===1?"":"s"} over ${SL_T} characters.</b>`);
+  if(slD.length) add("bad","✕",`<b>${slD.length} sitelink description line${slD.length===1?"":"s"} over ${SL_D} characters.</b>`);
+  const half=AS.sl.filter(r=>r[0].trim()&&((r[1].trim()?0:1)+(r[2].trim()?0:1))===1);
+  if(half.length) add("warn","!",`<b>${half.length} sitelink${half.length===1?"":"s"} with only one description line.</b> Google shows both lines or neither — fill both.`);
+  if(AS.sl.length&&AS.sl.length<4) add("warn","!",`<b>Only ${AS.sl.length} sitelinks.</b> Google needs at least 4 before it will show them.`);
+  else if(AS.sl.length>=4) add("ok","✓",`<b>${AS.sl.length} sitelinks.</b> Enough for Google to serve them.`);
+  const dupSl=new Set(), dl=[];
+  AS.sl.forEach(r=>{const k=slugLink(r[0]); if(!k)return; if(dupSl.has(k))dl.push(r[0]); else dupSl.add(k);});
+  if(dl.length) add("bad","✕",`<b>Two sitelinks slug to the same URL:</b> <code>${esc(dl[0])}</code>`);
+  const coOver=AS.co.filter(t=>t.length>CO_MAX);
+  if(coOver.length) add("bad","✕",`<b>${coOver.length} callout${coOver.length===1?"":"s"} over ${CO_MAX} characters.</b>`);
+  if(AS.co.length&&AS.co.length<4) add("warn","!",`<b>Only ${AS.co.length} callouts.</b> Google needs at least 4.`);
+  else if(AS.co.length>=4) add("ok","✓",`<b>${AS.co.length} callouts.</b>`);
+  AS.sn.forEach(([hd,vals])=>{
+    const v=vals.filter(x=>x.trim());
+    if(v.length<3) add("bad","✕",`<b>${esc(hd)} has ${v.length} value${v.length===1?"":"s"}.</b> Google needs at least 3.`);
+    if(v.length>10) add("bad","✕",`<b>${esc(hd)} has more than 10 values.</b>`);
+    if(v.some(x=>x.length>SN_MAX)) add("bad","✕",`<b>${esc(hd)} has a value over ${SN_MAX} characters.</b>`);
+  });
+  $("#asChecks").innerHTML=c.length?c.join(""):`<div class="empty">Nothing flagged.</div>`;
+}
+function drawAll(){drawSl();drawCo();drawSn();}
+
+$("#asBase").addEventListener("input",()=>{AS.base=$("#asBase").value;saveAs();drawSl();});
+$("#asFromProj").addEventListener("click",()=>{
+  if(!PROJ.url)return toast("Set the Final URL on the ad copy tab first");
+  AS.base=PROJ.url; $("#asBase").value=PROJ.url; saveAs(); drawSl();});
+$("#asLoadSl").addEventListener("click",()=>{AS.sl=PRESET[$("#asPreset").value].sl.map(r=>[...r]);saveAs();drawSl();toast("Sitelinks loaded");});
+$("#asLoadCo").addEventListener("click",()=>{AS.co=[...PRESET[$("#asPreset").value].co];saveAs();drawCo();toast("Callouts loaded");});
+$("#asLoadSn").addEventListener("click",()=>{AS.sn=PRESET[$("#asPreset").value].sn.map(([h,v])=>[h,[...v]]);saveAs();drawSn();toast("Snippets loaded");});
+
+$("#slRows").addEventListener("input",e=>{
+  const d=e.target.dataset;
+  if(d.slt!==undefined)AS.sl[+d.slt][0]=e.target.value;
+  else if(d.sl1!==undefined)AS.sl[+d.sl1][1]=e.target.value;
+  else if(d.sl2!==undefined)AS.sl[+d.sl2][2]=e.target.value;
+  else return;
+  saveAs(); drawSl();
+  const f=document.querySelector(`[data-${d.slt!==undefined?"slt":d.sl1!==undefined?"sl1":"sl2"}="${d.slt??d.sl1??d.sl2}"]`);
+  if(f){f.focus();f.setSelectionRange(f.value.length,f.value.length);}});
+$("#slRows").addEventListener("click",e=>{
+  const i=e.target.dataset.sld; if(i===undefined)return;
+  AS.sl.splice(+i,1); saveAs(); drawSl();});
+$("#slAdd").addEventListener("click",()=>{AS.sl.push(["","",""]);saveAs();drawSl();});
+
+$("#coRows").addEventListener("input",e=>{
+  const i=e.target.dataset.cot; if(i===undefined)return;
+  AS.co[+i]=e.target.value; saveAs();
+  const el=e.target.nextElementSibling, n=e.target.value.length;
+  el.textContent=`${n}/${CO_MAX}`; el.className="len "+cls(n,CO_MAX);
+  e.target.classList.toggle("over",n>CO_MAX);
+  $("#coStat").textContent=`${AS.co.length} · 4+ recommended`; asChecks();});
+$("#coRows").addEventListener("click",e=>{
+  const i=e.target.dataset.cod; if(i===undefined)return;
+  AS.co.splice(+i,1); saveAs(); drawCo();});
+$("#coAdd").addEventListener("click",()=>{AS.co.push("");saveAs();drawCo();
+  const last=$("#coRows").querySelector(".acrow:last-child input"); if(last)last.focus();});
+$("#coPaste").addEventListener("click",()=>{
+  const raw=prompt("Paste callouts, one per line:"); if(!raw)return;
+  AS.co=raw.split("\n").map(s=>s.trim()).filter(Boolean).slice(0,20); saveAs(); drawCo();});
+
+$("#snRows").addEventListener("input",e=>{
+  const v=e.target.dataset.snv; if(v===undefined)return;
+  const [i,j]=v.split(".").map(Number); AS.sn[i][1][j]=e.target.value; saveAs();
+  const el=e.target.nextElementSibling, n=e.target.value.length;
+  el.textContent=`${n}/${SN_MAX}`; el.className="len "+cls(n,SN_MAX);
+  e.target.classList.toggle("over",n>SN_MAX); asChecks();});
+$("#snRows").addEventListener("change",e=>{
+  const i=e.target.dataset.snh; if(i===undefined)return;
+  AS.sn[+i][0]=e.target.value; saveAs(); asChecks();});
+$("#snRows").addEventListener("click",e=>{
+  const d=e.target.dataset;
+  if(d.snd!==undefined){AS.sn.splice(+d.snd,1);saveAs();drawSn();return;}
+  if(d.sna!==undefined){AS.sn[+d.sna][1].push("");saveAs();drawSn();return;}
+  if(d.snx!==undefined){const [i,j]=d.snx.split(".").map(Number);AS.sn[i][1].splice(j,1);saveAs();drawSn();}});
+$("#snAdd").addEventListener("click",()=>{AS.sn.push(["Amenities",["","",""]]);saveAs();drawSn();});
+
+/* exports */
+$("#slCopy").addEventListener("click",()=>{
+  if(!AS.sl.length)return toast("No sitelinks yet");
+  copy("SR\tSitelink text\tLen\tMax\tDescription 1\tLen\tMax\tDescription 2\tLen\tMax\tFinal URL\n"+
+    AS.sl.map((r,i)=>[i+1,r[0],r[0].length,SL_T,r[1],r[1].length,SL_D,r[2],r[2].length,SL_D,slUrl(r[0])].join("\t")).join("\n"));});
+$("#slCsv").addEventListener("click",()=>{
+  if(!AS.sl.length)return toast("No sitelinks yet");
+  dl("sitelinks-ads-editor.csv","Sitelink text,Description line 1,Description line 2,Final URL\n"+
+    AS.sl.map(r=>[r[0],r[1],r[2],slUrl(r[0])].map(csvq).join(",")).join("\n"));});
+$("#coCopy").addEventListener("click",()=>{
+  if(!AS.co.length)return toast("No callouts yet");
+  copy("SR\tCallout\tLen\tMax\n"+AS.co.map((t,i)=>[i+1,t,t.length,CO_MAX].join("\t")).join("\n"));});
+$("#coCsv").addEventListener("click",()=>{
+  if(!AS.co.length)return toast("No callouts yet");
+  dl("callouts-ads-editor.csv","Callout text\n"+AS.co.map(t=>csvq(t)).join("\n"));});
+$("#snCopy").addEventListener("click",()=>{
+  if(!AS.sn.length)return toast("No snippets yet");
+  copy(AS.sn.map(([hd,v])=>`${hd}\n`+v.filter(x=>x.trim()).map((x,i)=>`${i+1}\t${x}\t${x.length}\t${SN_MAX}`).join("\n")).join("\n\n"));});
+$("#snCsv").addEventListener("click",()=>{
+  if(!AS.sn.length)return toast("No snippets yet");
+  const hdr=["Header"]; for(let i=1;i<=10;i++)hdr.push(`Value ${i}`);
+  dl("snippets-ads-editor.csv",hdr.map(csvq).join(",")+"\n"+
+    AS.sn.map(([hd,v])=>{const vv=v.filter(x=>x.trim()).slice(0,10);
+      const r=[hd]; for(let i=0;i<10;i++)r.push(vv[i]||""); return r.map(csvq).join(",");}).join("\n"));});
+
+$("#asBase").value=AS.base||"";
+drawAll();
+
 
 </script>
 </body>
