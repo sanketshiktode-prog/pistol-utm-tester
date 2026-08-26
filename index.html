@@ -2009,8 +2009,8 @@ on("#stKwCsv","click",()=>{
   if(!PLAN.length)return toast("Build the structure first");
   const rows=[];
   PLAN.forEach(p=>p.groups.forEach(g=>g.kws.forEach(k=>
-    rows.push([p.campaign,g.name,k,MTNAME[g.mt]||"Broad"]))));
-  dl("structure-keywords.csv","Campaign,Ad group,Keyword,Match type\n"+
+    rows.push([p.campaign,g.name,k,MTNAME[g.mt]||"Broad","Enabled"]))));
+  dl("structure-keywords.csv","Campaign,Ad group,Keyword,Match type,Status\n"+
     rows.map(r=>r.map(csvq).join(",")).join("\n"));});
 on("#stAdCsv","click",()=>{
   if(!PLAN.length)return toast("Build the structure first");
@@ -2114,13 +2114,14 @@ on("#stAllCsv","click",()=>{
 /* ═══════════ one file: campaigns, ad groups, keywords, ads, assets ═══════════
    Ads Editor reads a single CSV where every row shares the same columns and
    the populated cells decide the row type. Empty cells are expected. */
-const MT_WRAP={E:k=>`[${k}]`,P:k=>`"${k}"`,B:k=>k};
+/* Editor rejects brackets and quotes inside keyword text. Google's spec
+   wants plain text plus a match-type column. */
 const MT_CRIT={E:"Exact",P:"Phrase",B:"Broad"};
 function masterCsv(){
   const H=[];
-  H.push("Campaign","Campaign Type","Campaign Status","Budget","Budget type","Bid Strategy Type",
+  H.push("Campaign","Campaign Type","Campaign Status","Budget","Budget type","Bid Strategy Type","Networks",
     "Ad group","Ad Group Status","Max CPC","Tracking template","Custom parameter",
-    "Keyword","Criterion Type","Status","Final URL","Path 1","Path 2");
+    "Keyword","Match type","Status","Final URL","Path 1","Path 2");
   for(let i=1;i<=H_CAP;i++)H.push(`Headline ${i}`,`Headline ${i} position`);
   for(let i=1;i<=D_CAP;i++)H.push(`Description ${i}`,`Description ${i} position`);
   H.push("Callout text","Sitelink text","Sitelink description 1","Sitelink description 2",
@@ -2143,6 +2144,7 @@ function masterCsv(){
       put(r,"Campaign",p.campaign); put(r,"Campaign Type","Search");
       put(r,"Campaign Status",cstat); put(r,"Budget",budget);
       put(r,"Budget type","Daily"); put(r,"Bid Strategy Type",bid);
+      put(r,"Networks","Google Search;Search Partners");
       rows.push(r);
     }
     p.groups.forEach(g=>{
@@ -2155,8 +2157,8 @@ function masterCsv(){
       g.kws.forEach(k=>{
         const r=blank();
         put(r,"Campaign",p.campaign); put(r,"Ad group",g.name);
-        put(r,"Keyword",(MT_WRAP[g.mt]||MT_WRAP.B)(k));
-        put(r,"Criterion Type",MT_CRIT[g.mt]||"Broad");
+        put(r,"Keyword",k);
+        put(r,"Match type",MT_CRIT[g.mt]||"Broad");
         put(r,"Status","Enabled");
         rows.push(r);
       });
