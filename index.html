@@ -2049,11 +2049,14 @@ function rupees(n,unit){
   if(!isFinite(v))return 0;
   return /^c/i.test(unit)?v*1e7:v*1e5;
 }
+/* The lookback stays inside the line. A token amount sitting on the line
+   above must not disqualify the real price on this one. */
 function findPrice(T){
   const out=[];
   const re=/(?:\u20b9|Rs\.?|INR)\s*([\d.,]+)\s*(Lakhs?|Lacs?|Cr\.?|Crores?)/gi; let m;
   while((m=re.exec(T))){
-    const before=T.slice(Math.max(0,m.index-60),m.index).toLowerCase();
+    const lineStart=T.lastIndexOf("\n",m.index)+1;
+    const before=T.slice(lineStart,m.index).toLowerCase();
     if(/token|booking amount|eoi|application money|advance|emi|per month|per sq|psf|registration/.test(before))continue;
     const val=rupees(m[1],m[2]);
     if(val<1500000)continue;                       // below 15 lakh is not a home price here
@@ -2158,6 +2161,27 @@ function capture(raw){
     usps:dedupe(usps).filter(s=>s.length<=30).slice(0,8),
     chars:T.length};
 }
+/* The Gemini key lives in the Apps Script, never in this page. The browser
+   sends the page text and its sign-in token; the script checks the token,
+   calls Gemini, and sends back the fields. Content-Type stays text/plain so
+   the browser treats it as a simple request and skips the preflight that
+   Apps Script cannot answer. */
+async function askAI(text){
+  if(!AUTH.logUrl||!USER)return null;
+  try{
+    const ctl=new AbortController();
+    const bail=setTimeout(()=>ctl.abort(),25000);
+    const r=await fetch(AUTH.logUrl,{method:"POST",signal:ctl.signal,
+      headers:{"Content-Type":"text/plain;charset=utf-8"},
+      body:JSON.stringify({action:"extract",credential:USER.credential,text:text.slice(0,26000)})});
+    clearTimeout(bail);
+    if(!r.ok)return null;
+    const j=await r.json();
+    if(j.error){ toast(j.error); return null; }
+    return j;
+  }catch(e){ return null; }
+}
+
 let LAST_READ=null;
 const FOUND_ROWS=[["proj","Project","acProj"],["dev","Developer","acDev"],
   ["micro","Micro-market","acMicro"],["city","City","acCity"],
@@ -2203,15 +2227,31 @@ on("#impFound","click",e=>{
   toast("Brief updated");
 });
 async function readLp(){
+  try{ await runRead(); }
+  catch(err){
+    $("#impStat").innerHTML='<span class="pill p-bad">failed</span>';
+    $("#impFound").innerHTML=`<div class="check c-bad"><span class="ic">\u2715</span><span><b>Reading failed.</b> ${esc(String((err&&err.message)||err))}</span></div>`;
+    toast("Read failed \u2014 see the panel");
+  }
+}
+async function runRead(){
   const url=$("#inLp").value.trim(), pasted=$("#impPaste").value.trim();
   let txt=pasted, via=pasted?"pasted text":"";
   if(!txt){
     if(!url)return toast("Put the landing page URL in first");
     $("#impStat").innerHTML='<span class="pill p-mute">reading\u2026</span>';
-    for(const mk of READERS){
-      try{ const r=await fetch(mk(url)); if(!r.ok)continue;
-        const t=await r.text(); if(t&&t.length>400){txt=t;via=new URL(mk(url)).hostname;break;} }
-      catch(e){}
+    for(let i=0;i<READERS.length;i++){
+      const target=READERS[i](url);
+      $("#impStat").innerHTML=`<span class="pill p-mute">reader ${i+1} of ${READERS.length}\u2026</span>`;
+      try{
+        const ctl=new AbortController();
+        const bail=setTimeout(()=>ctl.abort(),12000);
+        const r=await fetch(target,{signal:ctl.signal});
+        clearTimeout(bail);
+        if(!r.ok)continue;
+        const t=await r.text();
+        if(t&&t.length>400){txt=t;via=new URL(target).hostname;break;}
+      }catch(e){}
     }
   }
   if(!txt||txt.length<200){
