@@ -205,6 +205,7 @@ code{font-family:var(--mono);background:rgba(0,0,0,.05);padding:1px 4px;border-r
     <div class="wordmark">Search Ops Toolkit <span>· Google Ads</span></div>
     <div class="spacer"></div>
     <div class="badge-env" id="varCount">0 VARIANTS</div>
+    <span class="pill p-mute" id="buildTag" title="build">b-27aug-3</span>
     <div id="userChip" class="hidden" style="display:flex;align-items:center;gap:9px">
       <div class="divider-v"></div>
       <span id="userName" style="font-size:12.5px;font-weight:500"></span>
@@ -938,6 +939,12 @@ function placeOf(b){
 /* "Mahindra Lifespaces Mahalunge" + micro-market "Mahalunge" was producing
    "Mahindra Lifespaces Mahalunge Mahalunge". Any part whose words are
    already present is dropped. */
+/* Phrases that must never reach ad copy, callouts or sitelinks, wherever
+   they are generated from. Checked in one place so a preset or a template
+   cannot smuggle one back in. */
+const BANNED=[/brokerage/i,/hidden charge/i,/\bno hidden\b/i,/0%\s*commission/i,/zero commission/i];
+const banned=t=>BANNED.some(re=>re.test(String(t||"")));
+const scrub=list=>(list||[]).filter(t=>!banned(t));
 function joinParts(){
   const out=[];
   [...arguments].filter(Boolean).forEach(p=>{
@@ -1663,8 +1670,8 @@ const PRESET={
       ["Master & Floor Plans","Township Layout And Unit Plans","See Every Configuration Inside"],
       ["Amenities & Highlights","50+ World-Class Amenities","70% Open-To-Sky Green Spaces"],
       ["Location & Connectivity","Hinjewadi IT Park In 25 Mins","Airport 45 Mins, NH-48 Access"]],
-  co:["Zero Brokerage","RERA Registered","Free Site Visit","Instant Call Back","New Launch Offer",
-      "21 Acre Township","70% Open Spaces","50+ Amenities","Riverside Development","Assured Best Price"],
+  co:["RERA Registered","Free Site Visit","Instant Call Back","New Launch Offer",
+      "21 Acre Township","70% Open Spaces","50+ Amenities","Riverside Development","Prime Location"],
   sn:[["Types",["2 BHK","2.5 BHK","3 BHK"]],
       ["Amenities",["Swimming Pool","Gymnasium","Clubhouse","Jogging Track","Kids Play Area","Yoga Deck"]]]
  },
@@ -1675,8 +1682,8 @@ const PRESET={
       ["Floor Plans & Layouts","Studio To 3 BR Layouts","See Every Configuration Inside"],
       ["Amenities & Lifestyle","Resort-Style Facilities","Pool, Gym And Landscaped Decks"],
       ["Location & Connectivity","Downtown Dubai In 12 Minutes","DIFC 15 Mins, Airport 18 Mins"]],
-  co:["0% Commission","Freehold Ownership","Golden Visa Eligible","60/40 Payment Plan","DLD Registered",
-      "Post-Handover Plan","Free Consultation","Direct From Developer","Prime Location","Limited Units"],
+  co:["Freehold Ownership","Golden Visa Eligible","60/40 Payment Plan","DLD Registered",
+      "Post-Handover Plan","Free Consultation","Direct From Developer","Prime Location","Limited Units","Waterfront Living"],
   sn:[["Types",["Studio","1 BR","2 BR","3 BR"]],
       ["Amenities",["Swimming Pool","Gymnasium","Concierge","Kids Play Area","Landscaped Deck"]]]
  }
@@ -1795,8 +1802,8 @@ on("#asFromProj","click",()=>{
   const u=PROJ.url||$("#inLp").value.trim();
   if(!u)return toast("Set the landing page URL first");
   AS.base=u; $("#asBase").value=u; saveAs(); drawSl();});
-on("#asLoadSl","click",()=>{AS.sl=PRESET[$("#asPreset").value].sl.map(r=>[...r]);saveAs();drawSl();toast("Sitelinks loaded");});
-on("#asLoadCo","click",()=>{AS.co=[...PRESET[$("#asPreset").value].co];saveAs();drawCo();toast("Callouts loaded");});
+on("#asLoadSl","click",()=>{AS.sl=PRESET[$("#asPreset").value].sl.map(r=>[...r]).filter(r=>!banned(r.join(" ")));saveAs();drawSl();toast("Sitelinks loaded");});
+on("#asLoadCo","click",()=>{AS.co=scrub(PRESET[$("#asPreset").value].co);saveAs();drawCo();toast("Callouts loaded");});
 on("#asLoadSn","click",()=>{AS.sn=PRESET[$("#asPreset").value].sn.map(([h,v])=>[h,[...v]]);saveAs();drawSn();toast("Snippets loaded");});
 
 on("#slRows","input",e=>{
@@ -1980,7 +1987,7 @@ on("#asGen","click",()=>{
   ].map(r=>[fit(r[0],SL_T)||r[0].slice(0,SL_T),r[1],r[2]]);
   /* callouts come only from what the project actually offers */
   const coCands=[...u, ...b.amen.map(tc), ...m].filter(Boolean).map(tc);
-  const used=new Set(), co=pick(coCands,CO_MAX,10,used);
+  const used=new Set(), co=pick(scrub(coCands),CO_MAX,10,used);
   const cfgVals=cfgList(b.cfg).map(s=>fit(tc(s),SN_MAX)).filter(Boolean);
   const sn=[];
   if(cfgVals.length>=3)sn.push(["Types",cfgVals]);
@@ -1988,7 +1995,7 @@ on("#asGen","click",()=>{
     .map(x=>fit(tc(x),SN_MAX)).filter(Boolean).slice(0,10);
   if(amen.length>=3)sn.push(["Amenities",amen]);
   if(where)sn.push(["Neighborhoods",[b.micro,b.city].filter(Boolean).map(x=>fit(x,SN_MAX)).filter(Boolean)]);
-  AS.sl=sl; AS.co=co; AS.sn=sn.filter(s=>s[1].length>=3);
+  AS.sl=sl.filter(r=>!banned(r.join(" "))); AS.co=co; AS.sn=sn.filter(s=>s[1].length>=3);
   const baseUrl=PROJ.url||$("#inLp").value.trim();
   if(!AS.base&&baseUrl){AS.base=baseUrl;$("#asBase").value=baseUrl;}
   saveAs(); drawAll(); toast("Sitelinks, callouts and snippets generated");});
@@ -2513,7 +2520,7 @@ function adFor(kws){
     b.cfg?`Spacious ${b.cfg} Homes`:"",
     P?`Homes ${mode==="Onwards"?P+" Onwards":mode+" "+P}`:"",
     b.cfg&&P?`Premium ${b.cfg} ${P}`:""].filter(Boolean);
-  pick(money,H_MAX,5,used).forEach(t=>H.push([t,"2"]));
+  pick(scrub(money),H_MAX,5,used).forEach(t=>H.push([t,"2"]));
   const usp=pick(b.usps.map(tc),H_MAX,4,used);
   usp.forEach(t=>H.push([t,"3"]));
   const cta=pick(["Book A Free Site Visit","Download Brochure Now","Get Price List Instantly",
@@ -2534,14 +2541,14 @@ function adFor(kws){
     compose([`${b.cfg} At ${withPlace(b.proj,where)}`, price],D_MAX),
     compose([`${addPart(b.proj,b.micro)} \u2014 ${b.cfg}`, price],D_MAX),
     compose([`${where?b.proj+" In "+where:b.proj}`, b.cfg&&`${b.cfg} ${price}`],D_MAX)
-  ].filter(Boolean),D_MAX,2,dUsed).map(t=>[t,"1"]);
+  ].filter(Boolean).filter(x=>!banned(x)),D_MAX,2,dUsed).map(t=>[t,"1"]);
   /* pinned 2 — USP and a call to action */
   const p2=pick([
     compose([u[0]&&u[1]?`${u[0]} & ${u[1]}`:(u[0]||"Premium Homes"), CTA[0]],D_MAX),
     compose([u[2]||u[1]||u[0]||"World-Class Amenities", m[0], CTA[1]],D_MAX),
     compose([joinParts(b.offer||"New Launch","At",b.proj), u[3]||u[0]||"", CTA[2]],D_MAX),
     compose([m[0]||u[0]||"Prime Location", CTA[3]],D_MAX)
-  ].filter(Boolean),D_MAX,2,dUsed).map(t=>[t,"2"]);
+  ].filter(Boolean).filter(x=>!banned(x)),D_MAX,2,dUsed).map(t=>[t,"2"]);
   const D=[...p1,...p2]; while(D.length<D_CAP)D.push(["",""]);
   return {h:H.slice(0,H_CAP),d:D.slice(0,D_CAP)};
 }
