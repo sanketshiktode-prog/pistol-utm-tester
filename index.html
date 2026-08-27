@@ -258,9 +258,19 @@ code{font-family:var(--mono);background:rgba(0,0,0,.05);padding:1px 4px;border-r
         </label>
 
         <div class="f">
-          <span class="f-lab">Strategies
+          <span class="f-lab">Launch stage</span>
+          <select id="inStage">
+            <option value="live">Named project</option>
+            <option value="prelaunch">Prelaunch — name not revealed</option>
+          </select>
+          <span class="f-note" id="stageNote">Brand-Project-Location runs on the project name.</span>
+        </div>
+
+        <div class="f">
+          <span class="f-lab">Campaigns to build
             <button class="mini-act" type="button" data-all="inStrat">select all</button></span>
-          <select id="inStrat" multiple size="9"></select>
+          <div id="stratBoxes"></div>
+          <select id="inStrat" multiple size="9" class="hidden"></select>
           <div class="btnrow" style="margin-top:8px">
             <button class="btn btn-sm btn-navy" type="button" id="btnManage">+ Add / edit <span id="mgLabel">Search</span> strategies</button>
           </div>
@@ -296,6 +306,12 @@ code{font-family:var(--mono);background:rgba(0,0,0,.05);padding:1px 4px;border-r
     <div class="card">
       <div class="card-hd"><h2>Landing page import</h2><span class="hint" id="impStat">—</span></div>
       <div class="card-bd">
+        <label class="f">
+          <span class="f-lab">Gemini API key <span class="pill p-mute">optional</span></span>
+          <input type="text" id="aiKey" placeholder="Paste a key to read the page with AI" spellcheck="false">
+          <span class="f-note">Free tier at <b>aistudio.google.com/apikey</b>. With a key the page is read by Gemini, which handles layouts the pattern reader misses. Without one the pattern reader runs on its own. Restrict the key to this domain in Cloud Console — the page is public.</span>
+        </label>
+        <label class="chk"><input type="checkbox" id="impOverwrite"> Overwrite fields I already filled</label>
         <div class="btnrow">
           <button class="btn btn-pri btn-sm" id="impFetch">Read the landing page</button>
           <button class="btn btn-sm" id="impPasteBtn">Paste page text</button>
@@ -728,6 +744,11 @@ code{font-family:var(--mono);background:rgba(0,0,0,.05);padding:1px 4px;border-r
   <div class="card">
     <div class="card-hd"><h2>Build everything</h2><span class="hint" id="stStat">nothing built yet</span></div>
     <div class="card-bd">
+      <div class="btnrow" style="margin-bottom:14px">
+        <label class="f-lab" style="margin:0">Assets go to</label>
+        <select id="stAssetCamp" style="max-width:340px"><option value="">— build first —</option></select>
+        <span class="f-note" style="margin:0">One campaign carries them; copy across in Editor.</span>
+      </div>
       <div class="btnrow">
         <button class="btn btn-pri" id="stBuild">Build full campaign structure</button>
         <button class="btn btn-navy" id="stAll">Download import files</button>
@@ -753,7 +774,7 @@ code{font-family:var(--mono);background:rgba(0,0,0,.05);padding:1px 4px;border-r
         <label class="f"><span class="f-lab">Conversion goals</span>
           <input type="text" id="stGoal" value="Submit lead form (Website);Qualified Leads"></label>
       </div>
-      <div class="callout" style="margin:10px 0">Import the files in number order: campaigns, ad groups, keywords, ads, then the asset files. Editor needs the parent to exist before the child. Before posting, set <b>EU political ads</b> and the campaign objective in Editor — neither has a CSV column.</div>
+      <div class="callout" style="margin:10px 0">Import the files in number order — Editor needs the parent before the child. Three settings have no CSV column and are set once per campaign in Editor before posting: <b>EU political ads</b>, the <b>objective and conversion goals</b>, and <b>location options → Presence</b> (the default, Presence or interest, will serve outside the city).</div>
       <div class="f-note" style="margin-top:10px">One pass builds a campaign per strategy, Phrase and Exact ad groups inside each, the keyword set for that strategy, and a full 15/4 ad in every ad group. Assets are rebuilt too. Tracking template and custom parameters are written at ad group level, one set per ad group.</div>
     </div>
   </div>
@@ -800,15 +821,26 @@ code{font-family:var(--mono);background:rgba(0,0,0,.05);padding:1px 4px;border-r
 <div class="foot">PropertyPistol marketing ops · campaign naming and tracking URL builder</div>
 <div class="toast" id="toast"></div>
 
-<div class="modal" id="gate" style="background:rgba(20,22,28,.94)">
-  <div class="modal-box" style="max-width:440px;margin-top:8vh">
-    <div class="modal-hd"><h2>Sign in</h2></div>
-    <div class="modal-bd">
-      <p style="margin:0 0 16px;font-size:13.5px;color:var(--ink-soft)">
-        This workspace is restricted to <b id="gateDomain">propertypistol.com</b> accounts.</p>
-      <div id="gateBtn"></div>
-      <div id="gateMsg" style="margin-top:14px"></div>
-      <div class="f-note" style="margin-top:18px">Every build and export is recorded against your account.</div>
+<div id="gate" class="hidden" style="position:fixed;inset:0;z-index:80;background:var(--paper);overflow:auto">
+  <div style="min-height:100%;display:flex;align-items:center;justify-content:center;padding:40px 20px">
+    <div style="width:100%;max-width:420px">
+      <div style="text-align:center;margin-bottom:28px">
+        <img src="https://cdn.propertypistol.com/images/pp-logo-updated.svg" alt="PropertyPistol"
+          style="height:34px" onerror="this.outerHTML='&lt;div class=\'logo-fallback\' style=\'font-size:24px\'&gt;Property&lt;b&gt;Pistol&lt;/b&gt;&lt;/div&gt;'">
+        <h1 style="font-family:var(--disp);font-size:21px;font-weight:700;margin:20px 0 6px">Search Ops Toolkit</h1>
+        <p style="margin:0;font-size:13.5px;color:var(--ink-soft)">
+          Campaign structures, ad copy and assets for Google Ads.</p>
+      </div>
+      <div class="card">
+        <div class="card-bd" style="padding:24px">
+          <div style="font-size:12.5px;color:var(--ink-soft);margin-bottom:16px">
+            Restricted to <b id="gateDomain">propertypistol.com</b> accounts.</div>
+          <div id="gateBtn" style="display:flex;justify-content:center"></div>
+          <div id="gateMsg" style="margin-top:14px"></div>
+        </div>
+      </div>
+      <div style="text-align:center;margin-top:18px;font-size:11.5px;color:var(--ink-soft)">
+        Every build and export is recorded against your account.</div>
     </div>
   </div>
 </div>
@@ -883,6 +915,10 @@ function syncProj(){
 }
 function brief(){
   const p=syncProj();
+  if(isPrelaunch()){
+    const dev=tc(p.dev)||tc(p.proj), loc=tc(p.micro)||tc(p.city);
+    p.proj=[dev,loc].filter(Boolean).join(" ")||tc(p.proj);
+  }
   const price=(p.price||"").trim();
   return {
     proj:tc(p.proj)||tc(p.cfg&&"")||"", dev:tc(p.dev), micro:tc(p.micro), city:tc(p.city),
@@ -968,11 +1004,35 @@ on("#fxRate","input",syncTicket);
   $("#"+id).addEventListener("input",syncTicket); $("#"+id).addEventListener("change",syncTicket);});
 
 /* ═══ dropdowns ═══ */
+const isPrelaunch=()=>$("#inStage")&&$("#inStage").value==="prelaunch";
+/* With no project name announced there is nothing for a Brand-Project-Location
+   campaign to bid on, so it is taken off the table rather than built empty. */
+const blockedStrat=s=>isPrelaunch()&&/BPL/i.test(s);
+function drawStratBoxes(){
+  const sel=$("#inStrat");
+  $("#stratBoxes").innerHTML=[...sel.options].map((o,i)=>{
+    const off=blockedStrat(o.value);
+    return `<label class="chk" style="${off?"opacity:.45":""}">
+      <input type="checkbox" data-sb="${i}" ${o.selected&&!off?"checked":""} ${off?"disabled":""}>
+      <span>${esc(o.textContent)}</span>
+      ${off?'<span class="pill p-bad" style="margin-left:auto">needs a name</span>':""}</label>`;}).join("")
+    ||`<div class="empty">No strategies yet.</div>`;
+}
+on("#stratBoxes","change",e=>{
+  const i=e.target.dataset.sb; if(i===undefined)return;
+  $("#inStrat").options[+i].selected=e.target.checked; build();});
+on("#inStage","change",()=>{
+  $("#stageNote").textContent=isPrelaunch()
+    ? "Brand-Project-Location is switched off. Market it as developer plus location, e.g. Mahindra Mahalunge."
+    : "Brand-Project-Location runs on the project name.";
+  [...$("#inStrat").options].forEach(o=>{ if(blockedStrat(o.value))o.selected=false; });
+  drawStratBoxes(); build();});
 function fillStrategies(){
   const sel=$("#inStrat"), keep=new Set([...sel.selectedOptions].map(o=>o.value));
   sel.innerHTML=STRATS[CH].map(([n,s])=>`<option value="${esc(s)}">${esc(n)} — ${esc(s)}</option>`).join("");
-  [...sel.options].forEach(o=>{if(keep.has(o.value))o.selected=true;});
-  if(![...sel.selectedOptions].length&&sel.options.length) sel.options[0].selected=true;
+  [...sel.options].forEach(o=>{if(keep.has(o.value)&&!blockedStrat(o.value))o.selected=true;});
+  if(![...sel.selectedOptions].length){const f=[...sel.options].find(o=>!blockedStrat(o.value)); if(f)f.selected=true;}
+  drawStratBoxes();
   $("#wrapMatch").classList.toggle("hidden",CH!=="search");
   $("#mgLabel").textContent=CH==="search"?"Search":"Demand Gen";
 }
@@ -985,7 +1045,8 @@ on("#segChannel","click",e=>{const b=e.target.closest("button[data-ch]");if(!b)r
   fillStrategies();build();});
 $$("[data-all]").forEach(b=>b.addEventListener("click",()=>{
   const s=$("#"+b.dataset.all), on=[...s.selectedOptions].length<s.options.length;
-  [...s.options].forEach(o=>o.selected=on);
+  [...s.options].forEach(o=>o.selected=on&&!(s.id==="inStrat"&&blockedStrat(o.value)));
+  if(s.id==="inStrat")drawStratBoxes();
   if(!on&&s.options.length)s.options[0].selected=true;
   b.textContent=on?"clear":"select all"; build();}));
 
@@ -1541,8 +1602,12 @@ function slugWord(text){
   for(const x of w) if(SL_WORD[x]) return SL_WORD[x];
   return w[w.length-1]||"";
 }
+function assetBase(){
+  return (AS.base||"").trim() || (PROJ.url||"").trim()
+      || (($("#inLp")&&$("#inLp").value.trim())||"");
+}
 function slUrl(text,manual){
-  const base=(AS.base||"").trim(); if(!base)return "";
+  const base=assetBase(); if(!base)return "";
   const s=(manual&&manual.trim()?manual:slugWord(text)).toLowerCase().replace(/[^a-z0-9]/g,"");
   if(!s)return base;
   return base+(base.includes("?")?"&":"?")+"sitelink="+s;
@@ -1859,7 +1924,7 @@ function logEvent(action,detail){
   }catch(e){}
 }
 function showUser(){
-  $("#gate").classList.remove("on");
+  $("#gate").classList.add("hidden");
   $("#userChip").classList.remove("hidden");
   $("#userName").textContent=USER.name||USER.email;
   const admin=USER.email.toLowerCase()===AUTH.admin.toLowerCase();
@@ -1881,14 +1946,14 @@ function onCredential(res){
 function initAuth(){
   $("#gateDomain").textContent=AUTH.domain;
   if(!AUTH.clientId){
-    $("#gate").classList.add("on");
+    $("#gate").classList.remove("hidden");
     $("#gateBtn").innerHTML=`<div class="check c-warn"><span class="ic">!</span><span>
       <b>Sign-in is not switched on yet.</b> It needs a Google OAuth client ID, which has to be
       created inside the PropertyPistol Google Cloud account — nobody outside it can make one.
       Follow SETUP.md, then paste the ID into <code>AUTH.clientId</code> at the top of the script.</span></div>
       <button class="btn btn-pri" id="gateSkip" style="margin-top:14px;width:100%">Continue without signing in</button>`;
     on("#gateSkip","click",()=>{
-      $("#gate").classList.remove("on");
+      $("#gate").classList.add("hidden");
       $("#userChip").classList.remove("hidden");
       $("#userName").textContent="Not signed in";
       $("#userRole").textContent="OPEN"; $("#userRole").className="pill p-bad";
@@ -1896,7 +1961,7 @@ function initAuth(){
     return;
   }
   try{const s=sessionStorage.getItem("pp_user"); if(s){USER=JSON.parse(s);showUser();return;}}catch(e){}
-  $("#gate").classList.add("on");
+  $("#gate").classList.remove("hidden");
   const start=()=>{
     if(!(window.google&&google.accounts&&google.accounts.id))return setTimeout(start,300);
     google.accounts.id.initialize({client_id:AUTH.clientId,callback:onCredential,
@@ -1931,85 +1996,130 @@ const AMEN_DICT=["Swimming Pool","Infinity Pool","Kids Pool","Gymnasium","Gym","
  "Swimming","Sports Court","Open Gym","Reflexology","Pergola","Gazebo","Water Feature","Toddler Zone"];
 function stripTags(html){
   return html.replace(/<script[\s\S]*?<\/script>/gi," ").replace(/<style[\s\S]*?<\/style>/gi," ")
+    .replace(/<\/(p|div|li|h[1-6]|tr|br)>/gi,"\n").replace(/<br\s*\/?>/gi,"\n")
     .replace(/<[^>]+>/g," ").replace(/&nbsp;/gi," ").replace(/&amp;/gi,"&")
-    .replace(/&#8377;|&rupee;/gi,"\u20b9").replace(/&[a-z]+;/gi," ").replace(/\s+/g," ");
+    .replace(/&#8377;|&rupee;/gi,"\u20b9").replace(/&[a-z]+;/gi," ")
+    .replace(/[ \t]{2,}/g," ").replace(/\n{2,}/g,"\n");
 }
+/* Newlines are load-bearing: without them a "Price :" label match runs on
+   until it swallows the rest of the page. Only spaces get collapsed. */
+function norm(t){ return String(t||"").replace(/\r/g,"\n").replace(/[ \t]+/g," ").replace(/\n{2,}/g,"\n").trim(); }
 function jsonLd(html){
-  const out=[];
-  const re=/<script[^>]+application\/ld\+json[^>]*>([\s\S]*?)<\/script>/gi; let m;
+  const out=[]; const re=/<script[^>]+application\/ld\+json[^>]*>([\s\S]*?)<\/script>/gi; let m;
   while((m=re.exec(html))){ try{ const j=JSON.parse(m[1].trim());
-    (Array.isArray(j)?j:[j]).forEach(x=>out.push(x)); }catch(e){} }
+    (Array.isArray(j)?j:[j]).forEach(x=>{ out.push(x); if(x["@graph"])x["@graph"].forEach(y=>out.push(y)); }); }catch(e){} }
   return out;
 }
 function metaOf(html,prop){
-  const re=new RegExp(`<meta[^>]+(?:property|name)=["']${prop}["'][^>]+content=["']([^"']+)["']`,"i");
-  const m=html.match(re); if(m)return m[1].trim();
-  const re2=new RegExp(`<meta[^>]+content=["']([^"']+)["'][^>]+(?:property|name)=["']${prop}["']`,"i");
-  const m2=html.match(re2); return m2?m2[1].trim():"";
+  const a=html.match(new RegExp(`<meta[^>]+(?:property|name)=["']${prop}["'][^>]*content=["']([^"']+)["']`,"i"));
+  if(a)return a[1].trim();
+  const b=html.match(new RegExp(`<meta[^>]+content=["']([^"']+)["'][^>]*(?:property|name)=["']${prop}["']`,"i"));
+  return b?b[1].trim():"";
 }
+const cutTail=v=>String(v||"").split(/\s{2,}|\s(?=[A-Z][A-Za-z ]{2,22}\s*:)/)[0]
+  .replace(/[\s,;|.\u2022-]+$/,"").trim();
 function capture(raw){
-  const isHtml=/<\/?[a-z][\s\S]*>/i.test(raw);
+  const isHtml=/<\s*(html|head|body|div|meta|section)\b/i.test(raw);
   const html=isHtml?raw:"";
-  const T=isHtml?stripTags(raw):raw.replace(/\s+/g," ");
-  const g={}, src={};
-  const take=(k,v,from)=>{ if(v&&!g[k]){ g[k]=String(v).trim(); src[k]=from; } };
+  const T=norm(isHtml?stripTags(raw):raw);
+  const LINES=T.split("\n").map(s=>s.trim()).filter(Boolean);
+  const g={},src={};
+  const take=(k,v,from)=>{ v=cutTail(v); if(v&&v.length<=80&&!g[k]){ g[k]=v; src[k]=from; } };
 
-  /* 1 — structured data */
   jsonLd(html).forEach(j=>{
-    take("proj",j.name,"structured data");
+    if(j.name&&/Residence|Product|Place|Organization|LocalBusiness|Apartment/i.test(j["@type"]||""))
+      take("proj",j.name,"structured data");
     if(j.address){ take("micro",j.address.addressLocality,"structured data");
       take("city",j.address.addressRegion||j.address.addressLocality,"structured data"); }
-    if(j.offers){ const o=Array.isArray(j.offers)?j.offers[0]:j.offers;
-      if(o&&o.price)take("price",(o.priceCurrency==="AED"?"AED ":"\u20b9")+o.price,"structured data"); }
+    const o=j.offers?(Array.isArray(j.offers)?j.offers[0]:j.offers):null;
+    if(o&&o.price)take("price",(o.priceCurrency==="AED"?"AED ":"\u20b9")+o.price,"structured data");
     if(j.brand)take("dev",typeof j.brand==="string"?j.brand:j.brand.name,"structured data");
   });
 
-  /* 2 — meta tags */
+  let head="";
   if(html){
-    const t=metaOf(html,"og:title")||(html.match(/<title[^>]*>([^<]+)<\/title>/i)||[])[1]||"";
-    take("proj",t.split(/[|\u2013\u2014]|\s-\s/)[0].trim(),"page title");
+    head=metaOf(html,"og:title")||(html.match(/<title[^>]*>([^<]+)<\/title>/i)||[])[1]||"";
     take("desc",metaOf(html,"og:description")||metaOf(html,"description"),"meta description");
-    const site=metaOf(html,"og:site_name"); take("dev",site,"meta");
   } else {
-    const t=(T.match(/^Title:\s*(.+?)$/mi)||[])[1]; take("proj",t?t.split(/[|\u2013\u2014]|\s-\s/)[0].trim():"","page title");
+    head=(T.match(/^Title:\s*(.+)$/mi)||[])[1]||LINES[0]||"";
   }
+  head=head.replace(/^Title:\s*/i,"");
+  take("proj",head.split(/\s*[|\u2013\u2014]\s*|\s-\s/)[0],"page title");
 
-  /* 3 — labelled fields, e.g. "Configuration : 2 & 3 BHK" */
+  /* labelled fields, stopped at the end of their own line */
   const label=(names,key,from)=>{
-    const re=new RegExp(`(?:${names})\\s*[:\\-\u2013]\\s*([^|\\n\u2022]{2,60})`,"i");
-    const m=T.match(re); if(m)take(key,m[1].trim().replace(/\\s{2,}/g," "),from);
+    const m=T.match(new RegExp(`(?:^|\\n)\\s*(?:${names})\\s*[:\\-\u2013]\\s*([^\\n|\u2022]{2,70})`,"i"));
+    if(m)take(key,m[1],from||"labelled field");
   };
-  label("configuration|configurations|typology|unit types?","cfg","labelled field");
-  label("price|pricing|starting price|starts at","price","labelled field");
-  label("location|address|micro market","loc","labelled field");
-  label("developer|builder|by","dev","labelled field");
-  label("possession|handover","possession","labelled field");
-  label("rera|rera no\\.?|rera number","rera","labelled field");
+  label("configurations?|typology|unit types?|apartment types?","cfg");
+  label("price|pricing|starting price|starts at|price range","price");
+  label("locations?|address|micro ?market","loc");
+  label("developers?|builder","dev");
+  label("possession|handover","possession");
+  label("rera(?: no\\.?| number| id)?|maha ?rera","rera");
 
-  /* 4 — free text */
   let m;
+  if(!g.dev){
+    m=T.match(/\bby\s+([A-Z][A-Za-z&.]+(?:\s+[A-Z][A-Za-z&.]+){0,2})\s+(?:Group|Developers?|Realty|Builders?|Properties|Infra\w*|Lifespaces?)/);
+    if(m)take("dev",m[1]+" "+m[0].trim().split(/\s+/).pop(),"page text");
+  }
+  if(!g.dev){ m=T.match(/\b([A-Z][A-Za-z&.]+(?:\s+[A-Z][A-Za-z&.]+)?)\s+(?:Group|Developers|Realty|Builders|Lifespaces)\b/);
+    if(m)take("dev",m[0],"page text"); }
   if(!g.price){
     m=T.match(/(?:\u20b9|Rs\.?|INR)\s*([\d.,]+)\s*(Lakhs?|Lacs?|Cr\.?|Crores?)/i);
-    if(m)take("price",`\u20b9${m[1]} ${/^l/i.test(m[2])?"Lakhs":"Cr"}`,"page text");
+    if(m)take("price",`\u20b9${m[1].replace(/,$/,"")} ${/^l/i.test(m[2])?"Lakhs":"Cr"}`,"page text");
   }
   if(!g.price){ m=T.match(/AED\s*([\d.,]+)\s*(M|Million|K|Thousand)?/i);
     if(m)take("price",`AED ${m[1]}${m[2]?" "+m[2][0].toUpperCase():""}`,"page text"); }
-  g.allIn = /all[\s-]?inclusive|all[\s-]?in\s+price|inclusive of all/i.test(T) ? "yes"
+  g.allIn = /all[\s-]?inclusive|inclusive of all/i.test(T) ? "yes"
           : /\+\s*(?:gst|stamp duty|registration|other charges)|plus\s+(?:gst|taxes|charges)/i.test(T) ? "no" : "";
   if(!g.cfg){
     m=T.match(/((?:\d+(?:\.\d+)?\s*(?:,|&|and|\/)\s*)*\d+(?:\.\d+)?)\s*BHK/i);
-    if(m)take("cfg",`${m[1].replace(/\s*,\s*/g,", ").replace(/\s*&\s*/g," & ")} BHK`,"page text");
+    if(m)take("cfg",`${m[1].replace(/\s*,\s*/g,", ").replace(/\s*&\s*/g," & ").trim()} BHK`,"page text");
   }
   if(!g.cfg){ const br=[...new Set((T.match(/\b(?:Studio|\d\s?BR)\b/gi)||[]).map(s=>s.replace(/\s+/g,"").toUpperCase()))];
     if(br.length)take("cfg",br.slice(0,4).join(", "),"page text"); }
-  if(!g.rera){ m=T.match(/\b([A-Z]\d{5,}[A-Z0-9]*)\b/); if(m)take("rera",m[1],"page text"); }
+  if(!g.rera){ m=T.match(/\b((?:P\d{8,}|[A-Z]{1,3}\d{6,})[A-Z0-9]*)\b/); if(m)take("rera",m[1],"page text"); }
+  if(!g.city){ m=T.match(/\b(Mumbai|Navi Mumbai|Thane|Pune|Bengaluru|Bangalore|Hyderabad|Chennai|Lucknow|Noida|Gurugram|Gurgaon|Ahmedabad|Surat|Kochi|Dubai|Abu Dhabi)\b/i);
+    if(m)take("city",tc(m[1]),"page text"); }
 
   const amen=[...new Set(AMEN_DICT.filter(a=>new RegExp("\\b"+a.replace(/[.*+?^${}()|[\]\\]/g,"\\$&")+"\\b","i").test(T)))];
-  const marks=[...new Set([...T.matchAll(/([A-Z][A-Za-z .'\-]{3,34}?)\s*[\u2013\u2014\-:]{1,2}\s*(\d{1,3}\s*(?:mins?|minutes?|km))/gi)]
-    .map(x=>`${x[1].trim()} - ${x[2].replace(/\s+/g," ")}`))];
-  const usps=[...new Set([...T.matchAll(/(\d{1,3}(?:\+|%)?)\s*(Acres?|Storey|Storeys|Floors?|Towers?|Amenities|Units?)\b[^.,;|\n]{0,20}/gi)]
-    .map(x=>tc(x[0].trim())).filter(s=>s.length<=30))];
+  const marks=[...new Set(LINES.flatMap(l=>[...l.matchAll(/([A-Z][A-Za-z .'\-]{3,32}?)\s*[\u2013\u2014\-:]{1,2}\s*(\d{1,3}\s*(?:mins?|minutes?|kms?))/gi)]
+    .map(x=>`${x[1].trim()} - ${x[2].replace(/\s+/g," ")}`)))];
+  const usps=[...new Set(LINES.flatMap(l=>[...l.matchAll(/\b(\d{1,3}(?:\+|%)?)\s*(Acres?|Storey|Storeys|Floors?|Towers?|Amenities|Units?)\b/gi)]
+    .map(x=>tc(x[0].trim()))))].filter(s=>s.length<=30);
   return {g,src,amen:amen.slice(0,14),marks:marks.slice(0,8),usps:usps.slice(0,8),chars:T.length};
+}
+/* Gemini's free tier is enough for this: one short call per page. The key
+   lives in the browser only and is never sent anywhere except Google. */
+async function askGemini(key,text){
+  const prompt=`Extract details of this Indian or UAE real estate project from the page text.
+Reply with ONLY a JSON object, no markdown, no commentary, using exactly these keys:
+{"proj":"","dev":"","micro":"","city":"","cfg":"","price":"","allIn":"","possession":"","rera":"","usps":[],"amenities":[],"landmarks":[]}
+Rules: proj is the project name only, without the developer. dev is the developer name.
+micro is the locality, city is the city. cfg is like "2, 2.5 & 3 BHK" or "Studio, 1 & 2 BR".
+price is the starting price as written, e.g. "\u20b985 Lakhs" or "AED 1.8 M".
+allIn is "yes" if the price is described as all inclusive, "no" if charges are extra, else "".
+usps are short selling points under 30 characters each, e.g. "21 Acre Township".
+amenities are single amenity names. landmarks are "Name - 25 Mins" style entries.
+Use "" or [] for anything not stated. Do not invent anything.
+
+PAGE TEXT:
+${text.slice(0,26000)}`;
+  const models=["gemini-2.0-flash","gemini-1.5-flash"];
+  for(const mdl of models){
+    try{
+      const r=await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${mdl}:generateContent?key=${encodeURIComponent(key)}`,
+        {method:"POST",headers:{"Content-Type":"application/json"},
+         body:JSON.stringify({contents:[{parts:[{text:prompt}]}],
+           generationConfig:{temperature:0,maxOutputTokens:1200,responseMimeType:"application/json"}})});
+      if(!r.ok)continue;
+      const j=await r.json();
+      const t=((((j.candidates||[])[0]||{}).content||{}).parts||[{}])[0].text||"";
+      return JSON.parse(t.replace(/```json|```/g,"").trim());
+    }catch(e){}
+  }
+  return null;
 }
 async function readLp(){
   const url=$("#inLp").value.trim(), pasted=$("#impPaste").value.trim();
@@ -2029,8 +2139,20 @@ async function readLp(){
     $("#impFound").innerHTML=`<div class="callout warn">Every reader was blocked by the site. Open the page, select all, copy, and paste it into the box above \u2014 the parser treats pasted HTML and plain text the same way.</div>`;
     return;
   }
-  const r=capture(txt);
-  const set=(id,v)=>{ const e=$("#"+id); if(e&&v&&!e.value){ e.value=v; e.dispatchEvent(new Event("input",{bubbles:true})); } };
+  let r=capture(txt);
+  const key=($("#aiKey")&&$("#aiKey").value.trim())||"";
+  if(key){
+    $("#impStat").innerHTML='<span class="pill p-mute">asking Gemini\u2026</span>';
+    const ai=await askGemini(key,txt);
+    if(ai){
+      Object.keys(ai).forEach(k=>{ if(ai[k]&&!Array.isArray(ai[k])){ r.g[k]=ai[k]; r.src[k]="Gemini"; } });
+      if(Array.isArray(ai.usps)&&ai.usps.length)r.usps=ai.usps.slice(0,8);
+      if(Array.isArray(ai.amenities)&&ai.amenities.length)r.amen=ai.amenities.slice(0,14);
+      if(Array.isArray(ai.landmarks)&&ai.landmarks.length)r.marks=ai.landmarks.slice(0,8);
+    } else toast("Gemini did not answer \u2014 pattern reader used instead");
+  }
+  const over=$("#impOverwrite")&&$("#impOverwrite").checked;
+  const set=(id,v)=>{ const e=$("#"+id); if(e&&v&&(over||!e.value)){ e.value=v; e.dispatchEvent(new Event("input",{bubbles:true})); } };
   set("acProj",r.g.proj); set("acDev",r.g.dev); set("acCfg",r.g.cfg);
   set("acPrice",r.g.price); set("acLoc",r.g.loc);
   if(r.g.allIn){ const e=$("#acAllIn"); if(e&&!e.value){e.value=r.g.allIn;e.dispatchEvent(new Event("change",{bubbles:true}));} }
@@ -2046,7 +2168,7 @@ async function readLp(){
     ${row("Possession",r.g.possession,r.src.possession)}${row("RERA",r.g.rera,r.src.rera)}
     ${row("USPs",r.usps.length||"","page text")}${row("Amenities",r.amen.length||"","dictionary match")}
     ${row("Landmarks",r.marks.length||"","page text")}
-    </tbody></table><div class="f-note" style="margin-top:8px">Read ${r.chars.toLocaleString()} characters via ${esc(via)}. Only empty fields were filled \u2014 nothing you typed was overwritten.</div>`;
+    </tbody></table><div class="f-note" style="margin-top:8px">Read ${r.chars.toLocaleString()} characters via ${esc(via)}. ${over?"Everything was overwritten.":"Only empty fields were filled."}</div>`;
   $("#impStat").innerHTML='<span class="pill p-ok">read</span>';
   logEvent("lp-read",url);
   toast("Brief filled \u2014 check it before generating");
@@ -2236,6 +2358,9 @@ on("#stBuild","click",()=>{
   ADCUR=PLAN[0].groups[0].name; saveAd(); fillAdPicker(); drawAd();
   $("#asGen").click();
   drawPlan();
+  const ac=$("#stAssetCamp"), keepA=ac.value;
+  ac.innerHTML=PLAN.map(p=>`<option value="${esc(p.campaign)}">${esc(p.campaign)}</option>`).join("");
+  if([...ac.options].some(o=>o.value===keepA))ac.value=keepA;
   logEvent("build",`${PLAN.length} campaigns`);
   $("#stStat").innerHTML=`<span class="pill p-ok">${PLAN.length} campaigns \u00b7 ${PLAN.reduce((a,p)=>a+p.groups.length,0)} ad groups</span>`;
   toast("Structure built");
@@ -2485,15 +2610,23 @@ function entityFiles(){
     ads.push(r);}));
   files.push(["4-ads.csv",mk(adHdr,ads)]);
 
+  /* City-level targeting so nothing runs nationwide by mistake. Executives
+     narrow it later; Presence-only is set in Editor, it has no CSV column. */
+  const cityName=(PROJ.city||"").trim();
+  if(cityName){
+    const locRows=[]; camps.forEach(c=>locRows.push([c,cityName,"Enabled"]));
+    files.push(["5-locations.csv",mk(["Campaign","Location","Status"],locRows)]);
+  }
+
   /* assets carry the first campaign only — copy across in Editor */
-  const one=camps[0]||"";
+  const one=($("#stAssetCamp")&&$("#stAssetCamp").value)||camps[0]||"";
   const co=AS.co.filter(Boolean).map(t=>[one,t,"Enabled"]);
-  if(co.length)files.push(["5-callouts.csv",mk(["Campaign","Callout text","Status"],co)]);
+  if(co.length)files.push(["6-callouts.csv",mk(["Campaign","Callout text","Status"],co)]);
   const sl=AS.sl.filter(x=>x[0]).map(s=>[one,s[0],s[1],s[2],slUrl(s[0],s[3])||lp,"Enabled"]);
-  if(sl.length)files.push(["6-sitelinks.csv",mk(
+  if(sl.length)files.push(["7-sitelinks.csv",mk(
     ["Campaign","Sitelink text","Sitelink description 1","Sitelink description 2","Sitelink final URL","Status"],sl)]);
   const sn=AS.sn.map(([hd,v])=>{const vv=v.filter(x=>x.trim());return vv.length>=3?[one,hd,vv.join(";"),"Enabled"]:null;}).filter(Boolean);
-  if(sn.length)files.push(["7-snippets.csv",mk(
+  if(sn.length)files.push(["8-snippets.csv",mk(
     ["Campaign","Structured snippet header","Structured snippet values","Status"],sn)]);
   return files;
 }
@@ -2511,7 +2644,7 @@ on("#stAll","click",()=>{
    and you paste it across the rest. */
 on("#stAssetsCsv","click",()=>{
   if(!PLAN.length)return toast("Build the structure first");
-  const camp=PLAN[0].campaign;
+  const camp=($("#stAssetCamp")&&$("#stAssetCamp").value)||PLAN[0].campaign;
   const lp=PROJ.url||$("#inLp").value.trim();
   const H=["Campaign","Callout text","Sitelink text","Sitelink description 1","Sitelink description 2",
     "Sitelink final URL","Structured snippet header","Structured snippet values","Status"];
@@ -2546,6 +2679,7 @@ drawAll();
 
 
 initAuth();
+if($("#aiKey"))$("#aiKey").value=store.get("pp_aikey","");
 </script>
 </body>
 </html>
