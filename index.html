@@ -209,6 +209,7 @@ code{font-family:var(--mono);background:rgba(0,0,0,.05);padding:1px 4px;border-r
       <div class="divider-v"></div>
       <span id="userName" style="font-size:12.5px;font-weight:500"></span>
       <span id="userRole" class="pill p-mute"></span>
+      <button class="btn btn-sm" id="newProject">New project</button>
       <button class="btn btn-sm" id="signOut">Sign out</button>
     </div>
   </div>
@@ -876,8 +877,17 @@ function fbCopy(x,cb){const ta=document.createElement("textarea");ta.value=x;ta.
   document.body.appendChild(ta);ta.select();try{document.execCommand("copy");cb();}catch(e){toast("Copy failed");}ta.remove();}
 function copy(x){const d=()=>toast("Copied");
   if(navigator.clipboard&&window.isSecureContext)navigator.clipboard.writeText(x).then(d).catch(()=>fbCopy(x,d));else fbCopy(x,d);}
+/* Two stores on purpose. Settings you configure once live in localStorage.
+   Everything about the project you are working on lives in sessionStorage,
+   so closing the tab leaves no residue for the next project to inherit. */
 const store={get(k,d){try{const v=localStorage.getItem(k);return v?JSON.parse(v):d;}catch(e){return d;}},
              set(k,v){try{localStorage.setItem(k,JSON.stringify(v));}catch(e){}}};
+const PROJECT_KEYS=["pp_proj","pp_adgroups","pp_adcur","pp_assets","pp_locmain","pp_localt","pp_campaign"];
+const sess={get(k,d){try{const v=sessionStorage.getItem(k);return v?JSON.parse(v):d;}catch(e){return d;}},
+            set(k,v){try{sessionStorage.setItem(k,JSON.stringify(v));}catch(e){}}};
+function clearProject(){
+  PROJECT_KEYS.forEach(k=>{try{sessionStorage.removeItem(k);localStorage.removeItem(k);}catch(e){}});
+}
 const csvq=v=>`"${String(v??"").replace(/"/g,'""')}"`;
 
 /* ── copy helpers, declared before anything calls them ── */
@@ -910,7 +920,7 @@ const FMAP={url:"acUrl",cfg:"acCfg",price:"acPrice",loc:"acLoc",p1:"acP1",p2:"ac
 function syncProj(){
   if(typeof PROJ==="undefined")return {};
   for(const k in FMAP){ const e=$("#"+FMAP[k]); if(e)PROJ[k]=e.value; }
-  try{store.set("pp_proj",PROJ);}catch(e){}
+  try{sess.set("pp_proj",PROJ);}catch(e){}
   return PROJ;
 }
 function brief(){
@@ -1331,13 +1341,13 @@ on("#kwSheet","click",()=>{
 
 /* ═══════════ 03 ad copy ═══════════ */
 const H_MAX=30, D_MAX=90, H_CAP=15, D_CAP=4, PATH_MAX=15;
-let ADG=store.get("pp_adgroups",null)||{};
-let ADCUR=store.get("pp_adcur","")||"";
+let ADG=sess.get("pp_adgroups",null)||{};
+let ADCUR=sess.get("pp_adcur","")||"";
 const PROJ_KEYS=["url","cfg","price","loc","p1","p2","proj","dev","micro","city","offer","usps","marks","amen","priceMode","allIn"];
-let PROJ=Object.assign({url:"",cfg:"",price:"",loc:"",p1:"",p2:"",proj:"",dev:"",micro:"",city:"",offer:"",usps:"",marks:"",amen:"",priceMode:"Starting At",allIn:""},store.get("pp_proj",{}));
+let PROJ=Object.assign({url:"",cfg:"",price:"",loc:"",p1:"",p2:"",proj:"",dev:"",micro:"",city:"",offer:"",usps:"",marks:"",amen:"",priceMode:"Starting At",allIn:""},sess.get("pp_proj",{}));
 const blankGroup=()=>({h:Array.from({length:H_CAP},()=>["",""]),d:Array.from({length:D_CAP},()=>["",""]),kw:""});
 function cur(){ if(!ADG[ADCUR])ADG[ADCUR]=blankGroup(); return ADG[ADCUR]; }
-const saveAd=()=>{store.set("pp_adgroups",ADG);store.set("pp_adcur",ADCUR);};
+const saveAd=()=>{sess.set("pp_adgroups",ADG);sess.set("pp_adcur",ADCUR);};
 function fillAdPicker(){
   const sel=$("#acPick"), keys=Object.keys(ADG);
   sel.innerHTML=keys.length?keys.map(k=>`<option value="${esc(k)}"${k===ADCUR?" selected":""}>${esc(k)}</option>`).join("")
@@ -1490,7 +1500,7 @@ Object.values(PROJ_FIELDS).forEach(id=>$("#"+id).addEventListener("input",()=>{
   $("#p1c").className="count"+(PROJ.p1.length>PATH_MAX?" bad":"");
   $("#p2c").textContent=`${PROJ.p2.length}/${PATH_MAX}`;
   $("#p2c").className="count"+(PROJ.p2.length>PATH_MAX?" bad":"");
-  store.set("pp_proj",PROJ); drawPreview(); adChecks(); echoBrief();}));
+  sess.set("pp_proj",PROJ); drawPreview(); adChecks(); echoBrief();}));
 function echoBrief(){
   let b; try{ b=brief(); }catch(e){ return; }
   const rows=[["Project",b.proj],["Developer",b.dev],["Micro-market",b.micro],["City",b.city],
@@ -1544,12 +1554,12 @@ on("#acEditor","click",()=>{
 /* ═══════════ boot (tabs 02 + 03) ═══════════ */
 renderKw();
 PROJ_KEYS.forEach(k=>{const el=$("#"+PROJ_FIELDS[k]); if(el)el.value=PROJ[k]||"";});
-$("#locMain").value=store.get("pp_locmain",PROJ.micro||"");
-$("#locAlt").value=store.get("pp_localt","");
-on("#locMain","input",()=>{store.set("pp_locmain",$("#locMain").value);});
-on("#locAlt","input",()=>{store.set("pp_localt",$("#locAlt").value);});
+$("#locMain").value=sess.get("pp_locmain",PROJ.micro||"");
+$("#locAlt").value=sess.get("pp_localt","");
+on("#locMain","input",()=>{sess.set("pp_locmain",$("#locMain").value);});
+on("#locAlt","input",()=>{sess.set("pp_localt",$("#locAlt").value);});
 on("#acMicro","input",()=>{ if(!$("#locMain").value.trim()){
-  $("#locMain").value=$("#acMicro").value; store.set("pp_locmain",$("#locMain").value);} });
+  $("#locMain").value=$("#acMicro").value; sess.set("pp_locmain",$("#locMain").value);} });
 $("#p1c").textContent=`${(PROJ.p1||"").length}/${PATH_MAX}`;
 $("#p2c").textContent=`${(PROJ.p2||"").length}/${PATH_MAX}`;
 if(!ADG[ADCUR])ADCUR=Object.keys(ADG)[0]||"";
@@ -1559,8 +1569,8 @@ fillAdPicker(); drawAd(); fillVariantPickers(); echoBrief();
 const SL_T=25, SL_D=35, CO_MAX=25, SN_MAX=25;
 const SN_HEADERS=["Amenities","Brands","Courses","Degree programs","Destinations","Featured hotels",
   "Insurance coverage","Models","Neighborhoods","Service catalog","Shows","Styles","Types"];
-let AS=store.get("pp_assets",null)||{base:"",sl:[],co:[],sn:[]};
-const saveAs=()=>store.set("pp_assets",AS);
+let AS=sess.get("pp_assets",null)||{base:"",sl:[],co:[],sn:[]};
+const saveAs=()=>sess.set("pp_assets",AS);
 const slugLink=s=>String(s||"").toLowerCase().replace(/[^a-z0-9]+/g,"");
 
 const PRESET={
@@ -1907,8 +1917,8 @@ on("#asGen","click",()=>{
    Script that receives the log — it verifies the token with Google and
    rejects anything outside the domain. Configure both. */
 const AUTH={
-  clientId : "779938081992-vecfdvvm61lalugpo3sa64bvqlhjfjqq.apps.googleusercontent.com",                                   // Google OAuth client ID
-  logUrl   : "https://script.google.com/macros/s/AKfycbxOAsPoL6GJ6p8EhhjEk0UroQmSiTaE2coPmgAH8EGDwfN-xaPDggwlkROezmwQ6iV3/exec",                                   // Apps Script web app URL
+  clientId : "779938081992-vecfdvvm61lalugpo3sa64bvqlhjfjqq.apps.googleusercontent.com",
+  logUrl   : "https://script.google.com/macros/s/AKfycbxOAsPoL6GJ6p8EhhjEk0UroQmSiTaE2coPmgAH8EGDwfN-xaPDggwlkROezmwQ6iV3/exec",
   domain   : "propertypistol.com",
   admin    : "sanket.shiktode@propertypistol.com"
 };
@@ -1970,7 +1980,12 @@ function initAuth(){
   };
   start();
 }
+on("#newProject","click",()=>{
+  if(!confirm("Clear the brief, ad groups, keywords and assets and start a new project?\n\nYour strategy list, Gemini key and campaign settings are kept."))return;
+  clearProject(); logEvent("new-project",""); location.reload();
+});
 on("#signOut","click",()=>{
+  clearProject();
   logEvent("sign-out","");
   try{sessionStorage.removeItem("pp_user");}catch(e){}
   if(window.google&&google.accounts&&google.accounts.id)google.accounts.id.disableAutoSelect();
@@ -2678,6 +2693,8 @@ drawAll();
 
 
 
+/* the earlier build wrote project data to localStorage, so clear it once */
+if(!store.get("pp_migrated",false)){ clearProject(); store.set("pp_migrated",true); }
 initAuth();
 if($("#aiKey"))$("#aiKey").value=store.get("pp_aikey","");
 </script>
