@@ -1625,6 +1625,7 @@ function slUrl(text,manual){
 function cls(n,max){return n>max?"bad":n>max-3?"edge":"";}
 
 function drawSl(){
+  if(!AS.base){ const b=assetBase(); if(b){ AS.base=b; const e=$("#asBase"); if(e)e.value=b; saveAs(); } }
   $("#slRows").innerHTML=AS.sl.length?AS.sl.map((r,i)=>{
     const [t,d1,d2]=r, u=slUrl(t,r[3]);
     return `<div style="border:1px solid var(--line);border-radius:5px;padding:12px;margin-bottom:10px">
@@ -1771,8 +1772,10 @@ on("#slCopy","click",()=>{
     AS.sl.map((r,i)=>[i+1,r[0],r[0].length,SL_T,r[1],r[1].length,SL_D,r[2],r[2].length,SL_D,slUrl(r[0],r[3])].join("\t")).join("\n"));});
 on("#slCsv","click",()=>{
   if(!AS.sl.length)return toast("No sitelinks yet");
+  const fb=assetBase();
+  if(!fb)return toast("Set the base URL first \u2014 sitelinks need somewhere to point");
   dl("sitelinks-ads-editor.csv","Sitelink text,Description line 1,Description line 2,Final URL\n"+
-    AS.sl.map(r=>[r[0],r[1],r[2],slUrl(r[0],r[3])].map(csvq).join(",")).join("\n"));});
+    AS.sl.map(r=>[r[0],r[1],r[2],slUrl(r[0],r[3])||fb].map(csvq).join(",")).join("\n"));});
 on("#coCopy","click",()=>{
   if(!AS.co.length)return toast("No callouts yet");
   copy("SR\tCallout\tLen\tMax\n"+AS.co.map((t,i)=>[i+1,t,t.length,CO_MAX].join("\t")).join("\n"));});
@@ -2003,21 +2006,24 @@ const READERS=[
   u=>`https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(u)}`
 ];
 const AMEN_DICT=["Swimming Pool","Infinity Pool","Kids Pool","Gymnasium","Gym","Clubhouse","Club House",
- "Jogging Track","Yoga Deck","Yoga Zone","Kids Play Area","Amphitheatre","Amphitheater","Landscaped Garden",
- "Sky Lounge","Multipurpose Court","Multipurpose Hall","Tennis Court","Badminton Court","Basketball Court",
- "Cricket Net","Skating Rink","Co-Working","Coworking","Banquet Hall","Party Lawn","Senior Citizen",
- "Pet Park","Cycling Track","Spa","Sauna","Steam Room","Concierge","Barbecue","Barbeque","Rooftop Deck",
- "Meditation Zone","Indoor Games","Squash Court","Library","Creche","Day Care","Business Centre",
- "Swimming","Sports Court","Open Gym","Reflexology","Pergola","Gazebo","Water Feature","Toddler Zone"];
+ "Grand Clubhouse","Jogging Track","Cycling Track","Jogging & Cycling Track","Yoga Deck","Yoga Zone",
+ "Kids Play Area","Children's Play Area","Childrens Play Area","Amphitheatre","Amphitheater",
+ "Landscaped Garden","Landscaped Gardens","Sky Lounge","Multipurpose Hall","Multipurpose Court",
+ "Tennis Court","Badminton Court","Basketball Court","Cricket Net","Skating Rink","Co-Working","Coworking",
+ "Banquet Hall","Party Lawn","Senior Citizen","Pet Park","Spa","Sauna","Steam Room","Concierge",
+ "Barbecue","Barbeque","Rooftop Deck","Meditation Zone","Indoor Games","Indoor Games Room","Squash Court",
+ "Library","Creche","Day Care","Business Centre","Sports Court","Open Gym","Reflexology","Pergola",
+ "Gazebo","Water Feature","Toddler Zone","Wellness Centre","Fitness Centre","Sports Facilities"];
+/* Chat widgets, nav bars and cookie banners are all text too. Left in, they
+   turn into headlines. */
+const NOISE=/^(home|gallery|location|brochure|contact|menu|close|next|prev|previous|submit|send|ok|yes|no|search|login|sign in|privacy policy|terms|cookie|accept|hello,?|hi,?|how can i (assist|help)|chat|whatsapp|call now|request call back|enquire now|express your interest|organize site visit|schedule a site visit|name|mobile number|email|artistic impression|keyboard shortcuts|map data|report a map error|open in maps|read more|know more|view more|download|apply now)\b/i;
 function stripTags(html){
   return html.replace(/<script[\s\S]*?<\/script>/gi," ").replace(/<style[\s\S]*?<\/style>/gi," ")
-    .replace(/<\/(p|div|li|h[1-6]|tr|br)>/gi,"\n").replace(/<br\s*\/?>/gi,"\n")
+    .replace(/<\/(p|div|li|h[1-6]|tr|td|br|section|span)>/gi,"\n").replace(/<br\s*\/?>/gi,"\n")
     .replace(/<[^>]+>/g," ").replace(/&nbsp;/gi," ").replace(/&amp;/gi,"&")
     .replace(/&#8377;|&rupee;/gi,"\u20b9").replace(/&[a-z]+;/gi," ")
     .replace(/[ \t]{2,}/g," ").replace(/\n{2,}/g,"\n");
 }
-/* Newlines are load-bearing: without them a "Price :" label match runs on
-   until it swallows the rest of the page. Only spaces get collapsed. */
 function norm(t){ return String(t||"").replace(/\r/g,"\n").replace(/[ \t]+/g," ").replace(/\n{2,}/g,"\n").trim(); }
 function jsonLd(html){
   const out=[]; const re=/<script[^>]+application\/ld\+json[^>]*>([\s\S]*?)<\/script>/gi; let m;
@@ -2033,94 +2039,169 @@ function metaOf(html,prop){
 }
 const cutTail=v=>String(v||"").split(/\s{2,}|\s(?=[A-Z][A-Za-z ]{2,22}\s*:)/)[0]
   .replace(/[\s,;|.\u2022-]+$/,"").trim();
+const clean1=v=>String(v||"").replace(/\b(logo|official|website|home|new project)\b/gi,"")
+  .replace(/\s{2,}/g," ").replace(/[\s|\-\u2013]+$/,"").trim();
+
+/* Prices: a page carries several. Token and booking amounts are the trap \u2014
+   they are the smallest number on the page and the most prominent. */
+function rupees(n,unit){
+  const v=parseFloat(String(n).replace(/,/g,""));
+  if(!isFinite(v))return 0;
+  return /^c/i.test(unit)?v*1e7:v*1e5;
+}
+function findPrice(T){
+  const out=[];
+  const re=/(?:\u20b9|Rs\.?|INR)\s*([\d.,]+)\s*(Lakhs?|Lacs?|Cr\.?|Crores?)/gi; let m;
+  while((m=re.exec(T))){
+    const before=T.slice(Math.max(0,m.index-60),m.index).toLowerCase();
+    if(/token|booking amount|eoi|application money|advance|emi|per month|per sq|psf|registration/.test(before))continue;
+    const val=rupees(m[1],m[2]);
+    if(val<1500000)continue;                       // below 15 lakh is not a home price here
+    out.push({val,text:`\u20b9${m[1].replace(/[.,]$/,"")} ${/^l/i.test(m[2])?"Lacs":"Cr"}`});
+  }
+  if(!out.length){
+    const a=T.match(/AED\s*([\d.,]+)\s*(M|Million|K|Thousand)?/i);
+    if(a)return `AED ${a[1]}${a[2]?" "+a[2][0].toUpperCase():""}`;
+    return "";
+  }
+  out.sort((x,y)=>x.val-y.val);                    // starting price is the lowest real one
+  return out[0].text;
+}
+const dedupe=a=>{const seen=new Set();return a.filter(x=>{const k=String(x).toLowerCase().replace(/[^a-z0-9]/g,"");
+  if(!k||seen.has(k))return false;seen.add(k);return true;});};
 function capture(raw){
   const isHtml=/<\s*(html|head|body|div|meta|section)\b/i.test(raw);
   const html=isHtml?raw:"";
   const T=norm(isHtml?stripTags(raw):raw);
-  const LINES=T.split("\n").map(s=>s.trim()).filter(Boolean);
+  const LINES=T.split("\n").map(s=>s.trim()).filter(s=>s&&!NOISE.test(s));
   const g={},src={};
   const take=(k,v,from)=>{ v=cutTail(v); if(v&&v.length<=80&&!g[k]){ g[k]=v; src[k]=from; } };
 
   jsonLd(html).forEach(j=>{
     if(j.name&&/Residence|Product|Place|Organization|LocalBusiness|Apartment/i.test(j["@type"]||""))
-      take("proj",j.name,"structured data");
+      take("proj",clean1(j.name),"structured data");
     if(j.address){ take("micro",j.address.addressLocality,"structured data");
       take("city",j.address.addressRegion||j.address.addressLocality,"structured data"); }
-    const o=j.offers?(Array.isArray(j.offers)?j.offers[0]:j.offers):null;
-    if(o&&o.price)take("price",(o.priceCurrency==="AED"?"AED ":"\u20b9")+o.price,"structured data");
     if(j.brand)take("dev",typeof j.brand==="string"?j.brand:j.brand.name,"structured data");
   });
 
-  let head="";
-  if(html){
-    head=metaOf(html,"og:title")||(html.match(/<title[^>]*>([^<]+)<\/title>/i)||[])[1]||"";
-    take("desc",metaOf(html,"og:description")||metaOf(html,"description"),"meta description");
-  } else {
-    head=(T.match(/^Title:\s*(.+)$/mi)||[])[1]||LINES[0]||"";
+  /* project name: the About heading is the most reliable, then the title */
+  let m=T.match(/\bAbout\s+([A-Z][\w'&.\- ]{3,45})/);
+  if(m)take("proj",clean1(m[1]),"about heading");
+  if(!g.proj){
+    let head=html?(metaOf(html,"og:title")||(html.match(/<title[^>]*>([^<]+)<\/title>/i)||[])[1]||"")
+                 :((T.match(/^Title:\s*(.+)$/mi)||[])[1]||LINES[0]||"");
+    head=head.replace(/^Title:\s*/i,"").split(/\s*[|\u2013\u2014]\s*|\s-\s/)[0];
+    take("proj",clean1(head),"page title");
   }
-  head=head.replace(/^Title:\s*/i,"");
-  take("proj",head.split(/\s*[|\u2013\u2014]\s*|\s-\s/)[0],"page title");
+  if(html)take("desc",metaOf(html,"og:description")||metaOf(html,"description"),"meta description");
 
-  /* labelled fields, stopped at the end of their own line */
   const label=(names,key,from)=>{
-    const m=T.match(new RegExp(`(?:^|\\n)\\s*(?:${names})\\s*[:\\-\u2013]\\s*([^\\n|\u2022]{2,70})`,"i"));
-    if(m)take(key,m[1],from||"labelled field");
+    const mm=T.match(new RegExp(`(?:^|\\n)\\s*(?:${names})\\s*[:\\-\u2013]\\s*([^\\n|\u2022]{2,70})`,"i"));
+    if(mm)take(key,mm[1],from||"labelled field");
   };
   label("configurations?|typology|unit types?|apartment types?","cfg");
-  label("price|pricing|starting price|starts at|price range","price");
   label("locations?|address|micro ?market","loc");
   label("developers?|builder","dev");
   label("possession|handover","possession");
-  label("rera(?: no\\.?| number| id)?|maha ?rera","rera");
 
-  let m;
+  /* "At Mahalunge, Pune" under the hero */
+  if(!g.micro||!g.city){
+    m=T.match(/\bAt\s+([A-Z][A-Za-z .\-]{2,28}),\s*([A-Z][A-Za-z .\-]{2,20})\b/);
+    if(m){ take("micro",m[1],"page text"); take("city",m[2],"page text");
+           take("loc",`${m[1].trim()}, ${m[2].trim()}`,"page text"); }
+  }
+  if(!g.city){ m=T.match(/\b(Mumbai|Navi Mumbai|Thane|Pune|Bengaluru|Bangalore|Hyderabad|Chennai|Lucknow|Noida|Gurugram|Gurgaon|Ahmedabad|Surat|Kochi|Dubai|Abu Dhabi)\b/i);
+    if(m)take("city",tc(m[1]),"page text"); }
+
   if(!g.dev){
-    m=T.match(/\bby\s+([A-Z][A-Za-z&.]+(?:\s+[A-Z][A-Za-z&.]+){0,2})\s+(?:Group|Developers?|Realty|Builders?|Properties|Infra\w*|Lifespaces?)/);
-    if(m)take("dev",m[1]+" "+m[0].trim().split(/\s+/).pop(),"page text");
+    m=T.match(/\bby\s+([A-Z][A-Za-z&.]+(?:\s+[A-Z][A-Za-z&.]+){0,2})\s+(Group|Developers?|Realty|Builders?|Properties|Lifespaces?|Infra\w*)/i);
+    if(m)take("dev",`${m[1]} ${m[2]}`,"page text");
   }
   if(!g.dev){ m=T.match(/\b([A-Z][A-Za-z&.]+(?:\s+[A-Z][A-Za-z&.]+)?)\s+(?:Group|Developers|Realty|Builders|Lifespaces)\b/);
     if(m)take("dev",m[0],"page text"); }
-  if(!g.price){
-    m=T.match(/(?:\u20b9|Rs\.?|INR)\s*([\d.,]+)\s*(Lakhs?|Lacs?|Cr\.?|Crores?)/i);
-    if(m)take("price",`\u20b9${m[1].replace(/,$/,"")} ${/^l/i.test(m[2])?"Lakhs":"Cr"}`,"page text");
-  }
-  if(!g.price){ m=T.match(/AED\s*([\d.,]+)\s*(M|Million|K|Thousand)?/i);
-    if(m)take("price",`AED ${m[1]}${m[2]?" "+m[2][0].toUpperCase():""}`,"page text"); }
+
+  const p=findPrice(T); if(p)take("price",p,"page text");
   g.allIn = /all[\s-]?inclusive|inclusive of all/i.test(T) ? "yes"
           : /\+\s*(?:gst|stamp duty|registration|other charges)|plus\s+(?:gst|taxes|charges)/i.test(T) ? "no" : "";
+
   if(!g.cfg){
     m=T.match(/((?:\d+(?:\.\d+)?\s*(?:,|&|and|\/)\s*)*\d+(?:\.\d+)?)\s*BHK/i);
     if(m)take("cfg",`${m[1].replace(/\s*,\s*/g,", ").replace(/\s*&\s*/g," & ").trim()} BHK`,"page text");
   }
   if(!g.cfg){ const br=[...new Set((T.match(/\b(?:Studio|\d\s?BR)\b/gi)||[]).map(s=>s.replace(/\s+/g,"").toUpperCase()))];
     if(br.length)take("cfg",br.slice(0,4).join(", "),"page text"); }
-  if(!g.rera){ m=T.match(/\b((?:P\d{8,}|[A-Z]{1,3}\d{6,})[A-Z0-9]*)\b/); if(m)take("rera",m[1],"page text"); }
-  if(!g.city){ m=T.match(/\b(Mumbai|Navi Mumbai|Thane|Pune|Bengaluru|Bangalore|Hyderabad|Chennai|Lucknow|Noida|Gurugram|Gurgaon|Ahmedabad|Surat|Kochi|Dubai|Abu Dhabi)\b/i);
-    if(m)take("city",tc(m[1]),"page text"); }
 
-  const amen=[...new Set(AMEN_DICT.filter(a=>new RegExp("\\b"+a.replace(/[.*+?^${}()|[\]\\]/g,"\\$&")+"\\b","i").test(T)))];
-  const marks=[...new Set(LINES.flatMap(l=>[...l.matchAll(/([A-Z][A-Za-z .'\-]{3,32}?)\s*[\u2013\u2014\-:]{1,2}\s*(\d{1,3}\s*(?:mins?|minutes?|kms?))/gi)]
-    .map(x=>`${x[1].trim()} - ${x[2].replace(/\s+/g," ")}`)))];
-  const usps=[...new Set(LINES.flatMap(l=>[...l.matchAll(/\b(\d{1,3}(?:\+|%)?)\s*(Acres?|Storey|Storeys|Floors?|Towers?|Amenities|Units?)\b/gi)]
-    .map(x=>tc(x[0].trim()))))].filter(s=>s.length<=30);
-  return {g,src,amen:amen.slice(0,14),marks:marks.slice(0,8),usps:usps.slice(0,8),chars:T.length};
+  const amen=[...new Set(AMEN_DICT.filter(a=>new RegExp("\\b"+a.replace(/[.*+?^${}()|[\]\\]/g,"\\$&")+"\\b","i").test(T)))]
+    .filter(a=>!AMEN_DICT.some(b=>b!==a&&b.length>a.length&&b.toLowerCase().includes(a.toLowerCase())&&new RegExp("\\b"+b.replace(/[.*+?^${}()|[\]\\]/g,"\\$&")+"\\b","i").test(T)));
+
+  /* "Hinjewadi IT Park \u2013 6 km (15 mins)" and "Airport - 45 Mins" both land here */
+  const marks=[];
+  LINES.forEach(l=>{
+    [...l.matchAll(/([A-Z][A-Za-z .'&\-]{3,32}?)\s*[\u2013\u2014\-:]\s*(?:[\d.]+\s*kms?\s*)?\(?\s*(\d{1,3})\s*(?:mins?|minutes?)\)?/gi)]
+      .forEach(x=>marks.push(`${x[1].trim()} - ${x[2]} Mins`));
+    [...l.matchAll(/([A-Z][A-Za-z .'&\-]{3,32}?)\s*[\u2013\u2014\-:]\s*([\d.]+\s*kms?)\b(?!\s*\()/gi)]
+      .forEach(x=>marks.push(`${x[1].trim()} - ${x[2].replace(/\s+/g," ")}`));
+  });
+
+  const usps=[];
+  LINES.forEach(l=>{
+    [...l.matchAll(/\b(\d{1,4}(?:\.\d+)?\+?)\s*(Acres?|Towers?|Storeys?|Floors?|Units?)\b/gi)]
+      .forEach(x=>{ if(!/G\s?\+\s?$/i.test(l.slice(0,x.index)))usps.push(tc(`${x[1]} ${x[2]}`)); });
+    [...l.matchAll(/\b(\d{1,3}\+?)\s*([A-Za-z-]+\s+)?Amenities\b/gi)]
+      .forEach(x=>usps.push(tc(x[0].trim())));
+    [...l.matchAll(/\bG\s?\+\s?(\d{1,2})\s*(Floors?|Storeys?)?/gi)].forEach(x=>usps.push(`G+${x[1]}${x[2]?" "+tc(x[2]):" Floors"}`));
+    [...l.matchAll(/\b(\d{1,3})%\s*([A-Za-z- ]{3,22})/g)].forEach(x=>usps.push(tc(x[0].trim())));
+  });
+  return {g,src,amen:amen.slice(0,14),
+    marks:dedupe(marks).slice(0,8),
+    usps:dedupe(usps).filter(s=>s.length<=30).slice(0,8),
+    chars:T.length};
 }
-/* The Gemini key lives in the Apps Script, never in this page. The browser
-   sends the page text and its sign-in token; the script checks the token,
-   calls Gemini, and sends back the fields. Content-Type stays text/plain so
-   the browser treats it as a simple request and skips the preflight that
-   Apps Script cannot answer. */
-async function askAI(text){
-  if(!AUTH.logUrl||!USER)return null;
-  try{
-    const r=await fetch(AUTH.logUrl,{method:"POST",headers:{"Content-Type":"text/plain;charset=utf-8"},
-      body:JSON.stringify({action:"extract",credential:USER.credential,text:text.slice(0,26000)})});
-    if(!r.ok)return null;
-    const j=await r.json();
-    if(j.error){ toast(j.error); return null; }
-    return j;
-  }catch(e){ return null; }
+let LAST_READ=null;
+const FOUND_ROWS=[["proj","Project","acProj"],["dev","Developer","acDev"],
+  ["micro","Micro-market","acMicro"],["city","City","acCity"],
+  ["cfg","Configuration","acCfg"],["price","Price","acPrice"],
+  ["loc","Location line","acLoc"],["possession","Possession",""]];
+const FOUND_LISTS=[["usps","USPs","acUsps"],["amen","Amenities","acAmen"],["marks","Landmarks","acMarks"]];
+function drawFound(){
+  const r=LAST_READ; if(!r)return;
+  const cell=(k,label,v,s)=>`<tr>
+    <td style="width:120px">${esc(label)}</td>
+    <td><input type="text" data-fx="${k}" value="${esc(v||"")}" placeholder="not found"
+      style="font-family:var(--mono);font-size:12px;padding:6px 8px"></td>
+    <td class="right" style="width:110px"><span class="pill ${v?"p-ok":"p-mute"}">${v?esc(s||"page text"):"\u2014"}</span></td></tr>`;
+  const list=(k,label,arr)=>`<tr>
+    <td style="width:120px">${esc(label)}</td>
+    <td><textarea data-fl="${k}" rows="${Math.max(2,Math.min(6,arr.length))}"
+      style="font-family:var(--mono);font-size:12px;padding:6px 8px">${esc(arr.join("\n"))}</textarea></td>
+    <td class="right" style="width:110px"><span class="pill ${arr.length?"p-ok":"p-mute"}">${arr.length||"\u2014"}</span></td></tr>`;
+  $("#impFound").innerHTML=`<table class="kv"><tbody>
+    ${FOUND_ROWS.map(([k,l])=>cell(k,l,r.g[k],r.src[k])).join("")}
+    ${FOUND_LISTS.map(([k,l])=>list(k,l,r[k]||[])).join("")}
+    </tbody></table>
+    <div class="btnrow" style="margin-top:12px">
+      <button class="btn btn-pri btn-sm" id="foundApply">Apply to brief</button>
+      <span class="f-note" style="margin:0">Read ${r.chars.toLocaleString()} characters via ${esc(r.via)}. Edit anything wrong, then apply.</span>
+    </div>`;
 }
+on("#impFound","input",e=>{
+  const k=e.target.dataset.fx, l=e.target.dataset.fl;
+  if(!LAST_READ)return;
+  if(k){ LAST_READ.g[k]=e.target.value; LAST_READ.src[k]="edited"; }
+  if(l){ LAST_READ[l]=e.target.value.split("\n").map(s=>s.trim()).filter(Boolean); }
+});
+on("#impFound","click",e=>{
+  if(e.target.id!=="foundApply"||!LAST_READ)return;
+  const over=$("#impOverwrite")&&$("#impOverwrite").checked;
+  const put=(id,v)=>{ const el=$("#"+id); if(el&&v&&(over||!el.value)){
+    el.value=v; el.dispatchEvent(new Event("input",{bubbles:true})); } };
+  FOUND_ROWS.forEach(([k,,id])=>{ if(id)put(id,LAST_READ.g[k]); });
+  FOUND_LISTS.forEach(([k,,id])=>put(id,(LAST_READ[k]||[]).join("\n")));
+  if(LAST_READ.g.allIn){ const e2=$("#acAllIn"); if(e2&&(over||!e2.value)){
+    e2.value=LAST_READ.g.allIn; e2.dispatchEvent(new Event("change",{bubbles:true})); } }
+  toast("Brief updated");
+});
 async function readLp(){
   const url=$("#inLp").value.trim(), pasted=$("#impPaste").value.trim();
   let txt=pasted, via=pasted?"pasted text":"";
@@ -2150,27 +2231,13 @@ async function readLp(){
       if(Array.isArray(ai.landmarks)&&ai.landmarks.length)r.marks=ai.landmarks.slice(0,8);
     } else toast("AI reader unavailable \u2014 pattern reader used instead");
   }
-  const over=$("#impOverwrite")&&$("#impOverwrite").checked;
-  const set=(id,v)=>{ const e=$("#"+id); if(e&&v&&(over||!e.value)){ e.value=v; e.dispatchEvent(new Event("input",{bubbles:true})); } };
-  set("acProj",r.g.proj); set("acDev",r.g.dev); set("acCfg",r.g.cfg);
-  set("acPrice",r.g.price); set("acLoc",r.g.loc);
-  if(r.g.allIn){ const e=$("#acAllIn"); if(e&&!e.value){e.value=r.g.allIn;e.dispatchEvent(new Event("change",{bubbles:true}));} }
-  if(r.usps.length)set("acUsps",r.usps.join("\n"));
-  if(r.amen.length)set("acAmen",r.amen.join("\n"));
-  if(r.marks.length)set("acMarks",r.marks.join("\n"));
-  const row=(k,v,s)=>`<tr><td>${k}</td><td class="m">${v?esc(String(v)):'<span class="pill p-bad">not found</span>'}</td>
-    <td class="right"><span class="pill ${v?"p-ok":"p-mute"}">${v?esc(s||"page text"):"\u2014"}</span></td></tr>`;
-  $("#impFound").innerHTML=`<table class="kv"><tbody>
-    ${row("Project",r.g.proj,r.src.proj)}${row("Developer",r.g.dev,r.src.dev)}
-    ${row("Configuration",r.g.cfg,r.src.cfg)}${row("Price",r.g.price,r.src.price)}
-    ${row("All-inclusive",r.g.allIn,"page text")}${row("Location",r.g.loc,r.src.loc)}
-    ${row("Possession",r.g.possession,r.src.possession)}${row("RERA",r.g.rera,r.src.rera)}
-    ${row("USPs",r.usps.length||"","page text")}${row("Amenities",r.amen.length||"","dictionary match")}
-    ${row("Landmarks",r.marks.length||"","page text")}
-    </tbody></table><div class="f-note" style="margin-top:8px">Read ${r.chars.toLocaleString()} characters via ${esc(via)}. ${over?"Everything was overwritten.":"Only empty fields were filled."}</div>`;
+  /* The table is the brief, not a report of it. Type here and it lands in
+     the fields below. */
+  LAST_READ={g:r.g,src:r.src,usps:r.usps,amen:r.amen,marks:r.marks,chars:r.chars,via};
+  drawFound();
   $("#impStat").innerHTML='<span class="pill p-ok">read</span>';
   logEvent("lp-read",url);
-  toast("Brief filled \u2014 check it before generating");
+  toast("Page read \u2014 check the fields, then Apply");
 }
 
 
