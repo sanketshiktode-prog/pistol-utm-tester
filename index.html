@@ -307,18 +307,13 @@ code{font-family:var(--mono);background:rgba(0,0,0,.05);padding:1px 4px;border-r
     <div class="card">
       <div class="card-hd"><h2>Landing page import</h2><span class="hint" id="impStat">—</span></div>
       <div class="card-bd">
-        <label class="f">
-          <span class="f-lab">Gemini API key <span class="pill p-mute">optional</span></span>
-          <input type="text" id="aiKey" placeholder="Paste a key to read the page with AI" spellcheck="false">
-          <span class="f-note">Free tier at <b>aistudio.google.com/apikey</b>. With a key the page is read by Gemini, which handles layouts the pattern reader misses. Without one the pattern reader runs on its own. Restrict the key to this domain in Cloud Console — the page is public.</span>
-        </label>
         <label class="chk"><input type="checkbox" id="impOverwrite"> Overwrite fields I already filled</label>
         <div class="btnrow">
           <button class="btn btn-pri btn-sm" id="impFetch">Read the landing page</button>
           <button class="btn btn-sm" id="impPasteBtn">Paste page text</button>
           <button class="btn btn-sm" id="impManual">Fill it in myself</button>
         </div>
-        <div class="f-note" style="margin-top:8px">Reads the URL above through a public text-extraction service, then fills the brief. Always check what it pulled before generating.</div>
+        <div class="f-note" style="margin-top:8px">Reads the URL above through a public text-extraction service, then reads it with AI and fills the brief. Always check what it pulled before generating.</div>
         <textarea id="impPaste" class="hidden" rows="8" style="margin-top:10px" placeholder="Select the whole landing page (Ctrl+A, Ctrl+C) and paste it here, then press Read again."></textarea>
         <div id="impFound" style="margin-top:10px"></div>
       </div>
@@ -2105,36 +2100,21 @@ function capture(raw){
     .map(x=>tc(x[0].trim()))))].filter(s=>s.length<=30);
   return {g,src,amen:amen.slice(0,14),marks:marks.slice(0,8),usps:usps.slice(0,8),chars:T.length};
 }
-/* Gemini's free tier is enough for this: one short call per page. The key
-   lives in the browser only and is never sent anywhere except Google. */
-async function askGemini(key,text){
-  const prompt=`Extract details of this Indian or UAE real estate project from the page text.
-Reply with ONLY a JSON object, no markdown, no commentary, using exactly these keys:
-{"proj":"","dev":"","micro":"","city":"","cfg":"","price":"","allIn":"","possession":"","rera":"","usps":[],"amenities":[],"landmarks":[]}
-Rules: proj is the project name only, without the developer. dev is the developer name.
-micro is the locality, city is the city. cfg is like "2, 2.5 & 3 BHK" or "Studio, 1 & 2 BR".
-price is the starting price as written, e.g. "\u20b985 Lakhs" or "AED 1.8 M".
-allIn is "yes" if the price is described as all inclusive, "no" if charges are extra, else "".
-usps are short selling points under 30 characters each, e.g. "21 Acre Township".
-amenities are single amenity names. landmarks are "Name - 25 Mins" style entries.
-Use "" or [] for anything not stated. Do not invent anything.
-
-PAGE TEXT:
-${text.slice(0,26000)}`;
-  const models=["gemini-2.0-flash","gemini-1.5-flash"];
-  for(const mdl of models){
-    try{
-      const r=await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${mdl}:generateContent?key=${encodeURIComponent(key)}`,
-        {method:"POST",headers:{"Content-Type":"application/json"},
-         body:JSON.stringify({contents:[{parts:[{text:prompt}]}],
-           generationConfig:{temperature:0,maxOutputTokens:1200,responseMimeType:"application/json"}})});
-      if(!r.ok)continue;
-      const j=await r.json();
-      const t=((((j.candidates||[])[0]||{}).content||{}).parts||[{}])[0].text||"";
-      return JSON.parse(t.replace(/```json|```/g,"").trim());
-    }catch(e){}
-  }
-  return null;
+/* The Gemini key lives in the Apps Script, never in this page. The browser
+   sends the page text and its sign-in token; the script checks the token,
+   calls Gemini, and sends back the fields. Content-Type stays text/plain so
+   the browser treats it as a simple request and skips the preflight that
+   Apps Script cannot answer. */
+async function askAI(text){
+  if(!AUTH.logUrl||!USER)return null;
+  try{
+    const r=await fetch(AUTH.logUrl,{method:"POST",headers:{"Content-Type":"text/plain;charset=utf-8"},
+      body:JSON.stringify({action:"extract",credential:USER.credential,text:text.slice(0,26000)})});
+    if(!r.ok)return null;
+    const j=await r.json();
+    if(j.error){ toast(j.error); return null; }
+    return j;
+  }catch(e){ return null; }
 }
 async function readLp(){
   const url=$("#inLp").value.trim(), pasted=$("#impPaste").value.trim();
@@ -2155,16 +2135,15 @@ async function readLp(){
     return;
   }
   let r=capture(txt);
-  const key=($("#aiKey")&&$("#aiKey").value.trim())||"";
-  if(key){
-    $("#impStat").innerHTML='<span class="pill p-mute">asking Gemini\u2026</span>';
-    const ai=await askGemini(key,txt);
+  if(AUTH.logUrl&&USER){
+    $("#impStat").innerHTML='<span class="pill p-mute">reading with AI\u2026</span>';
+    const ai=await askAI(txt);
     if(ai){
       Object.keys(ai).forEach(k=>{ if(ai[k]&&!Array.isArray(ai[k])){ r.g[k]=ai[k]; r.src[k]="Gemini"; } });
       if(Array.isArray(ai.usps)&&ai.usps.length)r.usps=ai.usps.slice(0,8);
       if(Array.isArray(ai.amenities)&&ai.amenities.length)r.amen=ai.amenities.slice(0,14);
       if(Array.isArray(ai.landmarks)&&ai.landmarks.length)r.marks=ai.landmarks.slice(0,8);
-    } else toast("Gemini did not answer \u2014 pattern reader used instead");
+    } else toast("AI reader unavailable \u2014 pattern reader used instead");
   }
   const over=$("#impOverwrite")&&$("#impOverwrite").checked;
   const set=(id,v)=>{ const e=$("#"+id); if(e&&v&&(over||!e.value)){ e.value=v; e.dispatchEvent(new Event("input",{bubbles:true})); } };
@@ -2696,7 +2675,6 @@ drawAll();
 /* the earlier build wrote project data to localStorage, so clear it once */
 if(!store.get("pp_migrated",false)){ clearProject(); store.set("pp_migrated",true); }
 initAuth();
-if($("#aiKey"))$("#aiKey").value=store.get("pp_aikey","");
 </script>
 </body>
 </html>
