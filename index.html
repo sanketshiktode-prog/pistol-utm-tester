@@ -747,7 +747,8 @@ code{font-family:var(--mono);background:rgba(0,0,0,.05);padding:1px 4px;border-r
       </div>
       <div class="btnrow">
         <button class="btn btn-pri" id="stBuild">Build full campaign structure</button>
-        <button class="btn btn-navy" id="stAll">Download import files</button>
+        <button class="btn btn-navy" id="stAll">Download ZIP</button>
+        <button class="btn" id="stAllLoose">Files separately</button>
         <button class="btn" id="stAssetsCsv">Assets only (one campaign)</button>
         <button class="btn" id="stSheet">Copy as sheet</button>
         <button class="btn" id="stKwCsv">Keywords CSV</button>
@@ -976,6 +977,56 @@ function compose(parts,max){
   }
   return null;
 }
+
+/* ═══════════ zip, built by hand ═══════════
+   A static page has no zip library, so the archive is assembled from raw
+   bytes: local header, data, central directory, end record. Stored, not
+   deflated \u2014 CSVs are small and it keeps this to about forty lines. */
+const CRC_TABLE=(()=>{const t=new Uint32Array(256);
+  for(let i=0;i<256;i++){let c=i;for(let k=0;k<8;k++)c=c&1?0xEDB88320^(c>>>1):c>>>1;t[i]=c>>>0;}
+  return t;})();
+function crc32(u8){let c=0xFFFFFFFF;for(let i=0;i<u8.length;i++)c=CRC_TABLE[(c^u8[i])&0xFF]^(c>>>8);
+  return (c^0xFFFFFFFF)>>>0;}
+function dosTime(d){return ((d.getHours()<<11)|(d.getMinutes()<<5)|(d.getSeconds()/2))&0xFFFF;}
+function dosDate(d){return (((d.getFullYear()-1980)<<9)|((d.getMonth()+1)<<5)|d.getDate())&0xFFFF;}
+function makeZip(entries){
+  const enc=new TextEncoder(), now=new Date();
+  const parts=[], central=[]; let offset=0;
+  entries.forEach(([name,text])=>{
+    const nameB=enc.encode(name), data=enc.encode(text), crc=crc32(data);
+    const lh=new Uint8Array(30), v=new DataView(lh.buffer);
+    v.setUint32(0,0x04034b50,true); v.setUint16(4,20,true); v.setUint16(6,0x0800,true);
+    v.setUint16(8,0,true); v.setUint16(10,dosTime(now),true); v.setUint16(12,dosDate(now),true);
+    v.setUint32(14,crc,true); v.setUint32(18,data.length,true); v.setUint32(22,data.length,true);
+    v.setUint16(26,nameB.length,true); v.setUint16(28,0,true);
+    parts.push(lh,nameB,data);
+    const cd=new Uint8Array(46), c=new DataView(cd.buffer);
+    c.setUint32(0,0x02014b50,true); c.setUint16(4,20,true); c.setUint16(6,20,true);
+    c.setUint16(8,0x0800,true); c.setUint16(10,0,true);
+    c.setUint16(12,dosTime(now),true); c.setUint16(14,dosDate(now),true);
+    c.setUint32(16,crc,true); c.setUint32(20,data.length,true); c.setUint32(24,data.length,true);
+    c.setUint16(28,nameB.length,true); c.setUint32(42,offset,true);
+    central.push(cd,nameB);
+    offset+=lh.length+nameB.length+data.length;
+  });
+  const cdSize=central.reduce((a,b)=>a+b.length,0);
+  const end=new Uint8Array(22), e=new DataView(end.buffer);
+  e.setUint32(0,0x06054b50,true);
+  e.setUint16(8,entries.length,true); e.setUint16(10,entries.length,true);
+  e.setUint32(12,cdSize,true); e.setUint32(16,offset,true);
+  const all=[...parts,...central,end];
+  const total=all.reduce((a,b)=>a+b.length,0);
+  const out=new Uint8Array(total); let p=0;
+  all.forEach(b=>{out.set(b,p);p+=b.length;});
+  return out;
+}
+function dlZip(name,entries){
+  const b=new Blob([makeZip(entries)],{type:"application/zip"});
+  const a=document.createElement("a"); a.href=URL.createObjectURL(b); a.download=name;
+  document.body.appendChild(a); a.click();
+  setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove();},400);
+}
+
 function dl(name,text){const b=new Blob(["\uFEFF"+text],{type:"text/csv;charset=utf-8"});const a=document.createElement("a");
   a.href=URL.createObjectURL(b);a.download=name;document.body.appendChild(a);a.click();
   setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove();},400);}
@@ -1607,7 +1658,7 @@ const slugLink=s=>String(s||"").toLowerCase().replace(/[^a-z0-9]+/g,"");
 const PRESET={
  in:{
   sl:[["Download Brochure","Get Complete Project Details","Floor Plans, Pricing & Offers"],
-      ["Price & Payment Plan","Complete Costing Details Inside","No Hidden Charges, Zero Brokerage"],
+      ["Price & Payment Plan","Complete Costing Details Inside","Complete Costing Details Inside"],
       ["Book A Free Site Visit","Pick A Slot That Suits You","Instant Call Back From Our Team"],
       ["Master & Floor Plans","Township Layout And Unit Plans","See Every Configuration Inside"],
       ["Amenities & Highlights","50+ World-Class Amenities","70% Open-To-Sky Green Spaces"],
@@ -1841,7 +1892,7 @@ function genHeadlines(){
     b.price?`Homes Starting ${b.price}`:""].filter(Boolean);
   const proof=[...b.usps.map(tc), ...b.marks.map(u=>tc(u.replace(/\s*-\s*/," - "))),
     "Book A Free Site Visit","Download Brochure Now","Get Price List Instantly",
-    "Limited Units Available","Zero Brokerage Assured"];
+    "Limited Units Available","Instant Call Back"];
   pick(brand,H_MAX,5,used).forEach(t=>out.push([t,"1"]));
   pick(money,H_MAX,5,used).forEach(t=>out.push([t,"2"]));
   pick(proof,H_MAX,H_CAP-out.length,used).forEach(t=>out.push([t,"3"]));
@@ -1858,7 +1909,7 @@ function genDescriptions(){
     compose([`${b.cfg} At ${withPlace(b.proj,where)}`, b.price&&`From ${b.price}`, "Enquire For Floor Plans"],D_MAX),
     compose([u1&&u2?`${u1} & ${u2} At ${b.proj}`:`${u1||"Premium Homes"} At ${b.proj}`, "Download The Brochure"],D_MAX),
     compose([`${b.offer||"New Launch"} At ${addPart(b.proj,b.micro)}`, m1, "Get Price List"],D_MAX),
-    compose([`Book ${b.cfg} At ${addPart(b.proj,b.micro)}`, "Zero Brokerage, Free Site Visit"],D_MAX),
+    compose([`Book ${b.cfg} At ${addPart(b.proj,b.micro)}`, "Free Site Visit, Instant Call Back"],D_MAX),
     compose([b.dev?`${addPart(b.proj,b.dev)}${where?" In "+where:""}`:`${where?b.proj+" In "+where:b.proj}`, u3||u1, "Request Pricing"],D_MAX),
     compose([`${b.cfg}${where?" In "+where:""}`, m2||m1, "Instant Call Back From Our Team"],D_MAX)
   ].filter(Boolean);
@@ -1921,7 +1972,7 @@ on("#asGen","click",()=>{
   const d=(a,fb)=>fit(a,SL_D)||fit(fb,SL_D)||"";
   const sl=[
     ["Download Brochure","Get Complete Project Details","Floor Plans, Pricing & Offers"],
-    ["Price & Payment Plan", d(`${b.cfg} From ${b.price}`,"Complete Costing Details Inside"),"No Hidden Charges Or Brokerage"],
+    ["Price & Payment Plan", d(`${b.cfg} From ${b.price}`,"Complete Costing Details Inside"),"See The Full Payment Schedule"],
     ["Book A Free Site Visit", d(`Visit ${addPart(b.proj,b.micro)}`,"Pick A Slot That Suits You"),"Instant Call Back From Our Team"],
     ["Master & Floor Plans", d(u[0]||"","Township Layout And Unit Plans"),"See Every Configuration Inside"],
     ["Amenities & Highlights", d(u[1]||u[0]||"","World-Class Modern Amenities"),"Designed For Every Age Group"],
@@ -2400,6 +2451,15 @@ function locList(){
   const alt=lines($("#locAlt").value);
   return [main,...alt].filter(Boolean);
 }
+/* "Mahindra Lifespaces" also gets searched as plain "Mahindra". The short
+   form is added for the location-led sets, not for brand-broad, where it
+   would pull in every other Mahindra business. */
+function devForms(dev,broad){
+  const full=String(dev||"").trim(); if(!full)return [];
+  const parts=full.split(/\s+/), short=parts[0];
+  const weak=/^(the|shri|sri|m|s|new)$/i.test(short)||short.length<4;
+  return (broad||weak||parts.length<2)?[full]:[full,short];
+}
 function kwForStrategy(code){
   const b=brief(), P=b.proj, D=b.dev||P, C=b.city, locs=locList();
   const c=String(code).toUpperCase(), out=[];
@@ -2408,6 +2468,12 @@ function kwForStrategy(code){
   const tails=["","new launch"];
   if(c.includes("BPL")){
     const devPrefix=P.toLowerCase().startsWith(D.toLowerCase());
+    devForms(D,false).slice(1).forEach(sd=>{
+      const shortProj=P.replace(new RegExp("^"+D.replace(/[.*+?^${}()|[\]\\]/g,"\\$&"),"i"),sd).trim();
+      if(shortProj&&shortProj.toLowerCase()!==P.toLowerCase()){
+        out.push(shortProj); locs.forEach(L=>out.push(`${shortProj} ${L}`));
+      }
+    });
     locs.forEach(L=>{ out.push(P, `${P} ${L}`, `${P} ${L} ${C}`);
       if(!devPrefix) out.push(`${D} ${P} ${L}`);
       tails.forEach(t=>t&&out.push(`${P} ${L} ${t}`)); });
@@ -2418,8 +2484,10 @@ function kwForStrategy(code){
       `${D} properties`, `${D} upcoming projects`, `${D} new project ${C}`);
     tails.forEach(t=>t&&out.push(`${D} ${t}`));
   } else { /* BL and anything else: brand + location */
-    locs.forEach(L=>{ out.push(`${D} ${L}`, `${D} new launch ${L}`, `${D} projects ${L}`, `${D} flats ${L}`, `new project by ${D} ${L}`, `${D} apartments ${L}`);
-      tails.forEach(t=>t&&out.push(`${D} ${L} ${t}`)); });
+    devForms(D,false).forEach(dv=>locs.forEach(L=>{
+      out.push(`${dv} ${L}`, `${dv} new launch ${L}`, `${dv} projects ${L}`,
+        `${dv} flats ${L}`, `new project by ${dv} ${L}`, `${dv} apartments ${L}`);
+      tails.forEach(t=>t&&out.push(`${dv} ${L} ${t}`)); }));
   }
   const seen=new Set();
   return out.map(s=>String(s).toLowerCase().replace(/\s+/g," ").trim())
@@ -2770,9 +2838,13 @@ function entityFiles(){
 
   /* City-level targeting so nothing runs nationwide by mistake. Executives
      narrow it later; Presence-only is set in Editor, it has no CSV column. */
+  /* A bare "Pune" or "Dubai" can resolve to a US city. The country makes it
+     unambiguous. */
+  const country=REGION==="ae"?"United Arab Emirates":"India";
   const cityName=(PROJ.city||"").trim();
   if(cityName){
-    const locRows=[]; camps.forEach(c=>locRows.push([c,cityName,"Enabled"]));
+    const full=/,/.test(cityName)?cityName:`${cityName}, ${country}`;
+    const locRows=[]; camps.forEach(c=>locRows.push([c,full,"Enabled"]));
     files.push(["5-locations.csv",mk(["Campaign","Location","Status"],locRows)]);
   }
 
@@ -2788,14 +2860,22 @@ function entityFiles(){
     ["Campaign","Structured snippet header","Structured snippet values","Status"],sn)]);
   return files;
 }
+on("#stAllLoose","click",()=>{
+  if(!PLAN.length)return toast("Build the structure first");
+  const files=entityFiles();
+  files.forEach(([n,t],k)=>setTimeout(()=>dl(n,t),k*500));
+  toast(`${files.length} files`);
+  logEvent("export","import files loose");
+});
 on("#stAll","click",()=>{
   if(!PLAN.length)return toast("Build the structure first");
   const files=entityFiles();
-  files.forEach(([n,t],i)=>setTimeout(()=>dl(n,t),i*500));
-  toast(`${files.length} files — import them in number order`);
-  logEvent("export","import files");
+  const stamp=new Date().toISOString().slice(0,10);
+  const label=slug(brief().proj||$("#inEnq").value||"campaign");
+  dlZip(`${label}-${stamp}.zip`,files);
+  logEvent("export",`zip ${label}`);
   const goals=$("#cgGoals")?$("#cgGoals").value:"";
-  toast(`Exported. Set objective and goals in the interface: ${goals}`);
+  toast(`${files.length} files zipped. Set objective and goals in the interface: ${goals}`);
 });
 
 /* Assets are the same for every campaign, so the file carries one name
