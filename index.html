@@ -520,7 +520,7 @@ code{font-family:var(--mono);background:rgba(0,0,0,.05);padding:1px 4px;border-r
         <label class="chk"><input type="checkbox" id="kwPunct" checked> Strip punctuation Google ignores</label>
         <label class="chk"><input type="checkbox" id="kwGroup"> Group output by match type</label>
         <label class="f" style="margin-top:12px"><span class="f-lab">Exclude any keyword containing</span>
-          <input type="text" id="kwBlock" value="reviews, review, resale, rent, rental, complaints, scam, fraud, jobs, careers" spellcheck="false">
+          <input type="text" id="kwBlock" value="reviews, review, resale, rent, rental, complaints, scam, fraud, jobs, careers, brochure, price list, floor plan, payment plan, possession, emi, loan" spellcheck="false">
           <span class="f-note">Comma separated. Applies to generated keywords and to the headlines built from them.</span></label>
       </div>
     </div>
@@ -922,6 +922,37 @@ function syncProj(){
   for(const k in FMAP){ const e=$("#"+FMAP[k]); if(e)PROJ[k]=e.value; }
   try{sess.set("pp_proj",PROJ);}catch(e){}
   return PROJ;
+}
+/* "Mahindra Lifespaces Mahalunge" + " Mahalunge" reads like a stutter.
+   Nothing already inside the project name gets appended again. */
+const hasWord=(s,t)=>{
+  t=String(t||"").trim(); if(!t)return false;
+  return new RegExp("\\b"+t.replace(/[.*+?^${}()|[\]\\]/g,"\\$&")+"\\b","i").test(String(s||""));
+};
+const addPart=(base,part)=> part&&!hasWord(base,part) ? `${base} ${part}`.trim() : String(base||"").trim();
+const withPlace=(base,place)=> place&&!hasWord(base,place) ? `${base}, ${place}` : String(base||"").trim();
+function placeOf(b){
+  return [b.micro,b.city].filter(Boolean).filter(x=>!hasWord(b.proj,x)).join(", ");
+}
+/* "Mahindra Lifespaces Mahalunge" + micro-market "Mahalunge" was producing
+   "Mahindra Lifespaces Mahalunge Mahalunge". Any part whose words are
+   already present is dropped. */
+function joinParts(){
+  const out=[];
+  [...arguments].filter(Boolean).forEach(p=>{
+    const acc=out.join(" ").toLowerCase();
+    const words=String(p).toLowerCase().split(/[\s,]+/).filter(Boolean);
+    if(words.length&&words.every(w=>acc.includes(w)))return;
+    out.push(String(p).trim());
+  });
+  return out.join(" ").replace(/\s{2,}/g," ").trim();
+}
+/* the location clause, minus anything the project name already says */
+function placeOf(b){
+  const proj=String(b.proj||"").toLowerCase();
+  return [b.micro,b.city].filter(Boolean)
+    .filter(x=>!proj.includes(String(x).toLowerCase()))
+    .join(", ");
 }
 function brief(){
   const p=syncProj();
@@ -1768,13 +1799,13 @@ on("#snAdd","click",()=>{AS.sn.push(["Amenities",["","",""]]);saveAs();drawSn();
 /* exports */
 on("#slCopy","click",()=>{
   if(!AS.sl.length)return toast("No sitelinks yet");
-  copy("SR\tSitelink text\tLen\tMax\tDescription 1\tLen\tMax\tDescription 2\tLen\tMax\tFinal URL\n"+
+  copy("SR\tLink text\tLen\tMax\tDescription 1\tLen\tMax\tDescription 2\tLen\tMax\tFinal URL\n"+
     AS.sl.map((r,i)=>[i+1,r[0],r[0].length,SL_T,r[1],r[1].length,SL_D,r[2],r[2].length,SL_D,slUrl(r[0],r[3])].join("\t")).join("\n"));});
 on("#slCsv","click",()=>{
   if(!AS.sl.length)return toast("No sitelinks yet");
   const fb=assetBase();
   if(!fb)return toast("Set the base URL first \u2014 sitelinks need somewhere to point");
-  dl("sitelinks-ads-editor.csv","Sitelink text,Description line 1,Description line 2,Final URL\n"+
+  dl("sitelinks-ads-editor.csv","Link text,Description line 1,Description line 2,Final URL\n"+
     AS.sl.map(r=>[r[0],r[1],r[2],slUrl(r[0],r[3])||fb].map(csvq).join(",")).join("\n"));});
 on("#coCopy","click",()=>{
   if(!AS.co.length)return toast("No callouts yet");
@@ -1799,7 +1830,7 @@ on("#snCsv","click",()=>{
 function genHeadlines(){
   const b=brief(); if(!b.proj)return null;
   const used=new Set(), out=[];
-  const brand=[b.proj, `${b.proj} ${b.micro}`, `${b.proj} ${b.city}`,
+  const brand=[b.proj, addPart(b.proj,b.micro), addPart(b.proj,b.city),
     b.dev?`${b.proj} By ${b.dev}`:"", b.dev?`${b.dev} ${b.micro}`:"",
     `${b.proj} ${b.micro} ${b.city}`, b.offer?`${b.proj} ${b.offer}`:""].filter(Boolean);
   const money=[b.cfg&&b.price?`${b.cfg} From ${b.price}`:"",
@@ -1821,15 +1852,15 @@ function genDescriptions(){
   const b=brief(); if(!b.proj)return null;
   const u1=tc(b.usps[0]||""), u2=tc(b.usps[1]||""), u3=tc(b.usps[2]||"");
   const m1=tc(b.marks[0]||""), m2=tc(b.marks[1]||"");
-  const where=[b.micro,b.city].filter(Boolean).join(", ");
+  const where=placeOf(b);
   const cands=[
-    compose([`${b.proj} ${b.micro} \u2014 ${b.cfg}`, b.price&&`From ${b.price}`, "Book A Free Site Visit Today"],D_MAX),
-    compose([`${b.cfg} At ${b.proj}, ${where}`, b.price&&`From ${b.price}`, "Enquire For Floor Plans"],D_MAX),
+    compose([`${addPart(b.proj,b.micro)} \u2014 ${b.cfg}`, b.price&&`From ${b.price}`, "Book A Free Site Visit Today"],D_MAX),
+    compose([`${b.cfg} At ${withPlace(b.proj,where)}`, b.price&&`From ${b.price}`, "Enquire For Floor Plans"],D_MAX),
     compose([u1&&u2?`${u1} & ${u2} At ${b.proj}`:`${u1||"Premium Homes"} At ${b.proj}`, "Download The Brochure"],D_MAX),
-    compose([`${b.offer||"New Launch"} At ${b.proj} ${b.micro}`, m1, "Get Price List"],D_MAX),
-    compose([`Book ${b.cfg} At ${b.proj} ${b.micro}`, "Zero Brokerage, Free Site Visit"],D_MAX),
-    compose([b.dev?`${b.proj} By ${b.dev} In ${where}`:`${b.proj} In ${where}`, u3||u1, "Request Pricing"],D_MAX),
-    compose([`${b.cfg} In ${where}`, m2||m1, "Instant Call Back From Our Team"],D_MAX)
+    compose([`${b.offer||"New Launch"} At ${addPart(b.proj,b.micro)}`, m1, "Get Price List"],D_MAX),
+    compose([`Book ${b.cfg} At ${addPart(b.proj,b.micro)}`, "Zero Brokerage, Free Site Visit"],D_MAX),
+    compose([b.dev?`${addPart(b.proj,b.dev)}${where?" In "+where:""}`:`${where?b.proj+" In "+where:b.proj}`, u3||u1, "Request Pricing"],D_MAX),
+    compose([`${b.cfg}${where?" In "+where:""}`, m2||m1, "Instant Call Back From Our Team"],D_MAX)
   ].filter(Boolean);
   const used=new Set(), out=pick(cands,D_MAX,D_CAP,used).map(t=>[t,""]);
   while(out.length<D_CAP)out.push(["",""]);
@@ -1867,8 +1898,9 @@ on("#kwGen","click",()=>{
   const P=b.proj, D=b.dev, M=b.micro, C=b.city;
   const roots=[P, M&&`${P} ${M}`, C&&`${P} ${C}`, M&&C&&`${P} ${M} ${C}`,
     D&&`${D} ${M||C}`, D&&D!==P?D:""].filter(Boolean);
-  const tails=["","price","price list","brochure","floor plan","floor plans","location",
-    "payment plan","apartments","flats","new launch","booking","offers"];
+  /* intent words like brochure, price and floor plan pull in research
+     traffic that rarely converts. Brand and location only. */
+  const tails=["","new launch"];
   const cfgs=(b.cfg||"").split(/[,&]/).map(s=>s.trim()).filter(Boolean);
   const out=[];
   roots.forEach(r=>tails.forEach(t=>out.push((r+" "+t).trim())));
@@ -1884,13 +1916,13 @@ on("#kwGen","click",()=>{
 /* assets from the brief */
 on("#asGen","click",()=>{
   const b=brief(); if(!b.proj)return toast("Fill in the project name on the ad copy tab");
-  const where=[b.micro,b.city].filter(Boolean).join(", ");
+  const where=placeOf(b);
   const u=b.usps.map(tc), m=b.marks.map(tc);
   const d=(a,fb)=>fit(a,SL_D)||fit(fb,SL_D)||"";
   const sl=[
     ["Download Brochure","Get Complete Project Details","Floor Plans, Pricing & Offers"],
     ["Price & Payment Plan", d(`${b.cfg} From ${b.price}`,"Complete Costing Details Inside"),"No Hidden Charges Or Brokerage"],
-    ["Book A Free Site Visit", d(`Visit ${b.proj} ${b.micro}`,"Pick A Slot That Suits You"),"Instant Call Back From Our Team"],
+    ["Book A Free Site Visit", d(`Visit ${addPart(b.proj,b.micro)}`,"Pick A Slot That Suits You"),"Instant Call Back From Our Team"],
     ["Master & Floor Plans", d(u[0]||"","Township Layout And Unit Plans"),"See Every Configuration Inside"],
     ["Amenities & Highlights", d(u[1]||u[0]||"","World-Class Modern Amenities"),"Designed For Every Age Group"],
     ["Location & Connectivity", d(m[0]||"","Connected To The Whole City"), d(m[1]||"","Prime Address, Easy Access")]
@@ -1898,8 +1930,7 @@ on("#asGen","click",()=>{
   /* callouts come only from what the project actually offers */
   const coCands=[...u, ...b.amen.map(tc), ...m].filter(Boolean).map(tc);
   const used=new Set(), co=pick(coCands,CO_MAX,10,used);
-  const cfgVals=(b.cfg||"").split(/[,&]/).map(s=>s.trim()).filter(Boolean)
-    .map(s=>fit(tc(s),SN_MAX)).filter(Boolean);
+  const cfgVals=cfgList(b.cfg).map(s=>fit(tc(s),SN_MAX)).filter(Boolean);
   const sn=[];
   if(cfgVals.length>=3)sn.push(["Types",cfgVals]);
   const amen=(b.amen.length?b.amen:["Swimming Pool","Gymnasium","Clubhouse","Jogging Track","Kids Play Area","Yoga Deck"])
@@ -2069,6 +2100,15 @@ function findPrice(T){
   }
   out.sort((x,y)=>x.val-y.val);                    // starting price is the lowest real one
   return out[0].text;
+}
+/* "2, 3 & 4 BHK" is three values, not "2", "3" and "4 BHK". */
+function cfgList(cfg){
+  const s=String(cfg||"").trim(); if(!s)return [];
+  const m=s.match(/^(.*?)\s*(BHK|BR)\b/i);
+  if(!m)return s.split(/[,&\/]|\band\b/i).map(x=>x.trim()).filter(Boolean);
+  const unit=m[2].toUpperCase();
+  return m[1].split(/[,&\/]|\band\b/i).map(x=>x.trim()).filter(Boolean)
+    .map(x=>/^[\d.]+$/.test(x)?`${x} ${unit}`:x);
 }
 const dedupe=a=>{const seen=new Set();return a.filter(x=>{const k=String(x).toLowerCase().replace(/[^a-z0-9]/g,"");
   if(!k||seen.has(k))return false;seen.add(k);return true;});};
@@ -2346,7 +2386,7 @@ function syncPlanKw(){
 }
 
 /* ═══════════ keyword sets per strategy ═══════════ */
-const BLOCK_DEFAULT="reviews, review, resale, rent, rental, complaints, scam, fraud, jobs, careers";
+const BLOCK_DEFAULT="reviews, review, resale, rent, rental, complaints, scam, fraud, jobs, careers, brochure, price list, floor plan, payment plan, possession, emi, loan";
 function blockWords(){
   const el=$("#kwBlock");
   return (el&&el.value||BLOCK_DEFAULT).split(",").map(s=>s.trim().toLowerCase()).filter(Boolean);
@@ -2363,7 +2403,9 @@ function locList(){
 function kwForStrategy(code){
   const b=brief(), P=b.proj, D=b.dev||P, C=b.city, locs=locList();
   const c=String(code).toUpperCase(), out=[];
-  const tails=["","price","price list","brochure","floor plan","payment plan","new launch","booking"];
+  /* intent words like brochure, price and floor plan pull in research
+     traffic that rarely converts. Brand and location only. */
+  const tails=["","new launch"];
   if(c.includes("BPL")){
     const devPrefix=P.toLowerCase().startsWith(D.toLowerCase());
     locs.forEach(L=>{ out.push(P, `${P} ${L}`, `${P} ${L} ${C}`);
@@ -2376,8 +2418,7 @@ function kwForStrategy(code){
       `${D} properties`, `${D} upcoming projects`, `${D} new project ${C}`);
     tails.forEach(t=>t&&out.push(`${D} ${t}`));
   } else { /* BL and anything else: brand + location */
-    locs.forEach(L=>{ out.push(`${D} ${L}`, `${D} new launch ${L}`, `${D} projects ${L}`,
-      `${D} flats ${L}`, `${D} ${L} price`, `new project by ${D} ${L}`, `${D} apartments ${L}`);
+    locs.forEach(L=>{ out.push(`${D} ${L}`, `${D} new launch ${L}`, `${D} projects ${L}`, `${D} flats ${L}`, `new project by ${D} ${L}`, `${D} apartments ${L}`);
       tails.forEach(t=>t&&out.push(`${D} ${L} ${t}`)); });
   }
   const seen=new Set();
@@ -2415,22 +2456,22 @@ function adFor(kws){
   while(H.length<H_CAP)H.push(["",""]);
 
   const u=b.usps.map(tc), m=b.marks.map(tc);
-  const where=[b.micro||locList()[0],b.city].filter(Boolean).join(", ");
+  const where=placeOf(b)||locList()[0]||"";
   const dUsed=new Set();
   const price=pricePhrase();
   const CTA=["Book A Free Site Visit","Download The Brochure","Enquire For Floor Plans","Get The Price List"];
   /* pinned 1 — project, location, configuration, price */
   const p1=pick([
-    compose([`${b.proj}, ${where}`, b.cfg, price],D_MAX),
-    compose([`${b.cfg} At ${b.proj}, ${where}`, price],D_MAX),
-    compose([`${b.proj} ${b.micro||""} \u2014 ${b.cfg}`, price],D_MAX),
-    compose([`${b.proj} In ${where}`, b.cfg&&`${b.cfg} ${price}`],D_MAX)
+    compose([`${withPlace(b.proj,where)}`, b.cfg, price],D_MAX),
+    compose([`${b.cfg} At ${withPlace(b.proj,where)}`, price],D_MAX),
+    compose([`${addPart(b.proj,b.micro)} \u2014 ${b.cfg}`, price],D_MAX),
+    compose([`${where?b.proj+" In "+where:b.proj}`, b.cfg&&`${b.cfg} ${price}`],D_MAX)
   ].filter(Boolean),D_MAX,2,dUsed).map(t=>[t,"1"]);
   /* pinned 2 — USP and a call to action */
   const p2=pick([
     compose([u[0]&&u[1]?`${u[0]} & ${u[1]}`:(u[0]||"Premium Homes"), CTA[0]],D_MAX),
     compose([u[2]||u[1]||u[0]||"World-Class Amenities", m[0], CTA[1]],D_MAX),
-    compose([`${b.offer||"New Launch"} At ${b.proj}`, u[3]||u[0]||"", CTA[2]],D_MAX),
+    compose([joinParts(b.offer||"New Launch","At",b.proj), u[3]||u[0]||"", CTA[2]],D_MAX),
     compose([m[0]||u[0]||"Prime Location", CTA[3]],D_MAX)
   ].filter(Boolean),D_MAX,2,dUsed).map(t=>[t,"2"]);
   const D=[...p1,...p2]; while(D.length<D_CAP)D.push(["",""]);
@@ -2542,7 +2583,7 @@ on("#stAllCsv","click",()=>{
   for(let i=1;i<=H_CAP;i++)hdr.push(`Headline ${i}`,`Headline ${i} position`);
   for(let i=1;i<=D_CAP;i++)hdr.push(`Description ${i}`,`Description ${i} position`);
   hdr.push("Path 1","Path 2","Final URL",
-    "Callout text","Sitelink text","Sitelink description 1","Sitelink description 2","Sitelink final URL",
+    "Callout text","Link text","Description line 1","Description line 2","Final URL",
     "Structured snippet header","Structured snippet values");
 
   const blank=()=>Object.fromEntries(hdr.map(k=>[k,""]));
@@ -2588,8 +2629,8 @@ on("#stAllCsv","click",()=>{
       const r=blank(); r["Campaign"]=p.campaign; r["Callout text"]=t; rows.push(r);});
     AS.sl.filter(s=>s[0]).forEach(s=>{
       const r=blank(); r["Campaign"]=p.campaign;
-      r["Sitelink text"]=s[0]; r["Sitelink description 1"]=s[1]; r["Sitelink description 2"]=s[2];
-      r["Sitelink final URL"]=slUrl(s[0],s[3])||lp; rows.push(r);});
+      r["Link text"]=s[0]; r["Description line 1"]=s[1]; r["Description line 2"]=s[2];
+      r["Final URL"]=slUrl(s[0],s[3])||lp; rows.push(r);});
     AS.sn.forEach(([head,vals])=>{
       const v=vals.filter(x=>x.trim()); if(v.length<3)return;
       const r=blank(); r["Campaign"]=p.campaign;
@@ -2615,8 +2656,8 @@ function masterCsv(){
     "Keyword","Match type","Status","Final URL","Path 1","Path 2");
   for(let i=1;i<=H_CAP;i++)H.push(`Headline ${i}`,`Headline ${i} position`);
   for(let i=1;i<=D_CAP;i++)H.push(`Description ${i}`,`Description ${i} position`);
-  H.push("Callout text","Sitelink text","Sitelink description 1","Sitelink description 2",
-    "Sitelink final URL","Structured snippet header","Structured snippet values");
+  H.push("Callout text","Link text","Description line 1","Description line 2",
+    "Structured snippet header","Structured snippet values");
   const idx={}; H.forEach((k,i)=>{ if(!(k in idx))idx[k]=i; });
   const blank=()=>new Array(H.length).fill("");
   const put=(r,k,v)=>{ if(idx[k]!==undefined)r[idx[k]]=v==null?"":String(v); };
@@ -2635,7 +2676,7 @@ function masterCsv(){
       put(r,"Campaign",p.campaign); put(r,"Campaign Type","Search");
       put(r,"Campaign Status",cstat); put(r,"Budget",budget);
       put(r,"Budget type","Daily"); put(r,"Bid Strategy Type",bid);
-      put(r,"Networks","Google Search;Search Partners");
+      put(r,"Networks","Google Search");
       rows.push(r);
     }
     p.groups.forEach(g=>{
@@ -2674,8 +2715,8 @@ function masterCsv(){
     });
     AS.sl.filter(x=>x[0]).forEach(s=>{
       const r=blank(); put(r,"Campaign",camp);
-      put(r,"Sitelink text",s[0]); put(r,"Sitelink description 1",s[1]);
-      put(r,"Sitelink description 2",s[2]); put(r,"Sitelink final URL",slUrl(s[0],s[3])||lp);
+      put(r,"Link text",s[0]); put(r,"Description line 1",s[1]);
+      put(r,"Description line 2",s[2]); put(r,"Final URL",slUrl(s[0],s[3])||lp);
       put(r,"Status","Enabled"); rows.push(r);
     });
     AS.sn.forEach(([hd,vals])=>{
@@ -2705,7 +2746,7 @@ function entityFiles(){
   const camps=[...new Set(PLAN.map(p=>p.campaign))];
   files.push(["1-campaigns.csv",mk(
     ["Campaign","Campaign Type","Campaign Status","Budget","Budget type","Bid Strategy Type","Networks"],
-    camps.map(c=>[c,"Search",cstat,budget,"Daily",bid,"Google Search;Search Partners"]))]);
+    camps.map(c=>[c,"Search",cstat,budget,"Daily",bid,"Google Search"]))]);
 
   const ag=[]; PLAN.forEach(p=>p.groups.forEach(g=>
     ag.push([p.campaign,g.name,"Enabled",cpc,TPL[CH],custParam(g.n)])));
@@ -2741,7 +2782,7 @@ function entityFiles(){
   if(co.length)files.push(["6-callouts.csv",mk(["Campaign","Callout text","Status"],co)]);
   const sl=AS.sl.filter(x=>x[0]).map(s=>[one,s[0],s[1],s[2],slUrl(s[0],s[3])||lp,"Enabled"]);
   if(sl.length)files.push(["7-sitelinks.csv",mk(
-    ["Campaign","Sitelink text","Sitelink description 1","Sitelink description 2","Sitelink final URL","Status"],sl)]);
+    ["Campaign","Link text","Description line 1","Description line 2","Final URL","Status"],sl)]);
   const sn=AS.sn.map(([hd,v])=>{const vv=v.filter(x=>x.trim());return vv.length>=3?[one,hd,vv.join(";"),"Enabled"]:null;}).filter(Boolean);
   if(sn.length)files.push(["8-snippets.csv",mk(
     ["Campaign","Structured snippet header","Structured snippet values","Status"],sn)]);
@@ -2763,8 +2804,8 @@ on("#stAssetsCsv","click",()=>{
   if(!PLAN.length)return toast("Build the structure first");
   const camp=($("#stAssetCamp")&&$("#stAssetCamp").value)||PLAN[0].campaign;
   const lp=PROJ.url||$("#inLp").value.trim();
-  const H=["Campaign","Callout text","Sitelink text","Sitelink description 1","Sitelink description 2",
-    "Sitelink final URL","Structured snippet header","Structured snippet values","Status"];
+  const H=["Campaign","Callout text","Link text","Description line 1","Description line 2",
+    "Final URL","Structured snippet header","Structured snippet values","Status"];
   const rows=[];
   AS.co.filter(Boolean).forEach(t=>rows.push([camp,t,"","","","","","","Enabled"]));
   AS.sl.filter(x=>x[0]).forEach(s=>rows.push([camp,"",s[0],s[1],s[2],slUrl(s[0],s[3])||lp,"","","Enabled"]));
