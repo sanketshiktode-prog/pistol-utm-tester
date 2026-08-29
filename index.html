@@ -205,7 +205,7 @@ code{font-family:var(--mono);background:rgba(0,0,0,.05);padding:1px 4px;border-r
     <div class="wordmark">Search Ops Toolkit <span>· Google Ads</span></div>
     <div class="spacer"></div>
     <div class="badge-env" id="varCount">0 VARIANTS</div>
-    <span class="pill p-mute" id="buildTag" title="build">b-27aug-3</span>
+    <span class="pill p-mute" id="buildTag" title="build">b-29aug-1</span>
     <div id="userChip" class="hidden" style="display:flex;align-items:center;gap:9px">
       <div class="divider-v"></div>
       <span id="userName" style="font-size:12.5px;font-weight:500"></span>
@@ -222,6 +222,7 @@ code{font-family:var(--mono);background:rgba(0,0,0,.05);padding:1px 4px;border-r
   <button class="tab" role="tab" aria-selected="false" data-panel="p-ad"><span class="num">03</span>Ad copy</button>
   <button class="tab" role="tab" aria-selected="false" data-panel="p-as"><span class="num">04</span>Assets</button>
   <button class="tab" role="tab" aria-selected="false" data-panel="p-st"><span class="num">05</span>Full structure</button>
+  <button class="tab" role="tab" aria-selected="false" data-panel="p-mt"><span class="num">06</span>Meta ads</button>
 </div></nav>
 
 <main class="wrap">
@@ -390,6 +391,12 @@ code{font-family:var(--mono);background:rgba(0,0,0,.05);padding:1px 4px;border-r
               <option>Maximize clicks</option><option>Target CPA</option>
             </select></label>
         </div>
+        <label class="f"><span class="f-lab">Target location</span>
+          <input type="text" id="cgLoc" placeholder="Pune,Maharashtra,India" spellcheck="false">
+          <span class="f-note">Canonical form: <code>City,State,Country</code>. Filled from the brief; edit if it is wrong.</span></label>
+        <label class="f"><span class="f-lab">Location ID <span class="pill p-mute">optional</span></span>
+          <input type="text" id="cgLocId" placeholder="e.g. 1007785" spellcheck="false" inputmode="numeric">
+          <span class="f-note">The criterion ID removes all ambiguity. Add the location by hand once in Editor, read the ID from the Locations view, and paste it here. With an ID set the name is ignored.</span></label>
         <label class="f"><span class="f-lab">Objective</span>
           <input type="text" id="cgObj" value="Leads"></label>
         <label class="f"><span class="f-lab">Conversion goals</span>
@@ -781,6 +788,80 @@ code{font-family:var(--mono);background:rgba(0,0,0,.05);padding:1px 4px;border-r
     <div class="card-bd" id="stTree"><div class="empty">Fill the brief, then press Build.</div></div>
   </div>
 </section>
+<!-- ══════ 06 META ══════ -->
+<section class="panel" id="p-mt">
+<div class="split">
+  <div class="sticky-col">
+    <div class="card">
+      <div class="card-hd"><h2>Style</h2></div>
+      <div class="card-bd">
+        <label class="f"><span class="f-lab">Call to action button</span>
+          <select id="mtCta">
+            <option>Learn More</option><option>Get Quote</option><option>Sign Up</option>
+            <option>Book Now</option><option>Apply Now</option><option>Download</option>
+            <option>Contact Us</option><option>Get Offer</option>
+          </select></label>
+        <label class="chk"><input type="checkbox" id="mtTicks" checked> Use tick bullets in the list variants</label>
+        <label class="chk"><input type="checkbox" id="mtEmoji"> Allow emoji</label>
+        <label class="f" style="margin-top:14px"><span class="f-lab">Closing line</span>
+          <input type="text" id="mtClose" value="Fill the form for details.">
+          <span class="f-note">Lead ads have no landing page, so the closing line has to do the work a URL normally does.</span></label>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-hd"><h2>Limits</h2><span class="hint">before truncation</span></div>
+      <div class="card-bd">
+        <table class="kv"><tbody>
+          <tr><td>Primary text</td><td class="right m">125</td></tr>
+          <tr><td>Headline</td><td class="right m">40</td></tr>
+          <tr><td>Description</td><td class="right m">30</td></tr>
+        </tbody></table>
+        <div class="f-note" style="margin-top:10px">These are the points at which Meta cuts to "See more" or hides the line on some placements, not hard rejections. Over is allowed; it just stops being read.</div>
+      </div>
+    </div>
+  </div>
+
+  <div>
+    <div class="card">
+      <div class="card-hd"><h2>Primary text</h2><span class="hint" id="mtPStat">0</span></div>
+      <div class="card-bd">
+        <div id="mtPrimary"></div>
+        <div class="btnrow" style="margin-top:10px">
+          <button class="btn btn-pri btn-sm" id="mtGen">Generate from brief</button>
+          <button class="btn btn-sm" id="mtAddP">Add variant</button>
+        </div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-hd"><h2>Headlines</h2><span class="hint" id="mtHStat">0 · max 40</span></div>
+      <div class="card-bd">
+        <div class="achd" style="grid-template-columns:26px 1fr 62px 30px"><span>SR</span><span>Headline</span><span>Length</span><span></span></div>
+        <div id="mtHeads"></div>
+        <div class="btnrow" style="margin-top:10px"><button class="btn btn-sm" id="mtAddH">Add headline</button></div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-hd"><h2>Descriptions</h2><span class="hint" id="mtDStat">0 · max 30</span></div>
+      <div class="card-bd">
+        <div class="achd" style="grid-template-columns:26px 1fr 62px 30px"><span>SR</span><span>Description</span><span>Length</span><span></span></div>
+        <div id="mtDescs"></div>
+        <div class="btnrow" style="margin-top:10px"><button class="btn btn-sm" id="mtAddD">Add description</button></div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-hd"><h2>Export</h2></div>
+      <div class="card-bd">
+        <div class="btnrow">
+          <button class="btn btn-pri btn-sm" id="mtCsv">Download CSV</button>
+          <button class="btn btn-sm" id="mtCopy">Copy as sheet</button>
+        </div>
+        <div class="f-note" style="margin-top:10px">One row per combination of primary text, headline and description, with the button and a suggested ad name.</div>
+      </div>
+    </div>
+  </div>
+</div>
+</section>
+
 
 
 
@@ -945,6 +1026,34 @@ function placeOf(b){
 const BANNED=[/brokerage/i,/hidden charge/i,/\bno hidden\b/i,/0%\s*commission/i,/zero commission/i];
 const banned=t=>BANNED.some(re=>re.test(String(t||"")));
 const scrub=list=>(list||[]).filter(t=>!banned(t));
+/* "Pune, India" is still ambiguous enough for Editor to reach for a US
+   match. The canonical City,State,Country form is what Google's own geo
+   target list uses. */
+const STATE_OF={
+ "mumbai":"Maharashtra","navi mumbai":"Maharashtra","thane":"Maharashtra","pune":"Maharashtra",
+ "nashik":"Maharashtra","nagpur":"Maharashtra","aurangabad":"Maharashtra",
+ "bengaluru":"Karnataka","bangalore":"Karnataka","mysuru":"Karnataka",
+ "hyderabad":"Telangana","secunderabad":"Telangana",
+ "chennai":"Tamil Nadu","coimbatore":"Tamil Nadu",
+ "lucknow":"Uttar Pradesh","noida":"Uttar Pradesh","greater noida":"Uttar Pradesh",
+ "ghaziabad":"Uttar Pradesh","kanpur":"Uttar Pradesh",
+ "gurugram":"Haryana","gurgaon":"Haryana","faridabad":"Haryana",
+ "delhi":"Delhi","new delhi":"Delhi",
+ "ahmedabad":"Gujarat","surat":"Gujarat","vadodara":"Gujarat","gandhinagar":"Gujarat","rajkot":"Gujarat",
+ "kochi":"Kerala","cochin":"Kerala","thiruvananthapuram":"Kerala","kozhikode":"Kerala","thrissur":"Kerala",
+ "jaipur":"Rajasthan","indore":"Madhya Pradesh","bhopal":"Madhya Pradesh",
+ "kolkata":"West Bengal","chandigarh":"Chandigarh","goa":"Goa","panaji":"Goa"
+};
+function canonLocation(city){
+  const c=String(city||"").trim(); if(!c)return "";
+  if(c.includes(","))return c.replace(/\s*,\s*/g,",");
+  if(typeof REGION!=="undefined"&&REGION==="ae"){
+    const em=/abu dhabi/i.test(c)?"Abu Dhabi":/sharjah/i.test(c)?"Sharjah":"Dubai";
+    return tc(c)+","+em+",United Arab Emirates";
+  }
+  const st=STATE_OF[c.toLowerCase()];
+  return st?tc(c)+","+st+",India":tc(c)+",India";
+}
 function joinParts(){
   const out=[];
   [...arguments].filter(Boolean).forEach(p=>{
@@ -1156,10 +1265,13 @@ function clean(s){
 function names(enq,strat,tk,mt,ch){
   const e=clean(enq)||"ENQUIRY", t=slug(tk)||"ticketsize";
   const C=CHANNEL[ch], search=ch==="search";
-  const campaign=`${e} ${C.full} ${strat}`;
+  /* Demand Gen in the account reads "Alef Linar Sharjah d-op", lowercase,
+     not "Demand Gen Op". */
+  const dg=`${C.short.toLowerCase()}-${String(strat).toLowerCase()}`;
+  const campaign=search?`${e} ${C.full} ${strat}`:`${e} ${dg}`;
   const adgroup=search ? `${e} ${C.short}-${strat}-${t}-${mt}`
-                       : `${e} ${C.short}-${strat}-${t}`;
-  const strategy=search ? `${C.short}-${strat}-${mt}` : `${C.short}-${strat}`;
+                       : `${e} ${dg}-${t}`;
+  const strategy=search ? `${C.short}-${strat}-${mt}` : dg;
   return {campaign,adgroup,strategy};
 }
 /* Google Ads custom parameter values cannot carry spaces — Ads Editor
@@ -2553,6 +2665,79 @@ function adFor(kws){
   return {h:H.slice(0,H_CAP),d:D.slice(0,D_CAP)};
 }
 
+
+/* ═══════════ Demand Gen ═══════════
+   Different asset shape from Search: five 40-character headlines, a 90
+   character long headline, five 90-character descriptions and a business
+   name. No pinning, and images are attached by hand \u2014 Editor cannot take
+   them from a CSV. */
+const DG_H=40, DG_LH=90, DG_D=90, DG_BN=25;
+function dgAd(){
+  const b=brief(), used=new Set();
+  const place=placeOf(b), where=place||b.city||b.micro||"";
+  const price=pricePhrase(), cfg=b.cfg||"";
+  const u=b.usps.map(tc), m=b.marks.map(tc), a=b.amen.map(tc);
+  const H=pick([
+    joinParts(b.proj,b.micro), b.proj,
+    cfg&&price?`${cfg} ${price}`:"",
+    cfg&&where?`${cfg} in ${where}`:"",
+    price?`Homes ${price}`:"",
+    u[0], u[1], m[0], b.dev?joinParts(b.proj,"by",b.dev):""
+  ].filter(Boolean),DG_H,5,used);
+  const LH=pick([
+    compose([joinParts(b.proj,b.micro), cfg, price],DG_LH),
+    compose([`${cfg} at ${b.proj}${place?", "+place:""}`, price],DG_LH),
+    compose([joinParts(b.proj,b.micro), u[0], price],DG_LH)
+  ].filter(Boolean),DG_LH,2,new Set());
+  const dU=new Set();
+  const D=pick([
+    compose([joinParts(b.proj,b.micro), cfg, price],DG_D),
+    compose([`${cfg} at ${b.proj}${place?", "+place:""}`, price, "Book a free site visit"],DG_D),
+    compose([u[0]&&u[1]?`${u[0]} & ${u[1]}`:(u[0]||"Premium homes"), `at ${b.proj}`, "Enquire for floor plans"],DG_D),
+    compose([m[0], m[1], `${b.proj} puts you minutes away`],DG_D),
+    compose([`${b.offer||"New launch"} at ${b.proj}`, a[0], "Get the price list"],DG_D)
+  ].filter(Boolean),DG_D,5,dU);
+  return {h:H, lh:LH, d:D, bn:fit(b.proj,DG_BN)||String(b.proj||"").slice(0,DG_BN)};
+}
+/* every campaign-level setting from the reference account, so the Open
+   campaign is built the same way every time and can then be duplicated */
+function dgSettings(){
+  const b=brief();
+  const loc=($("#cgLoc")&&$("#cgLoc").value.trim())||canonLocation(PROJ.city);
+  const budget=$("#cgBudget")?$("#cgBudget").value.trim():"";
+  return [
+    ["Campaign type","Demand Gen"],
+    ["Status","Paused"],
+    ["Budget type","Avg. daily"],
+    ["Budget",budget],
+    ["Bid strategy","Maximize conversions"],
+    ["Goal level setting","Campaign-specific"],
+    ["Customer acquisition","Bid equally for new and existing customers"],
+    ["EU political ads","No, doesn't have EU political ads"],
+    ["Location targeting",loc],
+    ["Targeting method","People in or regularly in your targeted locations"],
+    ["Exclusion method","People in your excluded locations"],
+    ["Language targeting","All"],
+    ["Ages","Exclude 18-24"],
+    ["Genders / Parental status / Household income","Observation"],
+    ["Flexible reach \u2014 Placements","Targeting"],
+    ["Flexible reach \u2014 Topics","Targeting"],
+    ["Flexible reach \u2014 Audience segments","Targeting"],
+    ["Optimized targeting","Disabled"],
+    ["View-through conversion optimization","Disabled"],
+    ["TV screen bid adjustment","-100"],
+    ["Include Google TV","Disabled"],
+    ["Include video partners","Enabled"],
+    ["Ad rotation","Optimize: prefer best performing ads"],
+    ["Default max CPC / Max CPM / Target CPV","0.01"],
+    ["Call to action text","Learn more"],
+    ["Language (ad level)","English (United Kingdom)"],
+    ["Business name",dgAd().bn],
+    ["Audience","Add by hand on the Open ad group, then duplicate per strategy"],
+    ["Images and logo","Attach by hand \u2014 Editor cannot take them from a CSV"]
+  ];
+}
+
 /* ═══════════ full structure ═══════════ */
 let PLAN=[];
 /* Ads Editor takes custom parameters as one semicolon-joined cell */
@@ -2819,19 +3004,24 @@ function entityFiles(){
   const files=[];
 
   const camps=[...new Set(PLAN.map(p=>p.campaign))];
-  files.push(["1-campaigns.csv",mk(
-    ["Campaign","Campaign Type","Campaign Status","Budget","Budget type","Bid Strategy Type","Networks"],
-    camps.map(c=>[c,"Search",cstat,budget,"Daily",bid,"Google Search"]))]);
+  const isDG=CH==="demandgen";
+  files.push(["1-campaigns.csv",isDG
+    ? mk(["Campaign","Campaign Type","Campaign Status","Budget","Budget type","Bid Strategy Type"],
+        camps.map(c=>[c,"Demand Gen",cstat,budget,"Daily",bid]))
+    : mk(["Campaign","Campaign Type","Campaign Status","Budget","Budget type","Bid Strategy Type","Networks"],
+        camps.map(c=>[c,"Search",cstat,budget,"Daily",bid,"Google Search"]))]);
 
   const ag=[]; PLAN.forEach(p=>p.groups.forEach(g=>
     ag.push([p.campaign,g.name,"Enabled",cpc,TPL[CH],custParam(g.n)])));
   files.push(["2-adgroups.csv",mk(
     ["Campaign","Ad group","Ad Group Status","Max CPC","Tracking template","Custom parameter"],ag)]);
 
-  const kw=[]; PLAN.forEach(p=>p.groups.forEach(g=>g.kws.forEach(k=>
-    kw.push([p.campaign,g.name,k,MT_CRIT[g.mt]||"Broad","Enabled"]))));
-  files.push(["3-keywords.csv",mk(
-    ["Campaign","Ad group","Keyword","Match type","Status"],kw)]);
+  if(!isDG){
+    const kw=[]; PLAN.forEach(p=>p.groups.forEach(g=>g.kws.forEach(k=>
+      kw.push([p.campaign,g.name,k,MT_CRIT[g.mt]||"Broad","Enabled"]))));
+    files.push(["3-keywords.csv",mk(
+      ["Campaign","Ad group","Keyword","Match type","Status"],kw)]);
+  }
 
   const adHdr=["Campaign","Ad group","Status","Final URL","Path 1","Path 2"];
   for(let i=1;i<=H_CAP;i++)adHdr.push(`Headline ${i}`,`Headline ${i} position`);
@@ -2841,18 +3031,39 @@ function entityFiles(){
     for(let i=0;i<H_CAP;i++)r.push(g.ad.h[i]&&g.ad.h[i][0]?g.ad.h[i][0]:"",g.ad.h[i]&&g.ad.h[i][0]?(g.ad.h[i][1]||""):"");
     for(let i=0;i<D_CAP;i++)r.push(g.ad.d[i]&&g.ad.d[i][0]?g.ad.d[i][0]:"",g.ad.d[i]&&g.ad.d[i][0]?(g.ad.d[i][1]||""):"");
     ads.push(r);}));
-  files.push(["4-ads.csv",mk(adHdr,ads)]);
+  if(isDG){
+    const ad=dgAd();
+    const hdr=["Campaign","Ad group","Ad name","Business name"];
+    for(let i=1;i<=5;i++)hdr.push(`Headline ${i}`);
+    hdr.push("Long headline");
+    for(let i=1;i<=5;i++)hdr.push(`Description ${i}`);
+    hdr.push("Final URL","Call to action text","Status");
+    const rows=[];
+    PLAN.forEach(p=>p.groups.forEach((g,gi)=>{
+      const r=[p.campaign,g.name,`Ad ${gi+1}`,ad.bn];
+      for(let i=0;i<5;i++)r.push(ad.h[i]||"");
+      r.push(ad.lh[0]||"");
+      for(let i=0;i<5;i++)r.push(ad.d[i]||"");
+      r.push(lp,"Learn more","Enabled"); rows.push(r);
+    }));
+    files.push(["3-ads.csv",mk(hdr,rows)]);
+  } else {
+    files.push(["4-ads.csv",mk(adHdr,ads)]);
+  }
 
   /* City-level targeting so nothing runs nationwide by mistake. Executives
      narrow it later; Presence-only is set in Editor, it has no CSV column. */
-  /* A bare "Pune" or "Dubai" can resolve to a US city. The country makes it
-     unambiguous. */
-  const country=REGION==="ae"?"United Arab Emirates":"India";
-  const cityName=(PROJ.city||"").trim();
-  if(cityName){
-    const full=/,/.test(cityName)?cityName:`${cityName}, ${country}`;
-    const locRows=[]; camps.forEach(c=>locRows.push([c,full,"Enabled"]));
-    files.push(["5-locations.csv",mk(["Campaign","Location","Status"],locRows)]);
+  /* Name plus criterion ID. With the ID present Editor matches on the ID and
+     the name can no longer be read as a US city. */
+  const locName=($("#cgLoc")&&$("#cgLoc").value.trim())||canonLocation(PROJ.city);
+  const locId=($("#cgLocId")&&$("#cgLocId").value.trim())||"";
+  if(locName||locId){
+    const locRows=[]; camps.forEach(c=>locRows.push([c,locName,locId,"Enabled"]));
+    files.push(["5-locations.csv",mk(["Campaign","Location","Location ID","Status"],locRows)]);
+  }
+  if(isDG){
+    files.push(["9-demandgen-settings.csv",
+      mk(["Setting","Value"],dgSettings())]);
   }
 
   /* assets carry the first campaign only — copy across in Editor */
@@ -2867,6 +3078,15 @@ function entityFiles(){
     ["Campaign","Structured snippet header","Structured snippet values","Status"],sn)]);
   return files;
 }
+on("#cgLoc","input",()=>{ $("#cgLoc").dataset.touched="1"; });
+on("#acCity","input",()=>{
+  const cl=$("#cgLoc");
+  if(cl&&!cl.dataset.touched)cl.value=canonLocation($("#acCity").value);
+});
+on("#segRegion","click",()=>{
+  const cl=$("#cgLoc");
+  if(cl&&!cl.dataset.touched)cl.value=canonLocation(PROJ.city||$("#acCity").value);
+});
 on("#stAllLoose","click",()=>{
   if(!PLAN.length)return toast("Build the structure first");
   const files=entityFiles();
@@ -2925,6 +3145,145 @@ drawAll();
 
 /* the earlier build wrote project data to localStorage, so clear it once */
 if(!store.get("pp_migrated",false)){ clearProject(); store.set("pp_migrated",true); }
+/* ═══════════ 06 Meta lead ads ═══════════
+   No landing page means no tracking parameters and no pinning. What carries
+   the weight instead is the copy itself and the closing line, because the
+   form opens in place and the reader never leaves the feed. */
+const MT_P=125, MT_H=40, MT_D=30;
+let MT={p:[],h:[],d:[]};
+function mtGenerate(){
+  const b=brief();
+  if(!b.proj)return toast("Fill in the project name first");
+  const u=b.usps.map(tc), m=b.marks.map(tc), a=b.amen.map(tc);
+  const place=placeOf(b)||b.city||b.micro||"";
+  const where=place?` at ${place}`:"";
+  const price=pricePhrase();
+  const cfg=b.cfg||"";
+  const close=($("#mtClose")&&$("#mtClose").value.trim())||"Fill the form for floor plans and pricing.";
+  const tick=$("#mtTicks")&&$("#mtTicks").checked?"\u2714 ":"\u2022 ";
+  const emo=$("#mtEmoji")&&$("#mtEmoji").checked;
+  const pin=emo?"\ud83d\udccd ":"";
+  const nl="\n";
+
+  const bullets=[cfg&&`${cfg}`, price, u[0], u[1], m[0]].filter(Boolean).slice(0,4);
+  const fitJoin=(parts,max)=>{
+    const p=parts.filter(Boolean);
+    for(let n=p.length;n>0;n--){
+      const s=p.slice(0,n).join(" ").replace(/\s{2,}/g," ").trim();
+      if(s.length<=max)return s;
+    }
+    return p[0]||"";
+  };
+  const P=[
+    fitJoin([`${b.proj}${where}.`, cfg&&price?`${cfg} ${price}.`:(cfg||price||""), u[0]?`${u[0]}.`:"", close],MT_P),
+    `${pin}${b.proj}${where}${nl}${bullets.slice(0,3).map(x=>tick+x).join(nl)}${nl}${close}`,
+    fitJoin([cfg?`Looking for ${cfg}${place?` in ${place}`:""}?`:`Looking for a home${place?` in ${place}`:""}?`,
+     b.dev?`${b.proj} by ${b.dev}.`:`${b.proj}.`,
+     u[0]?`${u[0]}.`:"", close],MT_P),
+    fitJoin([m[0]?`${m[0]}.`:"", m[1]?`${m[1]}.`:"", `${b.proj}${where}.`,
+     cfg&&price?`${cfg} ${price}.`:"", close],MT_P),
+    `${b.offer||"Now launching"}: ${b.proj}${where}${nl}${[cfg,price,u[0]].filter(Boolean).map(x=>tick+x).join(nl)}${nl}${close}`
+  ].filter(Boolean);
+
+  const H=[
+    joinParts(b.proj,b.micro),
+    cfg&&price?`${cfg} ${price}`:"",
+    b.proj,
+    price?`${price}${place?` | ${place.split(",")[0]}`:""}`:"",
+    cfg&&place?`${cfg} in ${place.split(",")[0]}`:"",
+    b.dev?`${b.proj} by ${b.dev}`:"",
+    u[0]||""
+  ].filter(Boolean);
+
+  const D=[
+    place, u[0], price, b.dev?`By ${b.dev}`:"", cfg?`${cfg} available`:"", a[0]||"", m[0]||""
+  ].filter(Boolean);
+
+  const seen=new Set();
+  MT.p=P.filter(x=>{const k=x.toLowerCase();if(seen.has(k))return false;seen.add(k);return true;})
+    .sort((a,b2)=>a.length-b2.length).slice(0,5);
+  MT.h=dedupe(H).map(x=>fit(x,MT_H)).filter(Boolean).slice(0,5);
+  MT.d=dedupe(D).map(x=>fit(x,MT_D)).filter(Boolean).slice(0,5);
+  drawMeta(); toast("Meta copy generated");
+}
+function mtLen(n,max){return n>max?"bad":n>max-4?"edge":"";}
+function drawMeta(){
+  $("#mtPrimary").innerHTML=MT.p.length?MT.p.map((t,i)=>{
+    const n=t.length;
+    return `<div style="margin-bottom:10px">
+      <div class="acrow" style="grid-template-columns:26px 1fr 70px 30px;margin-bottom:4px">
+        <span class="sr">${i+1}</span>
+        <span class="mini">variant ${i+1}</span>
+        <span class="len ${mtLen(n,MT_P)}">${n}/${MT_P}</span>
+        <button class="del" data-mpx="${i}" aria-label="Remove">\u00d7</button></div>
+      <textarea data-mp="${i}" rows="${Math.min(7,t.split("\n").length+2)}"
+        style="font-family:var(--ui);font-size:13.5px">${esc(t)}</textarea>
+      ${n>MT_P?`<div class="f-note" style="margin-top:4px">Shown before <b>See more</b>: \u201c${esc(t.slice(0,MT_P).replace(/\n/g," "))}\u2026\u201d</div>`:""}</div>`;}).join("")
+    :`<div class="empty">Nothing yet. Generate from the brief.</div>`;
+  $("#mtPStat").textContent=`${MT.p.length} variant${MT.p.length===1?"":"s"}`;
+
+  const rows=(list,key,max)=>list.length?list.map((t,i)=>{
+    const n=t.length;
+    return `<div class="acrow" style="grid-template-columns:26px 1fr 62px 30px">
+      <span class="sr">${i+1}</span>
+      <input type="text" data-${key}="${i}" value="${esc(t)}" class="${n>max?"over":""}">
+      <span class="len ${mtLen(n,max)}">${n}/${max}</span>
+      <button class="del" data-${key}x="${i}" aria-label="Remove">\u00d7</button></div>`;}).join("")
+    :`<div class="empty">Nothing yet.</div>`;
+  $("#mtHeads").innerHTML=rows(MT.h,"mth",MT_H);
+  $("#mtDescs").innerHTML=rows(MT.d,"mtd",MT_D);
+  $("#mtHStat").textContent=`${MT.h.length} \u00b7 max ${MT_H}`;
+  $("#mtDStat").textContent=`${MT.d.length} \u00b7 max ${MT_D}`;
+}
+on("#mtGen","click",mtGenerate);
+on("#mtAddP","click",()=>{MT.p.push("");drawMeta();});
+on("#mtAddH","click",()=>{MT.h.push("");drawMeta();});
+on("#mtAddD","click",()=>{MT.d.push("");drawMeta();});
+on("#mtPrimary","input",e=>{const i=e.target.dataset.mp;if(i===undefined)return;
+  MT.p[+i]=e.target.value;
+  const el=e.target.closest("div").previousElementSibling;
+  const s=e.target.parentElement.querySelector(".len");
+  if(s){s.textContent=`${e.target.value.length}/${MT_P}`;s.className="len "+mtLen(e.target.value.length,MT_P);}});
+on("#mtPrimary","click",e=>{const i=e.target.dataset.mpx;if(i===undefined)return;MT.p.splice(+i,1);drawMeta();});
+on("#mtHeads","input",e=>{const i=e.target.dataset.mth;if(i===undefined)return;
+  MT.h[+i]=e.target.value;const s=e.target.nextElementSibling;
+  s.textContent=`${e.target.value.length}/${MT_H}`;s.className="len "+mtLen(e.target.value.length,MT_H);
+  e.target.classList.toggle("over",e.target.value.length>MT_H);});
+on("#mtHeads","click",e=>{const i=e.target.dataset.mthx;if(i===undefined)return;MT.h.splice(+i,1);drawMeta();});
+on("#mtDescs","input",e=>{const i=e.target.dataset.mtd;if(i===undefined)return;
+  MT.d[+i]=e.target.value;const s=e.target.nextElementSibling;
+  s.textContent=`${e.target.value.length}/${MT_D}`;s.className="len "+mtLen(e.target.value.length,MT_D);
+  e.target.classList.toggle("over",e.target.value.length>MT_D);});
+on("#mtDescs","click",e=>{const i=e.target.dataset.mtdx;if(i===undefined)return;MT.d.splice(+i,1);drawMeta();});
+["mtTicks","mtEmoji","mtClose","mtCta"].forEach(id=>on("#"+id,"change",()=>{ if(MT.p.length)mtGenerate(); }));
+
+function mtRows(){
+  const b=brief(), cta=$("#mtCta")?$("#mtCta").value:"Learn More";
+  const name=slug(b.proj||"project");
+  const out=[];
+  const n=Math.max(MT.p.length,MT.h.length,MT.d.length);
+  for(let i=0;i<n;i++){
+    const p=MT.p[i]||MT.p[0]||"", hd=MT.h[i]||MT.h[0]||"", ds=MT.d[i]||MT.d[0]||"";
+    if(!p&&!hd)continue;
+    out.push([`${name}-lead-v${i+1}`,p,hd,ds,cta,p.length,hd.length,ds.length]);
+  }
+  return out;
+}
+on("#mtCsv","click",()=>{
+  const rows=mtRows(); if(!rows.length)return toast("Generate the copy first");
+  dl("meta-lead-ad-copy.csv",
+    ["Ad name","Primary text","Headline","Description","Call to action",
+     "Primary length","Headline length","Description length"].map(csvq).join(",")+"\n"+
+    rows.map(r=>r.map(csvq).join(",")).join("\n"));
+  logEvent("export","meta copy");
+});
+on("#mtCopy","click",()=>{
+  const rows=mtRows(); if(!rows.length)return toast("Generate the copy first");
+  copy("Ad name\tPrimary text\tHeadline\tDescription\tCTA\n"+
+    rows.map(r=>r.slice(0,5).join("\t")).join("\n"));
+});
+drawMeta();
+
 initAuth();
 /* Catch any button that lost its handler during an edit. */
 (function(){
