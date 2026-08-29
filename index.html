@@ -205,7 +205,7 @@ code{font-family:var(--mono);background:rgba(0,0,0,.05);padding:1px 4px;border-r
     <div class="wordmark">Search Ops Toolkit <span>· Google Ads</span></div>
     <div class="spacer"></div>
     <div class="badge-env" id="varCount">0 VARIANTS</div>
-    <span class="pill p-mute" id="buildTag" title="build">b-29aug-1</span>
+    <span class="pill p-mute" id="buildTag" title="build">b-29aug-2</span>
     <div id="userChip" class="hidden" style="display:flex;align-items:center;gap:9px">
       <div class="divider-v"></div>
       <span id="userName" style="font-size:12.5px;font-weight:500"></span>
@@ -397,6 +397,10 @@ code{font-family:var(--mono);background:rgba(0,0,0,.05);padding:1px 4px;border-r
         <label class="f"><span class="f-lab">Location ID <span class="pill p-mute">optional</span></span>
           <input type="text" id="cgLocId" placeholder="e.g. 1007785" spellcheck="false" inputmode="numeric">
           <span class="f-note">The criterion ID removes all ambiguity. Add the location by hand once in Editor, read the ID from the Locations view, and paste it here. With an ID set the name is ignored.</span></label>
+        <label class="f"><span class="f-lab">Creative formats — one per line</span>
+          <textarea id="cgFormats" rows="3" placeholder="Static Landscape&#10;Static Square">Static Landscape
+Static Square</textarea>
+          <span class="f-note">One ad is built per format, each with its own copy rotation, so two creatives never share an ad.</span></label>
         <label class="f"><span class="f-lab">Objective</span>
           <input type="text" id="cgObj" value="Leads"></label>
         <label class="f"><span class="f-lab">Conversion goals</span>
@@ -748,6 +752,11 @@ code{font-family:var(--mono);background:rgba(0,0,0,.05);padding:1px 4px;border-r
   <div class="card">
     <div class="card-hd"><h2>Build everything</h2><span class="hint" id="stStat">nothing built yet</span></div>
     <div class="card-bd">
+      <div class="btnrow" style="margin-bottom:14px">
+        <label class="f-lab" style="margin:0">Building</label>
+        <span class="pill p-live" id="stChannel">Search</span>
+        <span class="f-note" style="margin:0">Set on the Tracking URLs tab.</span>
+      </div>
       <div class="btnrow" style="margin-bottom:14px">
         <label class="f-lab" style="margin:0">Assets go to</label>
         <select id="stAssetCamp" style="max-width:340px"><option value="">— build first —</option></select>
@@ -1250,7 +1259,9 @@ $("#vtGrid").innerHTML=Object.keys(VT_DEFAULTS).map(k=>
 $$("[data-vt]").forEach(i=>i.addEventListener("input",()=>{VT[i.dataset.vt]=i.value;build();}));
 on("#segChannel","click",e=>{const b=e.target.closest("button[data-ch]");if(!b)return;
   CH=b.dataset.ch;$$("#segChannel button").forEach(x=>x.setAttribute("aria-pressed",String(x===b)));
-  fillStrategies();build();});
+  fillStrategies();build();
+  const sc=$("#stChannel"); if(sc){sc.textContent=CHANNEL[CH].full;
+    sc.className="pill "+(CH==="demandgen"?"p-ok":"p-live");}});
 $$("[data-all]").forEach(b=>b.addEventListener("click",()=>{
   const s=$("#"+b.dataset.all), on=[...s.selectedOptions].length<s.options.length;
   [...s.options].forEach(o=>o.selected=on&&!(s.id==="inStrat"&&blockedStrat(o.value)));
@@ -2672,31 +2683,40 @@ function adFor(kws){
    name. No pinning, and images are attached by hand \u2014 Editor cannot take
    them from a CSV. */
 const DG_H=40, DG_LH=90, DG_D=90, DG_BN=25;
-function dgAd(){
+const creativeFormats=()=>{
+  const raw=($("#cgFormats")&&$("#cgFormats").value)||"";
+  const list=raw.split("\n").map(s=>s.trim()).filter(Boolean);
+  return list.length?list:["Format A"];
+};
+/* Each format gets its own ad, and the copy is rotated so the two ads are
+   not identical text on different pictures. */
+function dgAd(variant){
+  const v=variant||0;
+  const rot=a=>a.length?a.slice(v%a.length).concat(a.slice(0,v%a.length)):a;
   const b=brief(), used=new Set();
   const place=placeOf(b), where=place||b.city||b.micro||"";
   const price=pricePhrase(), cfg=b.cfg||"";
   const u=b.usps.map(tc), m=b.marks.map(tc), a=b.amen.map(tc);
-  const H=pick([
+  const H=pick(rot([
     joinParts(b.proj,b.micro), b.proj,
     cfg&&price?`${cfg} ${price}`:"",
     cfg&&where?`${cfg} in ${where}`:"",
     price?`Homes ${price}`:"",
     u[0], u[1], m[0], b.dev?joinParts(b.proj,"by",b.dev):""
-  ].filter(Boolean),DG_H,5,used);
+  ].filter(Boolean)),DG_H,5,used);
   const LH=pick([
     compose([joinParts(b.proj,b.micro), cfg, price],DG_LH),
     compose([`${cfg} at ${b.proj}${place?", "+place:""}`, price],DG_LH),
     compose([joinParts(b.proj,b.micro), u[0], price],DG_LH)
   ].filter(Boolean),DG_LH,2,new Set());
   const dU=new Set();
-  const D=pick([
+  const D=pick(rot([
     compose([joinParts(b.proj,b.micro), cfg, price],DG_D),
     compose([`${cfg} at ${b.proj}${place?", "+place:""}`, price, "Book a free site visit"],DG_D),
     compose([u[0]&&u[1]?`${u[0]} & ${u[1]}`:(u[0]||"Premium homes"), `at ${b.proj}`, "Enquire for floor plans"],DG_D),
     compose([m[0], m[1], `${b.proj} puts you minutes away`],DG_D),
     compose([`${b.offer||"New launch"} at ${b.proj}`, a[0], "Get the price list"],DG_D)
-  ].filter(Boolean),DG_D,5,dU);
+  ].filter(Boolean)),DG_D,5,dU);
   return {h:H, lh:LH, d:D, bn:fit(b.proj,DG_BN)||String(b.proj||"").slice(0,DG_BN)};
 }
 /* every campaign-level setting from the reference account, so the Open
@@ -2734,7 +2754,8 @@ function dgSettings(){
     ["Language (ad level)","English (United Kingdom)"],
     ["Business name",dgAd().bn],
     ["Audience","Add by hand on the Open ad group, then duplicate per strategy"],
-    ["Images and logo","Attach by hand \u2014 Editor cannot take them from a CSV"]
+    ["Images and logo","Attach by hand \u2014 see sheet 10 for the exact sizes"],
+    ["Creative formats",creativeFormats().join(", ")]
   ];
 }
 
@@ -3032,19 +3053,22 @@ function entityFiles(){
     for(let i=0;i<D_CAP;i++)r.push(g.ad.d[i]&&g.ad.d[i][0]?g.ad.d[i][0]:"",g.ad.d[i]&&g.ad.d[i][0]?(g.ad.d[i][1]||""):"");
     ads.push(r);}));
   if(isDG){
-    const ad=dgAd();
+    const ad=dgAd(0);
     const hdr=["Campaign","Ad group","Ad name","Business name"];
     for(let i=1;i<=5;i++)hdr.push(`Headline ${i}`);
     hdr.push("Long headline");
     for(let i=1;i<=5;i++)hdr.push(`Description ${i}`);
     hdr.push("Final URL","Call to action text","Status");
-    const rows=[];
-    PLAN.forEach(p=>p.groups.forEach((g,gi)=>{
-      const r=[p.campaign,g.name,`Ad ${gi+1}`,ad.bn];
-      for(let i=0;i<5;i++)r.push(ad.h[i]||"");
-      r.push(ad.lh[0]||"");
-      for(let i=0;i<5;i++)r.push(ad.d[i]||"");
-      r.push(lp,"Learn more","Enabled"); rows.push(r);
+    const fmts=creativeFormats(), rows=[];
+    PLAN.forEach(p=>p.groups.forEach(g=>{
+      fmts.forEach((fmt,fi)=>{
+        const a2=dgAd(fi);
+        const r=[p.campaign,g.name,`Ad ${fi+1} \u2014 ${fmt}`,a2.bn];
+        for(let i=0;i<5;i++)r.push(a2.h[i]||"");
+        r.push(a2.lh[0]||"");
+        for(let i=0;i<5;i++)r.push(a2.d[i]||"");
+        r.push(lp,"Learn more","Enabled"); rows.push(r);
+      });
     }));
     files.push(["3-ads.csv",mk(hdr,rows)]);
   } else {
@@ -3062,6 +3086,24 @@ function entityFiles(){
     files.push(["5-locations.csv",mk(["Campaign","Location","Location ID","Status"],locRows)]);
   }
   if(isDG){
+    /* Editor cannot attach images from a CSV, so the file that matters here
+       is the one telling whoever uploads exactly what to prepare. */
+    const specs=[
+      ["Landscape image","1.91:1","1200 x 628","Required","Feed and Discover"],
+      ["Square image","1:1","1200 x 1200","Required","Feed, Gmail"],
+      ["Portrait image","4:5","960 x 1200","Recommended","Shorts and mobile feed"],
+      ["Logo square","1:1","1200 x 1200","Required","All placements"],
+      ["Logo landscape","4:1","1200 x 300","Recommended","Some placements"],
+      ["Video","16:9 / 1:1 / 9:16","min 10 seconds","Optional","Adds video inventory"]
+    ];
+    const crows=[];
+    creativeFormats().forEach((fmt,fi)=>{
+      PLAN.forEach(p=>p.groups.forEach(g=>{
+        specs.forEach(s=>crows.push([p.campaign,g.name,`Ad ${fi+1} \u2014 ${fmt}`,s[0],s[1],s[2],s[3],s[4]]));
+      }));
+    });
+    files.push(["10-creative-checklist.csv",mk(
+      ["Campaign","Ad group","Ad name","Asset","Ratio","Size (px)","Requirement","Where it shows"],crows)]);
     files.push(["9-demandgen-settings.csv",
       mk(["Setting","Value"],dgSettings())]);
   }
