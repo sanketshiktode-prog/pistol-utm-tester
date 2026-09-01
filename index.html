@@ -205,7 +205,7 @@ code{font-family:var(--mono);background:rgba(0,0,0,.05);padding:1px 4px;border-r
     <div class="wordmark">Search Ops Toolkit <span>· Google Ads</span></div>
     <div class="spacer"></div>
     <div class="badge-env" id="varCount">0 VARIANTS</div>
-    <span class="pill p-mute" id="buildTag" title="build">b-29aug-2</span>
+    <span class="pill p-mute" id="buildTag" title="build">b-31aug-1</span>
     <div id="userChip" class="hidden" style="display:flex;align-items:center;gap:9px">
       <div class="divider-v"></div>
       <span id="userName" style="font-size:12.5px;font-weight:500"></span>
@@ -391,6 +391,8 @@ code{font-family:var(--mono);background:rgba(0,0,0,.05);padding:1px 4px;border-r
               <option>Maximize clicks</option><option>Target CPA</option>
             </select></label>
         </div>
+        <label class="f"><span class="f-lab">Location preset</span>
+          <select id="cgLocPreset"><option value="">— pick a market —</option></select></label>
         <label class="f"><span class="f-lab">Target location</span>
           <input type="text" id="cgLoc" placeholder="Pune,Maharashtra,India" spellcheck="false">
           <span class="f-note">Canonical form: <code>City,State,Country</code>. Filled from the brief; edit if it is wrong.</span></label>
@@ -1118,7 +1120,9 @@ function makeZip(entries){
   const enc=new TextEncoder(), now=new Date();
   const parts=[], central=[]; let offset=0;
   entries.forEach(([name,text])=>{
-    const nameB=enc.encode(name), data=enc.encode(text), crc=crc32(data);
+    /* Same byte-order mark the single-file download uses. Without it the
+       rupee sign arrives as â‚¹ and the character count is wrong. */
+    const nameB=enc.encode(name), data=enc.encode("\uFEFF"+text), crc=crc32(data);
     const lh=new Uint8Array(30), v=new DataView(lh.buffer);
     v.setUint32(0,0x04034b50,true); v.setUint16(4,20,true); v.setUint16(6,0x0800,true);
     v.setUint16(8,0,true); v.setUint16(10,dosTime(now),true); v.setUint16(12,dosDate(now),true);
@@ -2387,7 +2391,9 @@ function capture(raw){
    calls Gemini, and sends back the fields. Content-Type stays text/plain so
    the browser treats it as a simple request and skips the preflight that
    Apps Script cannot answer. */
+let AI_ERR="";
 async function askAI(text){
+  AI_ERR="";
   if(!AUTH.logUrl||!USER)return null;
   try{
     const ctl=new AbortController();
@@ -2396,9 +2402,9 @@ async function askAI(text){
       headers:{"Content-Type":"text/plain;charset=utf-8"},
       body:JSON.stringify({action:"extract",credential:USER.credential,text:text.slice(0,26000)})});
     clearTimeout(bail);
-    if(!r.ok)return null;
+    if(!r.ok){ AI_ERR=`Apps Script returned ${r.status}. Redeploy it as a new version.`; return null; }
     const j=await r.json();
-    if(j.error){ toast(j.error); return null; }
+    if(j.error){ AI_ERR=j.error; return null; }
     return j;
   }catch(e){ return null; }
 }
@@ -2425,9 +2431,11 @@ function drawFound(){
     ${FOUND_ROWS.map(([k,l])=>cell(k,l,r.g[k],r.src[k])).join("")}
     ${FOUND_LISTS.map(([k,l])=>list(k,l,r[k]||[])).join("")}
     </tbody></table>
+    ${r.aiNote?`<div class="check c-warn" style="margin-top:10px"><span class="ic">!</span><span>${esc(r.aiNote)}</span></div>`:""}
     <div class="btnrow" style="margin-top:12px">
       <button class="btn btn-pri btn-sm" id="foundApply">Apply to brief</button>
-      <span class="f-note" style="margin:0">Read ${r.chars.toLocaleString()} characters via ${esc(r.via)}. Edit anything wrong, then apply.</span>
+      <span class="f-note" style="margin:0">Read ${r.chars.toLocaleString()} characters via ${esc(r.via)} using
+        <b>${r.aiUsed?"Gemini":"the pattern reader"}</b>. Edit anything wrong, then apply.</span>
     </div>`;
 }
 on("#impFound","input",e=>{
@@ -2482,6 +2490,9 @@ async function runRead(){
     return;
   }
   let r=capture(txt);
+  let aiNote="", aiUsed=false;
+  if(!AUTH.logUrl) aiNote="AI reader off: no Apps Script URL is configured.";
+  else if(!USER) aiNote="AI reader off: sign in first.";
   if(AUTH.logUrl&&USER){
     $("#impStat").innerHTML='<span class="pill p-mute">reading with AI\u2026</span>';
     const ai=await askAI(txt);
@@ -2490,15 +2501,17 @@ async function runRead(){
       if(Array.isArray(ai.usps)&&ai.usps.length)r.usps=ai.usps.slice(0,8);
       if(Array.isArray(ai.amenities)&&ai.amenities.length)r.amen=ai.amenities.slice(0,14);
       if(Array.isArray(ai.landmarks)&&ai.landmarks.length)r.marks=ai.landmarks.slice(0,8);
-    } else toast("AI reader unavailable \u2014 pattern reader used instead");
+      aiUsed=true;
+    } else aiNote=AI_ERR||"AI reader did not answer. Check that GEMINI_KEY is set in the Apps Script and that you redeployed it as a new version.";
   }
+  r.aiUsed=aiUsed; r.aiNote=aiNote;
   /* The table is the brief, not a report of it. Type here and it lands in
      the fields below. */
-  LAST_READ={g:r.g,src:r.src,usps:r.usps,amen:r.amen,marks:r.marks,chars:r.chars,via};
+  LAST_READ={g:r.g,src:r.src,usps:r.usps,amen:r.amen,marks:r.marks,chars:r.chars,via,aiUsed:r.aiUsed,aiNote:r.aiNote};
   drawFound();
-  $("#impStat").innerHTML='<span class="pill p-ok">read</span>';
+  $("#impStat").innerHTML=`<span class="pill ${r.aiUsed?"p-ok":"p-warn"}">${r.aiUsed?"read with AI":"pattern read"}</span>`;
   logEvent("lp-read",url);
-  toast("Page read \u2014 check the fields, then Apply");
+  toast(r.aiUsed?"Read with Gemini \u2014 check, then Apply":"Pattern read \u2014 check, then Apply");
 }
 
 
@@ -3084,6 +3097,13 @@ function entityFiles(){
   if(locName||locId){
     const locRows=[]; camps.forEach(c=>locRows.push([c,locName,locId,"Enabled"]));
     files.push(["5-locations.csv",mk(["Campaign","Location","Location ID","Status"],locRows)]);
+    /* Editor gives a new campaign the account's default location, usually
+       United States, and an imported location is added next to it rather
+       than replacing it. Excluding it means nothing serves there even if
+       the default survives. */
+    const negRows=[]; camps.forEach(c=>negRows.push([c,"United States","Enabled"]));
+    files.push(["5b-locations-excluded.csv",mk(
+      ["Campaign","Negative location","Status"],negRows)]);
   }
   if(isDG){
     /* Editor cannot attach images from a CSV, so the file that matters here
@@ -3120,6 +3140,25 @@ function entityFiles(){
     ["Campaign","Structured snippet header","Structured snippet values","Status"],sn)]);
   return files;
 }
+const LOC_PRESETS=[
+ "Mumbai,Maharashtra,India","Navi Mumbai,Maharashtra,India","Thane,Maharashtra,India",
+ "Pune,Maharashtra,India","Nashik,Maharashtra,India","Nagpur,Maharashtra,India",
+ "Bengaluru,Karnataka,India","Hyderabad,Telangana,India","Chennai,Tamil Nadu,India",
+ "Delhi,India","Noida,Uttar Pradesh,India","Greater Noida,Uttar Pradesh,India",
+ "Ghaziabad,Uttar Pradesh,India","Gurugram,Haryana,India","Faridabad,Haryana,India",
+ "Lucknow,Uttar Pradesh,India","Ahmedabad,Gujarat,India","Surat,Gujarat,India",
+ "Vadodara,Gujarat,India","Gandhinagar,Gujarat,India","Kochi,Kerala,India",
+ "Thiruvananthapuram,Kerala,India","Kozhikode,Kerala,India","Thrissur,Kerala,India",
+ "Goa,India","Jaipur,Rajasthan,India","Indore,Madhya Pradesh,India","Kolkata,West Bengal,India",
+ "Chandigarh,India","Dubai,Dubai,United Arab Emirates","Abu Dhabi,Abu Dhabi,United Arab Emirates",
+ "Sharjah,Sharjah,United Arab Emirates","Ajman,Ajman,United Arab Emirates"];
+(()=>{const s=$("#cgLocPreset"); if(!s)return;
+  s.innerHTML='<option value="">\u2014 pick a market \u2014</option>'+
+    LOC_PRESETS.map(x=>`<option value="${esc(x)}">${esc(x)}</option>`).join("");})();
+on("#cgLocPreset","change",()=>{
+  const v=$("#cgLocPreset").value; if(!v)return;
+  $("#cgLoc").value=v; $("#cgLoc").dataset.touched="1";
+});
 on("#cgLoc","input",()=>{ $("#cgLoc").dataset.touched="1"; });
 on("#acCity","input",()=>{
   const cl=$("#cgLoc");
