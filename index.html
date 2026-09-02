@@ -205,7 +205,7 @@ code{font-family:var(--mono);background:rgba(0,0,0,.05);padding:1px 4px;border-r
     <div class="wordmark">Search Ops Toolkit <span>· Google Ads</span></div>
     <div class="spacer"></div>
     <div class="badge-env" id="varCount">0 VARIANTS</div>
-    <span class="pill p-mute" id="buildTag" title="build">b-01sep-1</span>
+    <span class="pill p-mute" id="buildTag" title="build">b-01sep-2</span>
     <div id="userChip" class="hidden" style="display:flex;align-items:center;gap:9px">
       <div class="divider-v"></div>
       <span id="userName" style="font-size:12.5px;font-weight:500"></span>
@@ -295,7 +295,7 @@ code{font-family:var(--mono);background:rgba(0,0,0,.05);padding:1px 4px;border-r
             <input type="text" id="tkB" placeholder="optional" inputmode="decimal" spellcheck="false">
             <select id="tkBU"></select>
           </div>
-          <span class="f-note">Tracking value: <code id="tkOut">ticketsize</code><span id="tkConv"></span></span>
+          <span class="f-note">Tracking value: <code id="tkOut">ticketsize</code><span id="tkConv"></span> — always written in Lakhs, so 2.40 Crore becomes 240L.</span>
         </div>
 
         <div class="f hidden" id="fxWrap">
@@ -583,7 +583,16 @@ Static Square</textarea>
         <div class="btnrow">
           <button class="btn btn-sm btn-navy" id="acNew">New ad group</button>
           <button class="btn btn-sm" id="acFromVar">Pull from variants</button>
-          <button class="btn btn-sm" id="acDel">Delete</button>
+          <button class="btn btn-sm" id="acDel">Delete this one</button>
+        </div>
+        <div class="f" style="margin-top:14px">
+          <span class="f-lab">All ad groups
+            <button class="mini-act" type="button" id="acCheckAll">select all</button></span>
+          <div id="acList" style="max-height:220px;overflow:auto"></div>
+          <div class="btnrow" style="margin-top:8px">
+            <button class="btn btn-sm" id="acDelSel">Delete selected</button>
+            <button class="btn btn-sm" id="acClearAll">Clear all</button>
+          </div>
         </div>
       </div>
     </div>
@@ -1192,13 +1201,20 @@ function aedToRupees(a,unit){
   const fx=num($("#fxRate").value)||26;
   return a*(unit==="M"?1e6:1e3)*fx;
 }
-const inrLabel=r=> r>=1e7 ? trim(r/1e7)+"CR" : trim(r/1e5)+"L";
+/* The tracking value is always expressed in Lakhs, whatever the input.
+   2.40 Cr becomes 240L, 90 Lakh stays 90L, AED 859K converts and becomes
+   223L. Keeps every ad group name comparable across markets. */
+const inrLabel=r=>{
+  const lakhs=r/1e5;
+  return (lakhs>=10?Math.round(lakhs):parseFloat(lakhs.toFixed(2)))+"L";
+};
 function ticket(){
   const a=num($("#tkA").value), b=num($("#tkB").value);
   if(a===null) return "";
   if(REGION==="in"){
-    const one=trim(a)+$("#tkAU").value;
-    return b===null?one:one+"-"+trim(b)+$("#tkBU").value;
+    const toR=(v,u)=>v*(u==="CR"?1e7:1e5);
+    const one=inrLabel(toR(a,$("#tkAU").value));
+    return b===null?one:one+"-"+inrLabel(toR(b,$("#tkBU").value));
   }
   const one=inrLabel(aedToRupees(a,$("#tkAU").value));
   return b===null?one:one+"-"+inrLabel(aedToRupees(b,$("#tkBU").value));
@@ -1564,10 +1580,41 @@ let PROJ=Object.assign({url:"",cfg:"",price:"",loc:"",p1:"",p2:"",proj:"",dev:""
 const blankGroup=()=>({h:Array.from({length:H_CAP},()=>["",""]),d:Array.from({length:D_CAP},()=>["",""]),kw:""});
 function cur(){ if(!ADG[ADCUR])ADG[ADCUR]=blankGroup(); return ADG[ADCUR]; }
 const saveAd=()=>{sess.set("pp_adgroups",ADG);sess.set("pp_adcur",ADCUR);};
+function drawAdList(){
+  const el=$("#acList"); if(!el)return;
+  const keys=Object.keys(ADG);
+  el.innerHTML=keys.length?keys.map((k,i)=>
+    `<label class="chk" style="font-family:var(--mono);font-size:11.5px">
+       <input type="checkbox" data-agx="${i}" value="${esc(k)}"><span>${esc(k)}</span></label>`).join("")
+    :`<div class="empty" style="padding:14px">No ad groups yet.</div>`;
+}
+on("#acCheckAll","click",()=>{
+  const boxes=[...document.querySelectorAll("[data-agx]")];
+  const on=boxes.some(b=>!b.checked);
+  boxes.forEach(b=>b.checked=on);
+  $("#acCheckAll").textContent=on?"clear":"select all";
+});
+on("#acDelSel","click",()=>{
+  const picked=[...document.querySelectorAll("[data-agx]")].filter(b=>b.checked).map(b=>b.value);
+  if(!picked.length)return toast("Tick the ad groups to delete");
+  if(!confirm(`Delete ${picked.length} ad group${picked.length===1?"":"s"} and everything written in them?`))return;
+  picked.forEach(k=>delete ADG[k]);
+  if(!ADG[ADCUR])ADCUR=Object.keys(ADG)[0]||"";
+  saveAd(); fillAdPicker(); drawAdList(); drawAd(); syncPlanKw();
+  toast(`${picked.length} deleted`);
+});
+on("#acClearAll","click",()=>{
+  const n=Object.keys(ADG).length;
+  if(!n)return toast("Nothing to clear");
+  if(!confirm(`Clear all ${n} ad groups?\n\nHeadlines, descriptions and keywords go with them.`))return;
+  ADG={}; ADCUR=""; saveAd(); fillAdPicker(); drawAdList(); drawAd();
+  toast("All ad groups cleared");
+});
 function fillAdPicker(){
   const sel=$("#acPick"), keys=Object.keys(ADG);
   sel.innerHTML=keys.length?keys.map(k=>`<option value="${esc(k)}"${k===ADCUR?" selected":""}>${esc(k)}</option>`).join("")
     :`<option value="">— no ad groups yet —</option>`;
+  drawAdList();
 }
 const lenClass=(n,max)=>n>max?"bad":n>max-3?"edge":"";
 function drawAd(){
@@ -2544,6 +2591,9 @@ function drawFound(){
     ${FOUND_LISTS.map(([k,l])=>list(k,l,r[k]||[])).join("")}
     </tbody></table>
     ${r.aiNote?`<div class="check c-warn" style="margin-top:10px"><span class="ic">!</span><span>${esc(r.aiNote)}</span></div>`:""}
+    <details style="margin-top:10px"><summary class="f-note" style="cursor:pointer">Show what was read</summary>
+      <div class="out sm" style="margin-top:8px;max-height:220px;overflow:auto;white-space:pre-wrap">${esc((r.rawSample||"").slice(0,1500)||"nothing captured")}</div>
+    </details>
     <div class="btnrow" style="margin-top:12px">
       <button class="btn btn-pri btn-sm" id="foundApply">Apply to brief</button>
       <span class="f-note" style="margin:0">Read ${r.chars.toLocaleString()} characters via ${esc(r.via)} using
@@ -2635,11 +2685,13 @@ async function runRead(){
   r.aiUsed=aiUsed; r.aiNote=aiNote;
   /* The table is the brief, not a report of it. Type here and it lands in
      the fields below. */
-  LAST_READ={g:r.g,src:r.src,usps:r.usps,amen:r.amen,marks:r.marks,chars:r.chars,via,aiUsed:r.aiUsed,aiNote:r.aiNote};
+  LAST_READ={g:r.g,src:r.src,usps:r.usps,amen:r.amen,marks:r.marks,chars:r.chars,via,
+    aiUsed:r.aiUsed,aiNote:r.aiNote,template:r.template,rawSample:txt};
   drawFound();
-  $("#impStat").innerHTML=`<span class="pill ${r.aiUsed?"p-ok":"p-warn"}">${r.aiUsed?"read with AI":"pattern read"}</span>`;
+  const how=r.aiUsed?"read with AI":(r.template?"template read":"pattern read");
+  $("#impStat").innerHTML=`<span class="pill ${r.aiUsed||r.template?"p-ok":"p-warn"}">${how}</span>`;
   logEvent("lp-read",url);
-  toast(r.aiUsed?"Read with Gemini \u2014 check, then Apply":"Pattern read \u2014 check, then Apply");
+  toast(`${how} \u2014 check the fields, then Apply`);
 }
 
 
@@ -2898,7 +2950,7 @@ function dgSettings(){
     ["Status","Paused"],
     ["Budget type","Avg. daily"],
     ["Budget",budget],
-    ["Bid strategy","Maximize conversions"],
+    ["Bid strategy",($("#cgBid")&&$("#cgBid").value)||"Maximize conversions"],
     ["Goal level setting","Campaign-specific"],
     ["Customer acquisition","Bid equally for new and existing customers"],
     ["EU political ads","No, doesn't have EU political ads"],
@@ -3194,11 +3246,12 @@ function entityFiles(){
 
   const camps=[...new Set(PLAN.map(p=>p.campaign))];
   const isDG=CH==="demandgen";
+  const EUPOL="No, doesn't have EU political ads";
   files.push(["1-campaigns.csv",isDG
-    ? mk(["Campaign","Campaign Type","Campaign Status","Budget","Budget type","Bid Strategy Type"],
-        camps.map(c=>[c,"Demand Gen",cstat,budget,"Daily",bid]))
-    : mk(["Campaign","Campaign Type","Campaign Status","Budget","Budget type","Bid Strategy Type","Networks"],
-        camps.map(c=>[c,"Search",cstat,budget,"Daily",bid,"Google Search"]))]);
+    ? mk(["Campaign","Campaign Type","Campaign Status","Budget","Budget type","Bid Strategy Type","EU political ads"],
+        camps.map(c=>[c,"Demand Gen",cstat,budget,"Daily",bid,EUPOL]))
+    : mk(["Campaign","Campaign Type","Campaign Status","Budget","Budget type","Bid Strategy Type","Networks","EU political ads"],
+        camps.map(c=>[c,"Search",cstat,budget,"Daily",bid,"Google Search",EUPOL]))]);
 
   const ag=[]; PLAN.forEach(p=>p.groups.forEach(g=>
     ag.push([p.campaign,g.name,"Enabled",cpc,TPL[CH],custParam(g.n)])));
@@ -3252,13 +3305,6 @@ function entityFiles(){
   if(locName||locId){
     const locRows=[]; camps.forEach(c=>locRows.push([c,locName,locId,"Enabled"]));
     files.push(["5-locations.csv",mk(["Campaign","Location","Location ID","Status"],locRows)]);
-    /* Editor gives a new campaign the account's default location, usually
-       United States, and an imported location is added next to it rather
-       than replacing it. Excluding it means nothing serves there even if
-       the default survives. */
-    const negRows=[]; camps.forEach(c=>negRows.push([c,"United States","Enabled"]));
-    files.push(["5b-locations-excluded.csv",mk(
-      ["Campaign","Negative location","Status"],negRows)]);
   }
   if(isDG){
     /* Editor cannot attach images from a CSV, so the file that matters here
