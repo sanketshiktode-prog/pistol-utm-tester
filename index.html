@@ -205,7 +205,7 @@ code{font-family:var(--mono);background:rgba(0,0,0,.05);padding:1px 4px;border-r
     <div class="wordmark">Search Ops Toolkit <span>· Google Ads</span></div>
     <div class="spacer"></div>
     <div class="badge-env" id="varCount">0 VARIANTS</div>
-    <span class="pill p-mute" id="buildTag" title="build">b-01sep-2</span>
+    <span class="pill p-mute" id="buildTag" title="build">b-01oct-1</span>
     <div id="userChip" class="hidden" style="display:flex;align-items:center;gap:9px">
       <div class="divider-v"></div>
       <span id="userName" style="font-size:12.5px;font-weight:500"></span>
@@ -309,12 +309,15 @@ code{font-family:var(--mono);background:rgba(0,0,0,.05);padding:1px 4px;border-r
     <div class="card">
       <div class="card-hd"><h2>Landing page import</h2><span class="hint" id="impStat">—</span></div>
       <div class="card-bd">
+        <div id="expWarn" class="hidden" style="margin-bottom:12px"></div>
         <label class="chk"><input type="checkbox" id="impOverwrite"> Overwrite fields I already filled</label>
         <div class="btnrow">
           <button class="btn btn-pri btn-sm" id="impFetch">Read the landing page</button>
           <button class="btn btn-sm" id="impPasteBtn">Paste page text</button>
           <button class="btn btn-sm" id="impManual">Fill it in myself</button>
+          <button class="btn btn-sm" id="impTest">Test the AI reader</button>
         </div>
+        <div id="impDiag" style="margin-top:10px"></div>
         <div class="f-note" style="margin-top:8px">Reads the URL above through a public text-extraction service, then reads it with AI and fills the brief. Always check what it pulled before generating.</div>
         <textarea id="impPaste" class="hidden" rows="8" style="margin-top:10px" placeholder="Select the whole landing page (Ctrl+A, Ctrl+C) and paste it here, then press Read again."></textarea>
         <div id="impFound" style="margin-top:10px"></div>
@@ -408,6 +411,28 @@ Static Square</textarea>
         <label class="f"><span class="f-lab">Conversion goals</span>
           <input type="text" id="cgGoals" value="Submit lead form; Qualified Leads">
           <span class="f-note">Objective and conversion goals are set once in the Google Ads interface — Editor has no column for them. They are carried into the sheet export as a reminder.</span></label>
+      </div>
+    </div>
+
+    <div class="card hidden" id="cardDG">
+      <div class="card-hd"><h2>Demand Gen targeting</h2><span class="hint">audiences and demographics</span></div>
+      <div class="card-bd">
+        <div class="f">
+          <span class="f-lab">Demographic exclusions</span>
+          <div id="dgDemo"></div>
+          <span class="f-note">Excluded on every ad group. Anything left unticked is targeted.</span>
+        </div>
+        <div class="f">
+          <span class="f-lab">Audience segments
+            <button class="mini-act" type="button" id="audManage">edit library</button></span>
+          <select id="audPick" multiple size="7"></select>
+          <span class="f-note">Attached to every Demand Gen ad group. Segments must already exist in the account.</span>
+        </div>
+        <div class="f">
+          <span class="f-lab">Custom segment sources \u2014 one per line</span>
+          <textarea id="audSources" rows="5" placeholder="https://competitor1.com&#10;https://youtube.com/@channel&#10;com.magicbricks.app"></textarea>
+          <span class="f-note">Exported as a build list. Custom segments have to be created in the Google Ads interface \u2014 no CSV or Editor route exists.</span>
+        </div>
       </div>
     </div>
 
@@ -585,6 +610,20 @@ Static Square</textarea>
           <button class="btn btn-sm" id="acFromVar">Pull from variants</button>
           <button class="btn btn-sm" id="acDel">Delete this one</button>
         </div>
+        <label class="chk" style="margin-top:14px">
+          <input type="checkbox" id="acMirror" checked>
+          <span>Mirror edits across match types — a keyword or headline added in the Phrase ad group lands in Exact too, and the other way round</span>
+        </label>
+        <div class="f" style="margin-top:14px">
+          <span class="f-lab">Copy from another ad group</span>
+          <select id="acCopyFrom"></select>
+          <div class="btnrow" style="margin-top:8px">
+            <button class="btn btn-sm" id="acCopyAd">Copy the ad</button>
+            <button class="btn btn-sm" id="acCopyKw">Copy the keywords</button>
+            <button class="btn btn-sm" id="acCopyBoth">Copy both</button>
+          </div>
+          <span class="f-note">Overwrites what is in the ad group you are working on.</span>
+        </div>
         <div class="f" style="margin-top:14px">
           <span class="f-lab">All ad groups
             <button class="mini-act" type="button" id="acCheckAll">select all</button></span>
@@ -641,7 +680,7 @@ Static Square</textarea>
           <button class="btn btn-sm" id="acKwSend">Send to wrapper →</button>
         </div>
         <textarea id="acKw" rows="7" spellcheck="false" class="hidden" style="margin-top:10px" placeholder="Enter one keyword per line"></textarea>
-        <div class="f-note" style="margin-top:8px">Removing a keyword here removes it from the export for this ad group only.</div>
+        <div class="f-note" style="margin-top:8px">Keywords you add or remove here are remembered. Pressing <b>Build</b> again keeps them: anything you added stays, anything you deleted stays deleted.</div>
       </div>
     </div>
     <div class="card">
@@ -775,6 +814,7 @@ Static Square</textarea>
       </div>
       <div class="btnrow">
         <button class="btn btn-pri" id="stBuild">Build full campaign structure</button>
+        <button class="btn" id="stRebuild">Rebuild and discard my edits</button>
         <button class="btn btn-navy" id="stAll">Download ZIP</button>
         <button class="btn" id="stAllLoose">Files separately</button>
         <button class="btn" id="stAssetsCsv">Assets only (one campaign)</button>
@@ -894,6 +934,26 @@ Static Square</textarea>
   <option value="Pre-Launch"></option><option value="Limited-Units"></option>
 </datalist>
 </main>
+
+<div class="modal" id="audModal">
+  <div class="modal-box">
+    <div class="modal-hd"><h2>Audience library</h2>
+      <button class="x" id="audClose" aria-label="Close">×</button></div>
+    <div class="modal-bd">
+      <div class="shd" style="grid-template-columns:1fr 150px 120px 34px">
+        <span>Segment name</span><span>Type</span><span>Criterion ID</span><span></span></div>
+      <div id="audRows"></div>
+      <div class="btnrow" style="margin-top:14px">
+        <button class="btn btn-sm btn-navy" id="audAdd">Add segment</button>
+        <button class="btn btn-sm" id="audExport">Export</button>
+        <button class="btn btn-sm" id="audImport">Import</button>
+        <span style="flex:1"></span>
+        <button class="btn btn-pri btn-sm" id="audSave">Save</button>
+      </div>
+      <div class="f-note" style="margin-top:12px">The criterion ID is what Editor matches on. Find it by adding the segment by hand on one ad group, then reading it from the Audiences view. Without an ID the name alone will usually not resolve.</div>
+    </div>
+  </div>
+</div>
 
 <div class="modal" id="modal">
   <div class="modal-box">
@@ -1186,6 +1246,26 @@ let DRAFT=null;
 let REGION="in";
 const UNITS={in:[["L","Lakh"],["CR","Crore"]], ae:[["K","Thousand"],["M","Million"]]};
 function num(v){const n=parseFloat(String(v).replace(/[^0-9.]/g,""));return isFinite(n)?parseFloat(n.toFixed(4)):null;}
+/* "2.40CR" typed straight into the amount box is a unit, not noise. People
+   write the unit they are thinking in and never touch the dropdown, so the
+   typed suffix wins and the dropdown is moved to match it. */
+function unitFrom(v){
+  const t=String(v||"").toLowerCase().replace(/[^a-z]/g,"");
+  if(!t)return "";
+  if(t.charAt(0)==="c")return "CR";
+  if(t.charAt(0)==="l")return "L";
+  if(t.charAt(0)==="m")return "M";
+  if(t.charAt(0)==="k"||t.slice(0,2)==="th")return "K";
+  return "";
+}
+/* A suffix is only honoured if it belongs to the market in play — "2.4M"
+   typed while India is selected is ignored rather than silently switching. */
+function unitOf(inputSel,selectSel){
+  const typed=unitFrom($(inputSel).value);
+  const ok=UNITS[REGION].some(u=>u[0]===typed);
+  if(ok&&$(selectSel).value!==typed)$(selectSel).value=typed;
+  return ok?typed:$(selectSel).value;
+}
 const trim=n=>String(parseFloat(Number(n).toFixed(2)));
 function fillUnits(){
   const list=UNITS[REGION];
@@ -1211,19 +1291,20 @@ const inrLabel=r=>{
 function ticket(){
   const a=num($("#tkA").value), b=num($("#tkB").value);
   if(a===null) return "";
+  const uA=unitOf("#tkA","#tkAU"), uB=unitOf("#tkB","#tkBU");
   if(REGION==="in"){
     const toR=(v,u)=>v*(u==="CR"?1e7:1e5);
-    const one=inrLabel(toR(a,$("#tkAU").value));
-    return b===null?one:one+"-"+inrLabel(toR(b,$("#tkBU").value));
+    const one=inrLabel(toR(a,uA));
+    return b===null?one:one+"-"+inrLabel(toR(b,uB));
   }
-  const one=inrLabel(aedToRupees(a,$("#tkAU").value));
-  return b===null?one:one+"-"+inrLabel(aedToRupees(b,$("#tkBU").value));
+  const one=inrLabel(aedToRupees(a,uA));
+  return b===null?one:one+"-"+inrLabel(aedToRupees(b,uB));
 }
 function aedLabel(){
   const a=num($("#tkA").value), b=num($("#tkB").value);
   if(a===null)return "";
-  const one=`AED ${trim(a)}${$("#tkAU").value}`;
-  return b===null?one:one+` – ${trim(b)}${$("#tkBU").value}`;
+  const one=`AED ${trim(a)}${unitOf("#tkA","#tkAU")}`;
+  return b===null?one:one+` – ${trim(b)}${unitOf("#tkB","#tkBU")}`;
 }
 function syncTicket(){
   $("#tkOut").textContent=ticket()||"ticketsize";
@@ -1279,7 +1360,7 @@ $("#vtGrid").innerHTML=Object.keys(VT_DEFAULTS).map(k=>
 $$("[data-vt]").forEach(i=>i.addEventListener("input",()=>{VT[i.dataset.vt]=i.value;build();}));
 on("#segChannel","click",e=>{const b=e.target.closest("button[data-ch]");if(!b)return;
   CH=b.dataset.ch;$$("#segChannel button").forEach(x=>x.setAttribute("aria-pressed",String(x===b)));
-  fillStrategies();build();
+  fillStrategies();build();showDGCard();
   const sc=$("#stChannel"); if(sc){sc.textContent=CHANNEL[CH].full;
     sc.className="pill "+(CH==="demandgen"?"p-ok":"p-live");}});
 $$("[data-all]").forEach(b=>b.addEventListener("click",()=>{
@@ -1577,8 +1658,62 @@ let ADG=sess.get("pp_adgroups",null)||{};
 let ADCUR=sess.get("pp_adcur","")||"";
 const PROJ_KEYS=["url","cfg","price","loc","p1","p2","proj","dev","micro","city","offer","usps","marks","amen","priceMode","allIn"];
 let PROJ=Object.assign({url:"",cfg:"",price:"",loc:"",p1:"",p2:"",proj:"",dev:"",micro:"",city:"",offer:"",usps:"",marks:"",amen:"",priceMode:"Starting At",allIn:""},sess.get("pp_proj",{}));
-const blankGroup=()=>({h:Array.from({length:H_CAP},()=>["",""]),d:Array.from({length:D_CAP},()=>["",""]),kw:""});
-function cur(){ if(!ADG[ADCUR])ADG[ADCUR]=blankGroup(); return ADG[ADCUR]; }
+const blankGroup=()=>({h:Array.from({length:H_CAP},()=>["",""]),d:Array.from({length:D_CAP},()=>["",""]),
+  kw:"",man:[],kill:[],edited:false});
+/* Older sessions stored groups without the edit ledger. Fill it in on first
+   touch rather than discarding what the person already wrote. */
+function fix(g){ if(!g)return g;
+  if(!Array.isArray(g.man))g.man=[];
+  if(!Array.isArray(g.kill))g.kill=[];
+  if(typeof g.edited!=="boolean")g.edited=false;
+  return g; }
+function cur(){ if(!ADG[ADCUR])ADG[ADCUR]=blankGroup(); return fix(ADG[ADCUR]); }
+const mirrorOn=()=>{ const el=$("#acMirror"); return !el||el.checked; };
+/* Phrase and Exact are built as a pair from the same keyword set, so an edit
+   to one belongs in the other. The pair is found from the built plan, and
+   failing that from the name, where only the trailing match-type letter
+   differs: "... -85L-P" and "... -85L-E". */
+function siblingsOf(name){
+  const out=[];
+  PLAN.forEach(p=>{ if(p.groups.some(g=>g.name===name))
+    p.groups.forEach(g=>{ if(g.name!==name&&ADG[g.name])out.push(g.name); }); });
+  if(out.length)return out;
+  const m=String(name||"").match(/^(.*-)(E|P|B)$/);
+  if(!m)return [];
+  const head=m[1].replace(/[.*+?^${}()|[\]\\]/g,"\\$&");
+  const re=new RegExp("^"+head+"(E|P|B)$");
+  return Object.keys(ADG).filter(k=>k!==name&&re.test(k));
+}
+function mirrorKw(name){
+  if(!mirrorOn()||!ADG[name])return 0;
+  const s=fix(ADG[name]), sib=siblingsOf(name);
+  sib.forEach(k=>{ const g=fix(ADG[k]);
+    g.kw=s.kw; g.man=s.man.slice(); g.kill=s.kill.slice(); });
+  return sib.length;
+}
+function mirrorAd(name){
+  if(!mirrorOn()||!ADG[name])return 0;
+  const s=fix(ADG[name]), sib=siblingsOf(name);
+  sib.forEach(k=>{ const g=fix(ADG[k]);
+    g.h=s.h.map(r=>r.slice()); g.d=s.d.map(r=>r.slice()); g.edited=true; });
+  return sib.length;
+}
+/* The ledger is what makes a rebuild safe: every keyword the person added by
+   hand is remembered, and so is every one they deleted, so Build can
+   regenerate the set and still land on what they wanted. */
+function kwLedger(name,next){
+  const g=fix(ADG[name]); if(!g)return;
+  const prev=(g.kw||"").split("\n").map(s=>s.trim()).filter(Boolean);
+  const L=s=>s.toLowerCase();
+  const was=new Set(prev.map(L)), now=new Set(next.map(L));
+  next.forEach(k=>{ if(!was.has(L(k))){
+    if(!g.man.some(x=>L(x)===L(k)))g.man.push(k);
+    g.kill=g.kill.filter(x=>L(x)!==L(k)); }});
+  prev.forEach(k=>{ if(!now.has(L(k))){
+    if(!g.kill.some(x=>L(x)===L(k)))g.kill.push(k);
+    g.man=g.man.filter(x=>L(x)!==L(k)); }});
+  g.kw=next.join("\n");
+}
 const saveAd=()=>{sess.set("pp_adgroups",ADG);sess.set("pp_adcur",ADCUR);};
 function drawAdList(){
   const el=$("#acList"); if(!el)return;
@@ -1614,8 +1749,38 @@ function fillAdPicker(){
   const sel=$("#acPick"), keys=Object.keys(ADG);
   sel.innerHTML=keys.length?keys.map(k=>`<option value="${esc(k)}"${k===ADCUR?" selected":""}>${esc(k)}</option>`).join("")
     :`<option value="">— no ad groups yet —</option>`;
+  const src=$("#acCopyFrom");
+  if(src){
+    const keep=src.value, others=keys.filter(k=>k!==ADCUR);
+    src.innerHTML=others.length?others.map(k=>`<option value="${esc(k)}">${esc(k)}</option>`).join("")
+      :`<option value="">— nothing to copy from —</option>`;
+    if(others.includes(keep))src.value=keep;
+  }
   drawAdList();
 }
+/* Writing fifteen headlines once and copying them across the match types is
+   how the work actually goes, so the copy is a button rather than a retype. */
+function copyGroup(what){
+  if(!ADCUR)return toast("Pick the ad group to copy into first");
+  const from=$("#acCopyFrom").value;
+  if(!from||!ADG[from])return toast("Pick an ad group to copy from");
+  const s=fix(ADG[from]), g=cur();
+  if(what!=="kw"){ g.h=s.h.map(r=>r.slice()); g.d=s.d.map(r=>r.slice()); g.edited=true; }
+  if(what!=="ad"){ kwLedger(ADCUR,(s.kw||"").split("\n").map(x=>x.trim()).filter(Boolean)); }
+  if(what!=="kw")mirrorAd(ADCUR);
+  if(what!=="ad")mirrorKw(ADCUR);
+  saveAd(); drawAd(); syncPlanKw();
+  toast(`Copied ${what==="ad"?"the ad":what==="kw"?"the keywords":"the ad and keywords"} from ${from}`);
+}
+on("#acCopyAd","click",()=>copyGroup("ad"));
+on("#acCopyKw","click",()=>copyGroup("kw"));
+on("#acCopyBoth","click",()=>copyGroup("both"));
+on("#acMirror","change",()=>{
+  if(!mirrorOn())return toast("Mirroring off — match types are now edited separately");
+  const n=mirrorKw(ADCUR)+(ADCUR?mirrorAd(ADCUR):0);
+  saveAd(); drawAd(); syncPlanKw();
+  toast(n?"Mirroring on — the other match types now match this one":"Mirroring on");
+});
 const lenClass=(n,max)=>n>max?"bad":n>max-3?"edge":"";
 function drawAd(){
   if(!ADCUR||!ADG[ADCUR]){
@@ -1694,13 +1859,16 @@ on("#hRows","input",e=>{
   el.textContent=`${n}/${H_MAX}`; el.className="len "+lenClass(n,H_MAX);
   e.target.classList.toggle("over",n>H_MAX);
   $("#hStat").textContent=`${g.h.filter(r=>r[0].trim()).length} / ${H_CAP} · max ${H_MAX}`;
-  saveAd(); drawPreview(); adChecks();});
+  g.edited=true; saveAd(); drawPreview(); adChecks();});
 on("#hRows","change",e=>{
+  if(e.target.dataset.ht!==undefined){ mirrorAd(ADCUR); saveAd(); return; }
   const p=e.target.dataset.hp; if(p===undefined)return;
-  cur().h[+p][1]=e.target.value; saveAd(); adChecks();});
+  const g=cur(); g.h[+p][1]=e.target.value; g.edited=true;
+  mirrorAd(ADCUR); saveAd(); adChecks();});
 on("#hRows","click",e=>{
   const d=e.target.dataset.hd; if(d===undefined)return;
-  const g=cur(); g.h.splice(+d,1); if(!g.h.length)g.h.push(["",""]); saveAd(); drawAd();});
+  const g=cur(); g.h.splice(+d,1); if(!g.h.length)g.h.push(["",""]);
+  g.edited=true; mirrorAd(ADCUR); saveAd(); drawAd();});
 on("#dRows","input",e=>{
   const t=e.target.dataset.dt; if(t===undefined)return;
   const g=cur(), i=+t; g.d[i][0]=e.target.value;
@@ -1708,13 +1876,16 @@ on("#dRows","input",e=>{
   el.textContent=`${n}/${D_MAX}`; el.className="len "+lenClass(n,D_MAX);
   e.target.classList.toggle("over",n>D_MAX);
   $("#dStat").textContent=`${g.d.filter(r=>r[0].trim()).length} / ${D_CAP} · max ${D_MAX}`;
-  saveAd(); drawPreview(); adChecks();});
+  g.edited=true; saveAd(); drawPreview(); adChecks();});
 on("#dRows","change",e=>{
+  if(e.target.dataset.dt!==undefined){ mirrorAd(ADCUR); saveAd(); return; }
   const p=e.target.dataset.dp; if(p===undefined)return;
-  cur().d[+p][1]=e.target.value; saveAd(); adChecks();});
+  const g=cur(); g.d[+p][1]=e.target.value; g.edited=true;
+  mirrorAd(ADCUR); saveAd(); adChecks();});
 on("#dRows","click",e=>{
   const d=e.target.dataset.dd; if(d===undefined)return;
-  const g=cur(); g.d.splice(+d,1); if(!g.d.length)g.d.push(["",""]); saveAd(); drawAd();});
+  const g=cur(); g.d.splice(+d,1); if(!g.d.length)g.d.push(["",""]);
+  g.edited=true; mirrorAd(ADCUR); saveAd(); drawAd();});
 on("#hAdd","click",()=>{
   if(!ADCUR)return toast("Create an ad group first");
   const g=cur(); if(g.h.length>=H_CAP)return toast(`Google accepts ${H_CAP} headlines maximum`);
@@ -1731,16 +1902,19 @@ on("#hPaste","click",()=>{
   const lines=raw.split("\n").map(s=>s.trim()).filter(Boolean).slice(0,H_CAP);
   const g=cur(); g.h=lines.map(l=>[l,""]);
   while(g.h.length<H_CAP)g.h.push(["",""]);
-  saveAd(); drawAd(); toast(`${lines.length} headlines loaded`);});
+  g.edited=true; mirrorAd(ADCUR); saveAd(); drawAd(); toast(`${lines.length} headlines loaded`);});
 on("#acKw","input",()=>{
-  if(!ADCUR)return; cur().kw=$("#acKw").value;
-  $("#acKwStat").textContent=String($("#acKw").value.split("\n").filter(s=>s.trim()).length); saveAd();});
+  if(!ADCUR)return;
+  $("#acKwStat").textContent=String($("#acKw").value.split("\n").filter(s=>s.trim()).length);});
+on("#acKw","change",()=>{
+  if(!ADCUR)return;
+  setKw($("#acKw").value.split("\n").map(s=>s.trim()).filter(Boolean));});
 on("#acKwSend","click",()=>{
   if(!ADCUR)return toast("Create an ad group first");
   $("#kwRaw").value=cur().kw||""; $("#kwAdg").value=ADCUR;
   const v=VARIANTS.find(v=>v.names.adgroup===ADCUR); if(v)$("#kwCamp").value=v.names.campaign;
   renderKw(); goTab("p-kw");});
-on("#acPick","change",()=>{ADCUR=$("#acPick").value;saveAd();drawAd();});
+on("#acPick","change",()=>{ADCUR=$("#acPick").value;saveAd();fillAdPicker();drawAd();});
 on("#acNew","click",()=>{
   const n=prompt("Ad group name:", VARIANTS[PICK]?VARIANTS[PICK].names.adgroup:"");
   if(!n||!n.trim())return;
@@ -2117,14 +2291,14 @@ on("#hGen","click",()=>{
   const g=genHeadlines();
   if(!g)return toast("Fill in the project name on this tab first");
   if(cur().h.some(r=>r[0].trim())&&!confirm("Replace the headlines already written here?"))return;
-  cur().h=g; saveAd(); drawAd();
+  cur().h=g; cur().edited=true; mirrorAd(ADCUR); saveAd(); drawAd();
   toast(`${g.filter(r=>r[0]).length} headlines generated`);});
 on("#dGen","click",()=>{
   ensureGroup();
   const g=genDescriptions();
   if(!g)return toast("Fill in the project name on this tab first");
   if(cur().d.some(r=>r[0].trim())&&!confirm("Replace the descriptions already written here?"))return;
-  cur().d=g; saveAd(); drawAd();
+  cur().d=g; cur().edited=true; mirrorAd(ADCUR); saveAd(); drawAd();
   toast(`${g.filter(r=>r[0]).length} descriptions generated`);});
 on("#acPriceFromTk","click",()=>{
   const t=ticket(); if(!t)return toast("Set a ticket size on tab 01");
@@ -2222,10 +2396,37 @@ function onCredential(res){
     $("#gateMsg").innerHTML=`<div class="check c-bad"><span class="ic">\u2715</span><span><b>${esc(email)}</b> is outside ${esc(AUTH.domain)}. Sign in with your work account.</span></div>`;
     return;
   }
-  USER={email,name:p.name||email,picture:p.picture,credential:res.credential};
+  USER={email,name:p.name||email,picture:p.picture,credential:res.credential,exp:Number(p.exp||0)};
   try{sessionStorage.setItem("pp_user",JSON.stringify(USER));}catch(e){}
   showUser(); logEvent("sign-in","");
+  const w=$("#expWarn"); if(w)w.classList.add("hidden");
 }
+/* A Google sign-in token is good for one hour. The toolkit used to keep the
+   expired one in the session and still show the name in the corner, so the
+   page looked signed in while every server call came back rejected — which
+   is why the landing page reader "never worked". The token is checked before
+   it is used, and a stale one is replaced rather than sent. */
+const tokenLeft=()=>USER&&USER.exp?USER.exp*1000-Date.now():0;
+const tokenLive=()=>!!USER&&tokenLeft()>60000;
+function tokenPanel(){
+  const w=$("#expWarn"); if(!w)return;
+  const dead=USER&&!tokenLive();
+  w.classList.toggle("hidden",!dead);
+  if(dead)w.innerHTML=`<div class="check c-bad"><span class="ic">✕</span><span>
+    <b>Your Google sign-in expired.</b> It lasts an hour. Nothing on the server will answer until
+    you sign in again — that includes reading landing pages.
+    <button class="btn btn-pri btn-sm" id="reSign" style="margin-top:8px">Sign in again</button></span></div>`;
+}
+on("#expWarn","click",e=>{ if(e.target.id!=="reSign")return; reSignIn(); });
+function reSignIn(){
+  try{sessionStorage.removeItem("pp_user");}catch(e){}
+  USER=null;
+  if(window.google&&google.accounts&&google.accounts.id){
+    google.accounts.id.disableAutoSelect();
+    location.reload();
+  } else location.reload();
+}
+setInterval(tokenPanel,30000);
 function initAuth(){
   $("#gateDomain").textContent=AUTH.domain;
   if(!AUTH.clientId){
@@ -2243,15 +2444,28 @@ function initAuth(){
     });
     return;
   }
-  try{const s=sessionStorage.getItem("pp_user"); if(s){USER=JSON.parse(s);showUser();return;}}catch(e){}
-  $("#gate").classList.remove("hidden");
+  let restored=false;
+  try{
+    const s=sessionStorage.getItem("pp_user");
+    if(s){
+      const u=JSON.parse(s);
+      /* An expired token in the session is worse than none: it hides the
+         gate and then fails every call. Only a live one is restored. */
+      if(u&&u.exp&&u.exp*1000-Date.now()>60000){ USER=u; showUser(); restored=true; }
+      else sessionStorage.removeItem("pp_user");
+    }
+  }catch(e){}
+  if(!restored)$("#gate").classList.remove("hidden");
+  /* Initialised either way, so an expiry mid-session can be recovered from
+     without the person having to work out that a reload is what is needed. */
   const start=()=>{
     if(!(window.google&&google.accounts&&google.accounts.id))return setTimeout(start,300);
     google.accounts.id.initialize({client_id:AUTH.clientId,callback:onCredential,
       hd:AUTH.domain,auto_select:true});
-    google.accounts.id.renderButton($("#gateBtn"),{theme:"outline",size:"large",width:360,text:"signin_with"});
+    if(!restored)google.accounts.id.renderButton($("#gateBtn"),{theme:"outline",size:"large",width:360,text:"signin_with"});
   };
   start();
+  tokenPanel();
 }
 on("#newProject","click",()=>{
   if(!confirm("Clear the brief, ad groups, keywords and assets and start a new project?\n\nYour strategy list, Gemini key and campaign settings are kept."))return;
@@ -2537,7 +2751,10 @@ let AI_ERR="";
    is the strongest path; the browser proxies are the fallback. */
 async function serverRead(url){
   AI_ERR="";
-  if(!AUTH.logUrl||!USER)return null;
+  if(!AUTH.logUrl)return null;
+  if(!USER){ AI_ERR="Sign in first — the reader runs on the server as you."; return null; }
+  if(!tokenLive()){ tokenPanel();
+    AI_ERR="Your Google sign-in expired an hour after you signed in. Press Sign in again above, then read the page."; return null; }
   try{
     const ctl=new AbortController();
     const bail=setTimeout(()=>ctl.abort(),45000);
@@ -2553,7 +2770,10 @@ async function serverRead(url){
 }
 async function askAI(text){
   AI_ERR="";
-  if(!AUTH.logUrl||!USER)return null;
+  if(!AUTH.logUrl)return null;
+  if(!USER){ AI_ERR="Sign in first — the reader runs on the server as you."; return null; }
+  if(!tokenLive()){ tokenPanel();
+    AI_ERR="Your Google sign-in expired. Press Sign in again above, then read the page."; return null; }
   try{
     const ctl=new AbortController();
     const bail=setTimeout(()=>ctl.abort(),25000);
@@ -2565,8 +2785,31 @@ async function askAI(text){
     const j=await r.json();
     if(j.error){ AI_ERR=j.error; return null; }
     return j;
-  }catch(e){ return null; }
+  }catch(e){ AI_ERR="Could not reach the Apps Script: "+((e&&e.message)||e); return null; }
 }
+/* When the reader fails there are only four things it can be, and guessing
+   between them wastes a day. This asks the server a question it must answer
+   and prints exactly what came back. */
+on("#impTest","click",async()=>{
+  const box=$("#impDiag"), say=h=>box.innerHTML=h;
+  const line=(l,ic,h)=>`<div class="check c-${l}"><span class="ic">${ic}</span><span>${h}</span></div>`;
+  if(!AUTH.logUrl)return say(line("bad","\u2715","No Apps Script URL is set in <code>AUTH.logUrl</code>."));
+  if(!USER)return say(line("bad","\u2715","Not signed in. Sign in with your propertypistol.com account first."));
+  if(!tokenLive()){ tokenPanel();
+    return say(line("bad","\u2715","<b>Your sign-in expired.</b> That is almost certainly why reading never worked. Press <b>Sign in again</b> above and test once more.")); }
+  const mins=Math.round(tokenLeft()/60000);
+  say(line("warn","\u2026","Asking the server\u2026"));
+  const t0=Date.now();
+  const ai=await askAI("Project: Testwell Residency by Testwell Group, Bavdhan, Pune. 2 & 3 BHK starting at \u20b990 Lacs. 21 acre township.");
+  const ms=Date.now()-t0;
+  if(ai&&ai.proj) return say(
+    line("ok","\u2713",`<b>Working.</b> Gemini answered in ${ms} ms and read the project as <code>${esc(ai.proj)}</code>.`)+
+    line("ok","\u2713",`Your sign-in has about ${mins} minutes left.`));
+  say(line("bad","\u2715",`<b>The AI reader did not answer.</b> The server said: <code>${esc(AI_ERR||"nothing")}</code>`)+
+    line("warn","!","If that mentions the <b>Gemini key</b>, paste your AI Studio key into <code>GEMINI_KEY</code> in the Apps Script, then <b>Deploy \u2192 Manage deployments \u2192 pencil \u2192 Version: New version \u2192 Deploy</b>. Saving the script alone does not change the live URL.")+
+    line("warn","!","If it mentions <b>sign in</b> or a token, press Sign in again above.")+
+    line("warn","!","If it mentions a <b>status code</b>, the deployment URL in <code>AUTH.logUrl</code> is pointing at an old version."));
+});
 
 let LAST_READ=null;
 const FOUND_ROWS=[["proj","Project","acProj"],["dev","Developer","acDev"],
@@ -2744,7 +2987,13 @@ const priceShort=()=>{const f=priceForms();return f.length?f[f.length-1]:"";};
 
 /* ═══════════ keyword review inside an ad group ═══════════ */
 function kwOf(){ return (cur().kw||"").split("\n").map(s=>s.trim()).filter(Boolean); }
-function setKw(list){ cur().kw=list.join("\n"); saveAd(); drawKwList(); }
+function setKw(list){
+  if(!ADCUR)return;
+  kwLedger(ADCUR,list);
+  const n=mirrorKw(ADCUR);
+  saveAd(); drawKwList(); syncPlanKw();
+  if(n)toast(`Mirrored into ${n} other ad group${n===1?"":"s"}`);
+}
 function drawKwList(){
   if(!ADCUR||!ADG[ADCUR]){ $("#acKwList").innerHTML=`<div class="empty">No ad group selected.</div>`;
     $("#acKwStat").textContent="0"; return; }
@@ -2758,22 +3007,27 @@ function drawKwList(){
     : `<div class="empty">No keywords yet. Build the structure or add them below.</div>`;
   $("#acKw").value=list.join("\n");
 }
-on("#acKwList","input",e=>{ const i=e.target.dataset.kwi; if(i===undefined)return;
-  const l=kwOf(); l[+i]=e.target.value; cur().kw=l.join("\n"); saveAd();
-  $("#acKwStat").textContent=`${l.filter(Boolean).length} keywords`; });
+const kwFromRows=()=>[...document.querySelectorAll("#acKwList [data-kwi]")]
+  .map(el=>el.value.trim()).filter(Boolean);
+on("#acKwList","input",e=>{ if(e.target.dataset.kwi===undefined)return;
+  $("#acKwStat").textContent=`${kwFromRows().length} keywords`; });
+/* a renamed row is a delete plus an add, so the ledger is written when the
+   field is left rather than on every keystroke */
+on("#acKwList","change",e=>{ if(e.target.dataset.kwi===undefined)return;
+  setKw(kwFromRows()); });
 on("#acKwList","click",e=>{ const i=e.target.dataset.kwx; if(i===undefined)return;
-  const l=kwOf(); l.splice(+i,1); setKw(l); syncPlanKw(); });
+  const l=kwOf(); l.splice(+i,1); setKw(l); });
 function addKw(){
   const v=$("#acKwNew").value.trim(); if(!v)return;
   const l=kwOf();
   v.split(/[\n,]/).map(s=>s.trim()).filter(Boolean).forEach(k=>{ if(!l.some(x=>x.toLowerCase()===k.toLowerCase()))l.push(k); });
-  $("#acKwNew").value=""; setKw(l); syncPlanKw();
+  $("#acKwNew").value=""; setKw(l);
 }
 on("#acKwAdd","click",addKw);
 on("#acKwNew","keydown",e=>{ if(e.key==="Enter"){e.preventDefault();addKw();} });
 on("#acKwEdit","click",()=>{
   const ta=$("#acKw"), open=!ta.classList.contains("hidden");
-  if(open){ setKw(ta.value.split("\n").map(s=>s.trim()).filter(Boolean)); syncPlanKw(); ta.classList.add("hidden"); }
+  if(open){ setKw(ta.value.split("\n").map(s=>s.trim()).filter(Boolean)); ta.classList.add("hidden"); }
   else { ta.value=kwOf().join("\n"); ta.classList.remove("hidden"); ta.focus(); }
 });
 /* edits made here must reach the export */
@@ -2802,11 +3056,49 @@ function locList(){
 /* "Mahindra Lifespaces" also gets searched as plain "Mahindra". The short
    form is added for the location-led sets, not for brand-broad, where it
    would pull in every other Mahindra business. */
+/* Developers write their own name closed up — Bramhacorp, Godrejproperties,
+   Rustomjee — and the public types it open: "bramha corp bavdhan". Both have
+   to be bid on or the open spelling goes to a competitor. The split is made
+   on a trade word at the end of the name, or on a capital in the middle. */
+const COMPOUND_TAIL=["corporation","corp","constructions","construction","developments",
+  "development","developers","developer","properties","property","lifespaces","lifespace",
+  "infrastructure","infratech","infra","realtors","realestate","realty","enterprises",
+  "ventures","venture","buildcon","builders","builder","landmarks","projects","associates",
+  "foundations","habitat","housing","shelters","estates","estate","heights","spaces",
+  "abodes","groups","group","homes","world","land","city"];
+function deCompound(word){
+  const w=String(word||"").trim();
+  if(!w||/\s/.test(w))return "";
+  const camel=w.replace(/([a-z])([A-Z])/g,"$1 $2");
+  if(camel!==w)return camel;
+  const low=w.toLowerCase();
+  for(const t of COMPOUND_TAIL){
+    if(low.length>=t.length+4&&low.endsWith(t))
+      return w.slice(0,w.length-t.length)+" "+w.slice(w.length-t.length);
+  }
+  return "";
+}
+/* "Mahindra Lifespaces" also gets searched as plain "Mahindra", and
+   "Bramhacorp" as "Bramha corp" and "Bramha". The short forms are added for
+   the location-led sets, not for brand-broad, where a bare first word would
+   pull in every other business of that name. */
 function devForms(dev,broad){
   const full=String(dev||"").trim(); if(!full)return [];
   const parts=full.split(/\s+/), short=parts[0];
   const weak=/^(the|shri|sri|m|s|new)$/i.test(short)||short.length<4;
-  return (broad||weak||parts.length<2)?[full]:[full,short];
+  const base=(broad||weak||parts.length<2)?[full]:[full,short];
+  const out=[];
+  base.forEach(f=>{
+    out.push(f);
+    const w=f.split(/\s+/), split=deCompound(w[0]);
+    if(!split)return;
+    out.push([split,...w.slice(1)].join(" ").trim());
+    /* the bare stem on its own — "bramha bavdhan" is a real query */
+    const stem=split.split(/\s+/)[0];
+    if(!broad&&stem.length>=4)out.push([stem,...w.slice(1)].join(" ").trim());
+  });
+  const seen=new Set();
+  return out.filter(x=>x&&!seen.has(x.toLowerCase())&&seen.add(x.toLowerCase()));
 }
 function kwForStrategy(code){
   const b=brief(), P=b.proj, D=b.dev||P, C=b.city, locs=locList();
@@ -2822,8 +3114,14 @@ function kwForStrategy(code){
         out.push(shortProj); locs.forEach(L=>out.push(`${shortProj} ${L}`));
       }
     });
+    /* the project's own name can be closed up too — "Avantacity Bavdhan" */
+    const pw=P.split(/\s+/), pSplit=deCompound(pw[0]);
+    if(pSplit){
+      const alt=[pSplit,...pw.slice(1)].join(" ").trim();
+      out.push(alt); locs.forEach(L=>out.push(`${alt} ${L}`));
+    }
     locs.forEach(L=>{ out.push(P, `${P} ${L}`, `${P} ${L} ${C}`);
-      if(!devPrefix) out.push(`${D} ${P} ${L}`);
+      if(!devPrefix) devForms(D,false).forEach(dv=>out.push(`${dv} ${P} ${L}`));
       tails.forEach(t=>t&&out.push(`${P} ${L} ${t}`)); });
     tails.forEach(t=>t&&out.push(`${P} ${t}`));
     if(C)out.push(`${P} ${C}`);
@@ -2896,6 +3194,92 @@ function adFor(kws){
   return {h:H.slice(0,H_CAP),d:D.slice(0,D_CAP)};
 }
 
+
+
+/* ═══════════ Demand Gen targeting ═══════════
+   Demographics and existing audience segments can be imported. Creating a
+   custom segment from URLs, channels or apps cannot \u2014 there is no CSV or
+   Editor route for it, only the interface or the API. So sources are
+   exported as a build list for whoever creates them. */
+const DEMO_GROUPS=[
+  ["Age",["18-24","25-34","35-44","45-54","55-64","65 or more","Undetermined"],["18-24","65 or more"]],
+  ["Gender",["Male","Female","Undetermined"],[]],
+  ["Household income",["Top 10%","11-20%","21-30%","31-40%","41-50%","Lower 50%","Undetermined"],
+    ["31-40%","41-50%","Lower 50%"]],
+  ["Parental status",["Parent","Not a parent","Undetermined"],[]]
+];
+let DEMO=store.get("pp_demo",null);
+if(!DEMO){ DEMO={}; DEMO_GROUPS.forEach(([g,,def])=>DEMO[g]=[...def]); store.set("pp_demo",DEMO); }
+function drawDemo(){
+  const el=$("#dgDemo"); if(!el)return;
+  el.innerHTML=DEMO_GROUPS.map(([g,vals])=>`
+    <div style="margin-bottom:10px">
+      <div class="f-note" style="margin:0 0 4px;font-weight:600">${esc(g)}</div>
+      ${vals.map(v=>`<label class="chk" style="display:inline-flex;margin:0 12px 4px 0;font-size:12.5px">
+        <input type="checkbox" data-dm="${esc(g)}" value="${esc(v)}" ${(DEMO[g]||[]).includes(v)?"checked":""}>
+        <span>${esc(v)}</span></label>`).join("")}
+    </div>`).join("");
+}
+on("#dgDemo","change",e=>{
+  const g=e.target.dataset.dm; if(!g)return;
+  const set=new Set(DEMO[g]||[]);
+  e.target.checked?set.add(e.target.value):set.delete(e.target.value);
+  DEMO[g]=[...set]; store.set("pp_demo",DEMO);
+});
+
+let AUD=store.get("pp_aud",null)||[
+  ["Real Estate \u2014 In-Market","In-market",""],
+  ["Home Decor Enthusiasts \u2014 Affinity","Affinity",""],
+  ["Luxury Shoppers \u2014 Affinity","Affinity",""]
+];
+let AUD_DRAFT=null;
+function fillAudPick(){
+  const s=$("#audPick"); if(!s)return;
+  const keep=new Set([...s.selectedOptions].map(o=>o.value));
+  s.innerHTML=AUD.map((a,i)=>`<option value="${i}">${esc(a[0])} \u2014 ${esc(a[1])}${a[2]?" \u00b7 "+esc(a[2]):""}</option>`).join("")
+    ||`<option value="">\u2014 library is empty \u2014</option>`;
+  [...s.options].forEach(o=>{if(keep.has(o.value))o.selected=true;});
+}
+function drawAudRows(){
+  $("#audRows").innerHTML=AUD_DRAFT.map((a,i)=>`
+    <div class="srow" style="grid-template-columns:1fr 150px 120px 34px">
+      <input type="text" data-an="${i}" value="${esc(a[0])}" placeholder="Segment name as it appears in Google Ads">
+      <select data-at="${i}">${["In-market","Affinity","Custom segment","Detailed demographic","Remarketing","Life event"]
+        .map(t=>`<option${t===a[1]?" selected":""}>${t}</option>`).join("")}</select>
+      <input type="text" data-ai="${i}" value="${esc(a[2]||"")}" placeholder="Criterion ID">
+      <button class="del" data-ax="${i}" aria-label="Remove">\u00d7</button></div>`).join("")
+    ||`<div class="empty">Nothing in the library yet.</div>`;
+}
+on("#audManage","click",()=>{ AUD_DRAFT=AUD.map(a=>[...a]); drawAudRows(); $("#audModal").classList.add("on"); });
+on("#audClose","click",()=>$("#audModal").classList.remove("on"));
+on("#audModal","click",e=>{ if(e.target.id==="audModal")$("#audModal").classList.remove("on"); });
+on("#audRows","input",e=>{
+  const n=e.target.dataset.an,i=e.target.dataset.ai;
+  if(n!==undefined)AUD_DRAFT[+n][0]=e.target.value;
+  if(i!==undefined)AUD_DRAFT[+i][2]=e.target.value;
+});
+on("#audRows","change",e=>{ const t=e.target.dataset.at; if(t!==undefined)AUD_DRAFT[+t][1]=e.target.value; });
+on("#audRows","click",e=>{ const x=e.target.dataset.ax; if(x===undefined)return; AUD_DRAFT.splice(+x,1); drawAudRows(); });
+on("#audAdd","click",()=>{ AUD_DRAFT.push(["","In-market",""]); drawAudRows(); });
+on("#audSave","click",()=>{
+  AUD=AUD_DRAFT.map(a=>[a[0].trim(),a[1],String(a[2]||"").trim()]).filter(a=>a[0]);
+  store.set("pp_aud",AUD); $("#audModal").classList.remove("on"); fillAudPick(); toast("Library saved");
+});
+on("#audExport","click",()=>{ copy(JSON.stringify(AUD,null,2)); toast("JSON copied"); });
+on("#audImport","click",()=>{
+  const raw=prompt("Paste the exported JSON:"); if(!raw)return;
+  try{ const a=JSON.parse(raw); if(!Array.isArray(a))throw 0;
+    AUD_DRAFT=a.map(x=>[String(x[0]||""),String(x[1]||"In-market"),String(x[2]||"")]).filter(x=>x[0]);
+    drawAudRows(); toast("Imported");
+  }catch(e){ toast("That JSON didn't parse"); }
+});
+const pickedAudiences=()=>{
+  const s=$("#audPick"); if(!s)return [];
+  return [...s.selectedOptions].map(o=>AUD[+o.value]).filter(Boolean);
+};
+function showDGCard(){
+  const c=$("#cardDG"); if(c)c.classList.toggle("hidden",CH!=="demandgen");
+}
 
 /* ═══════════ Demand Gen ═══════════
    Different asset shape from Search: five 40-character headlines, a 90
@@ -2973,7 +3357,7 @@ function dgSettings(){
     ["Call to action text","Learn more"],
     ["Language (ad level)","English (United Kingdom)"],
     ["Business name",dgAd().bn],
-    ["Audience","Add by hand on the Open ad group, then duplicate per strategy"],
+    ["Audience",pickedAudiences().map(a=>a[0]).join("; ")||"None selected"],
     ["Images and logo","Attach by hand \u2014 see sheet 10 for the exact sizes"],
     ["Creative formats",creativeFormats().join(", ")]
   ];
@@ -2995,7 +3379,11 @@ function inlineTpl(n){
     .replace("{_campaign}",paramVal(n.campaign))
     .replace("{_strategy}",paramVal(n.strategy));
 }
-on("#stBuild","click",()=>{
+/* Build is a refresh, not a reset. Keywords the person added by hand are
+   carried forward, keywords they deleted stay deleted, and an ad they have
+   touched is left exactly as they left it. "Rebuild and discard my edits" is
+   the only thing that throws that away. */
+function doBuild(fresh){
   const b=brief();
   if(!b.proj)return toast("Fill in the project name on the Ad copy tab");
   const strats=[...$("#inStrat").selectedOptions].map(o=>o.value);
@@ -3003,26 +3391,49 @@ on("#stBuild","click",()=>{
   const mts=CH==="search"?[...$("#inMatch").selectedOptions].map(o=>o.value):[""];
   const enq=$("#inEnq").value.trim()||b.proj;
   const tk=ticket();
+  let keptCopy=0, keptKw=0, dropped=0;
   PLAN=[];
   strats.forEach(s=>{
-    const kws=kwForStrategy(s);
+    const gen=kwForStrategy(s);
     const groups=mts.map(mt=>{
       const n=names(enq,s,tk,mt,CH);
-      const ad=adFor(kws);
-      ADG[n.adgroup]={h:ad.h,d:ad.d,kw:kws.join("\n")};
+      const old=fresh?null:fix(ADG[n.adgroup]);
+      const man=old?old.man.slice():[], kill=old?old.kill.slice():[];
+      const killL=new Set(kill.map(x=>x.toLowerCase()));
+      const seen=new Set(), kws=[];
+      [...gen,...man].forEach(k=>{ const L=k.toLowerCase();
+        if(!killL.has(L)&&!seen.has(L)){ seen.add(L); kws.push(k); } });
+      if(man.length)keptKw+=man.length;
+      dropped+=kill.length;
+      const hasCopy=old&&old.edited&&old.h&&old.h.some(r=>r[0]&&r[0].trim());
+      const ad=hasCopy?{h:old.h,d:old.d}:adFor(kws);
+      if(hasCopy)keptCopy++;
+      ADG[n.adgroup]={h:ad.h,d:ad.d,kw:kws.join("\n"),man,kill,edited:!!hasCopy};
       return {name:n.adgroup,mt,kws,ad,n};
     });
     PLAN.push({strat:s,campaign:names(enq,s,tk,mts[0],CH).campaign,groups});
   });
-  ADCUR=PLAN[0].groups[0].name; saveAd(); fillAdPicker(); drawAd();
+  if(!ADG[ADCUR])ADCUR=PLAN[0].groups[0].name;
+  saveAd(); fillAdPicker(); drawAd();
   $("#asGen").click();
   drawPlan();
   const ac=$("#stAssetCamp"), keepA=ac.value;
   ac.innerHTML=PLAN.map(p=>`<option value="${esc(p.campaign)}">${esc(p.campaign)}</option>`).join("");
   if([...ac.options].some(o=>o.value===keepA))ac.value=keepA;
-  logEvent("build",`${PLAN.length} campaigns`);
-  $("#stStat").innerHTML=`<span class="pill p-ok">${PLAN.length} campaigns \u00b7 ${PLAN.reduce((a,p)=>a+p.groups.length,0)} ad groups</span>`;
-  toast("Structure built");
+  logEvent("build",`${PLAN.length} campaigns${fresh?" (fresh)":""}`);
+  const note=[];
+  if(keptCopy)note.push(`${keptCopy} ad${keptCopy===1?"":"s"} you wrote kept`);
+  if(keptKw)note.push(`${keptKw} keyword${keptKw===1?"":"s"} you added kept`);
+  if(dropped)note.push(`${dropped} you deleted stayed out`);
+  $("#stStat").innerHTML=`<span class="pill p-ok">${PLAN.length} campaigns \u00b7 `+
+    `${PLAN.reduce((a,p)=>a+p.groups.length,0)} ad groups</span>`+
+    (note.length?` <span class="pill p-mute">${esc(note.join(" \u00b7 "))}</span>`:"");
+  toast(fresh?"Rebuilt from scratch":note.length?"Refreshed \u2014 your edits are still there":"Structure built");
+}
+on("#stBuild","click",()=>doBuild(false));
+on("#stRebuild","click",()=>{
+  if(!confirm("Throw away every headline, description and keyword change you made by hand and generate all of it again?"))return;
+  doBuild(true);
 });
 function drawPlan(){
   if(!PLAN.length){$("#stTree").innerHTML=`<div class="empty">Fill the brief, then press Build.</div>`;return;}
@@ -3325,6 +3736,36 @@ function entityFiles(){
     });
     files.push(["10-creative-checklist.csv",mk(
       ["Campaign","Ad group","Ad name","Asset","Ratio","Size (px)","Requirement","Where it shows"],crows)]);
+    const dRows=[];
+    PLAN.forEach(p=>p.groups.forEach(g=>{
+      DEMO_GROUPS.forEach(([grp])=>(DEMO[grp]||[]).forEach(v=>
+        dRows.push([p.campaign,g.name,grp,v,"Excluded"])));
+    }));
+    if(dRows.length)files.push(["11-demographics.csv",mk(
+      ["Campaign","Ad group","Criterion type","Value","Status"],dRows)]);
+
+    const auds=pickedAudiences(), aRows=[];
+    PLAN.forEach(p=>p.groups.forEach(g=>auds.forEach(a=>
+      aRows.push([p.campaign,g.name,a[0],a[1],a[2]||"","Enabled"]))));
+    if(aRows.length)files.push(["12-audiences.csv",mk(
+      ["Campaign","Ad group","Audience name","Audience type","Audience ID","Status"],aRows)]);
+
+    const srcLines=(($("#audSources")&&$("#audSources").value)||"")
+      .split("\n").map(s=>s.trim()).filter(Boolean);
+    if(srcLines.length){
+      const b2=brief();
+      files.push(["13-custom-segments-to-create.csv",mk(
+        ["Suggested segment name","Type","Source","Where to create"],
+        srcLines.map(s=>{
+          const type=/^https?:\/\/(www\.)?(youtube|youtu\.be)/i.test(s)?"YouTube channel or video"
+            : /^https?:\/\//i.test(s)?"Website URL"
+            : /^[a-z0-9]+(\.[a-z0-9]+)+$/i.test(s)?"App"
+            : "Search term";
+          let label=s.replace(/^https?:\/\/(www\.)?/i,"").replace(/\/$/,"").slice(0,40);
+          return [`${slug(b2.proj||"project")}-${slug(label)}`,type,s,
+                  "Google Ads \u2192 Tools \u2192 Audience manager \u2192 Custom segments"];
+        }))]);
+    }
     files.push(["9-demandgen-settings.csv",
       mk(["Setting","Value"],dgSettings())]);
   }
@@ -3566,6 +4007,7 @@ on("#mtCopy","click",()=>{
 });
 drawMeta();
 
+drawDemo(); fillAudPick(); showDGCard();
 initAuth();
 /* Catch any button that lost its handler during an edit. */
 (function(){
