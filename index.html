@@ -133,6 +133,11 @@ textarea{resize:vertical;line-height:1.55;font-size:12px}
 .p-mute{background:var(--line-soft);color:var(--ink-soft)}
 
 .empty{padding:34px 16px;text-align:center;color:var(--ink-soft);font-size:13px}
+.steps{margin:0;padding-left:20px;font-size:13px;line-height:1.65;color:var(--ink-soft)}
+.steps li{margin-bottom:9px}
+.steps b{color:var(--ink)}
+.apg{display:grid;grid-template-columns:1fr auto;gap:8px;align-items:center;
+  padding:7px 0;border-bottom:1px solid var(--line-soft);font-size:12.5px}
 .tblwrap{overflow-x:auto}
 code{font-family:var(--mono);background:rgba(0,0,0,.05);padding:1px 4px;border-radius:3px;font-size:.94em}
 
@@ -205,7 +210,7 @@ code{font-family:var(--mono);background:rgba(0,0,0,.05);padding:1px 4px;border-r
     <div class="wordmark">Search Ops Toolkit <span>· Google Ads</span></div>
     <div class="spacer"></div>
     <div class="badge-env" id="varCount">0 VARIANTS</div>
-    <span class="pill p-mute" id="buildTag" title="build">b-01oct-1</span>
+    <span class="pill p-mute" id="buildTag" title="build">b-15oct-1</span>
     <div id="userChip" class="hidden" style="display:flex;align-items:center;gap:9px">
       <div class="divider-v"></div>
       <span id="userName" style="font-size:12.5px;font-weight:500"></span>
@@ -223,6 +228,7 @@ code{font-family:var(--mono);background:rgba(0,0,0,.05);padding:1px 4px;border-r
   <button class="tab" role="tab" aria-selected="false" data-panel="p-as"><span class="num">04</span>Assets</button>
   <button class="tab" role="tab" aria-selected="false" data-panel="p-st"><span class="num">05</span>Full structure</button>
   <button class="tab" role="tab" aria-selected="false" data-panel="p-mt"><span class="num">06</span>Meta ads</button>
+  <button class="tab" role="tab" aria-selected="false" data-panel="p-api"><span class="num">07</span>Deploy to Google Ads</button>
 </div></nav>
 
 <main class="wrap">
@@ -393,6 +399,20 @@ code{font-family:var(--mono);background:rgba(0,0,0,.05);padding:1px 4px;border-r
               <option>Maximize conversions</option><option>Manual CPC</option>
               <option>Maximize clicks</option><option>Target CPA</option>
             </select></label>
+        </div>
+        <div class="row2">
+          <label class="f"><span class="f-lab">Location setting</span>
+            <select id="cgPresence">
+              <option value="PRESENCE" selected>Presence — people regularly in the area</option>
+              <option value="PRESENCE_OR_INTEREST">Presence or interest (Google's default)</option>
+            </select>
+            <span class="f-note">Presence is the default here. Google's own default serves to anyone merely searching about the city from elsewhere, which is where the US and out-of-market traffic came from.</span></label>
+          <label class="f"><span class="f-lab">EU political ads</span>
+            <select id="cgEuPol">
+              <option value="DOES_NOT_CONTAIN_EU_POLITICAL_ADVERTISING" selected>No — not political advertising</option>
+              <option value="CONTAINS_EU_POLITICAL_ADVERTISING">Yes</option>
+            </select>
+            <span class="f-note">Declared No on every campaign. Google rejects an undeclared campaign outright.</span></label>
         </div>
         <label class="f"><span class="f-lab">Location preset</span>
           <select id="cgLocPreset"><option value="">— pick a market —</option></select></label>
@@ -916,6 +936,90 @@ Static Square</textarea>
           <button class="btn btn-sm" id="mtCopy">Copy as sheet</button>
         </div>
         <div class="f-note" style="margin-top:10px">One row per combination of primary text, headline and description, with the button and a suggested ad name.</div>
+      </div>
+    </div>
+  </div>
+</div>
+</section>
+
+<section class="panel" id="p-api">
+<div class="split">
+
+  <div class="sticky-col">
+    <div class="card">
+      <div class="card-hd"><h2>Account</h2><span class="hint" id="apStat">not checked</span></div>
+      <div class="card-bd">
+        <div class="callout">Nothing is created until you press <b>Deploy</b>. <b>Validate against Google</b> sends the
+          whole structure to the API with <code>validateOnly</code> set, so Google checks every field and
+          creates nothing.</div>
+        <label class="f" style="margin-top:12px"><span class="f-lab">Customer ID</span>
+          <input type="text" id="apCid" placeholder="1234567890" spellcheck="false" inputmode="numeric">
+          <span class="f-note">Ten digits, no dashes. Use the test account while you are trialling this \u2014 a test
+            account never serves an ad and never spends.</span></label>
+        <div class="btnrow">
+          <button class="btn btn-sm btn-navy" id="apCheck">Check the connection</button>
+        </div>
+        <div id="apCheckOut" style="margin-top:12px"></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-hd"><h2>Location IDs</h2><span class="hint">criterion IDs the API needs</span></div>
+      <div class="card-bd">
+        <label class="f"><span class="f-lab">Location IDs \u2014 one per line</span>
+          <textarea id="apLocIds" rows="3" spellcheck="false" inputmode="numeric" placeholder="1007785"></textarea>
+          <span class="f-note">Filled from the Location ID on tab 01 if you set one. These are the same numbers
+            Editor shows in its Locations view.</span></label>
+        <div class="btnrow">
+          <button class="btn btn-sm" id="apGeo">Look up the ID for the target location</button>
+        </div>
+        <div id="apGeoOut" style="margin-top:12px"></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-hd"><h2>What gets set</h2></div>
+      <div class="card-bd" id="apSettings"></div>
+    </div>
+  </div>
+
+  <div>
+    <div class="card">
+      <div class="card-hd"><h2>Deploy</h2><span class="hint" id="apPlanStat">no structure built</span></div>
+      <div class="card-bd">
+        <div id="apPlan"></div>
+        <div class="btnrow" style="margin-top:14px">
+          <button class="btn btn-pri" id="apValidate">Validate against Google</button>
+          <button class="btn btn-navy" id="apDeploy">Deploy</button>
+          <button class="btn btn-sm" id="apPayload">Copy the request</button>
+        </div>
+        <div class="f-note" style="margin-top:10px">Validate first, every time. It costs nothing and it catches
+          the character limits, the missing pins and the bad location IDs before anything exists in the account.</div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-hd"><h2>Result</h2></div>
+      <div class="card-bd" id="apOut"><div class="empty">Nothing run yet.</div></div>
+    </div>
+
+    <div class="card">
+      <div class="card-hd"><h2>Set up once</h2></div>
+      <div class="card-bd">
+        <ol class="steps">
+          <li><b>Developer token</b> \u2014 MCC \u2192 Admin \u2192 API Center. Paste it into <code>ADS.devToken</code>
+            in <code>apps-script-ads-api.gs</code>. A new token has Test access, which works only against test
+            accounts \u2014 right for the trial, and the reason to trial on one.</li>
+          <li><b>A test account</b> \u2014 create one under the MCC and mark it a test account.</li>
+          <li><b>The adwords scope</b> \u2014 in the Apps Script, Project Settings \u2192 show
+            <code>appsscript.json</code>, add <code>https://www.googleapis.com/auth/adwords</code> to
+            <code>oauthScopes</code>, then run <code>adsSelfTest()</code> once from the editor and accept the
+            permission prompt. Skip this and every call returns 401.</li>
+          <li><b>Redeploy</b> \u2014 Deploy \u2192 Manage deployments \u2192 pencil \u2192 Version: New version
+            \u2192 Deploy.</li>
+          <li><b>Production access</b> \u2014 a real account needs Basic access, applied for in the Cloud console
+            after brand verification. Test access cannot touch it.</li>
+        </ol>
       </div>
     </div>
   </div>
@@ -3428,6 +3532,7 @@ function doBuild(fresh){
   $("#stStat").innerHTML=`<span class="pill p-ok">${PLAN.length} campaigns \u00b7 `+
     `${PLAN.reduce((a,p)=>a+p.groups.length,0)} ad groups</span>`+
     (note.length?` <span class="pill p-mute">${esc(note.join(" \u00b7 "))}</span>`:"");
+  if(typeof drawApPlan==="function"){ drawApSettings(); drawApPlan(); }
   toast(fresh?"Rebuilt from scratch":note.length?"Refreshed \u2014 your edits are still there":"Structure built");
 }
 on("#stBuild","click",()=>doBuild(false));
@@ -3657,7 +3762,10 @@ function entityFiles(){
 
   const camps=[...new Set(PLAN.map(p=>p.campaign))];
   const isDG=CH==="demandgen";
-  const EUPOL="No, doesn't have EU political ads";
+  const euVal=($("#cgEuPol")&&$("#cgEuPol").value)||"DOES_NOT_CONTAIN_EU_POLITICAL_ADVERTISING";
+  const EUPOL=euVal==="CONTAINS_EU_POLITICAL_ADVERTISING"
+    ? "Yes, has EU political ads" : "No, doesn't have EU political ads";
+  const presence=($("#cgPresence")&&$("#cgPresence").value)||"PRESENCE";
   files.push(["1-campaigns.csv",isDG
     ? mk(["Campaign","Campaign Type","Campaign Status","Budget","Budget type","Bid Strategy Type","EU political ads"],
         camps.map(c=>[c,"Demand Gen",cstat,budget,"Daily",bid,EUPOL]))
@@ -3770,6 +3878,26 @@ function entityFiles(){
       mk(["Setting","Value"],dgSettings())]);
   }
 
+  /* Two settings have no Editor CSV column, so they travel as a checklist
+     instead of silently defaulting to Google's choice. The API deploy sets
+     both for real; this file is for whoever imports by hand. */
+  files.unshift(["0-settings-to-set-by-hand.csv",mk(
+    ["Setting","Set it to","Where","Why it matters"],
+    [["Location options",
+      presence==="PRESENCE"?"Presence - people regularly in your targeted locations"
+                           :"Presence or interest",
+      "Editor \u2192 campaign \u2192 Locations \u2192 Location options",
+      "Google defaults to Presence or interest, which serves to anyone searching about the city from anywhere in the world"],
+     ["EU political ads",EUPOL,
+      "Editor \u2192 campaign \u2192 EU political advertising",
+      "Editor blocks posting until it is declared"],
+     ["Campaign objective",($("#cgObj")&&$("#cgObj").value)||"Leads",
+      "Google Ads interface \u2192 campaign settings","No CSV column exists"],
+     ["Conversion goals",($("#cgGoals")&&$("#cgGoals").value)||"",
+      "Google Ads interface \u2192 campaign settings","No CSV column exists"],
+     ["Search partners",isDG?"n/a":"Off",
+      "Editor \u2192 campaign \u2192 Networks","Partner traffic converts far worse on these campaigns"]])]);
+
   /* assets carry the first campaign only — copy across in Editor */
   const one=($("#stAssetCamp")&&$("#stAssetCamp").value)||camps[0]||"";
   const co=AS.co.filter(Boolean).map(t=>[one,t,"Enabled"]);
@@ -3847,7 +3975,10 @@ on("#stAssetsCsv","click",()=>{
 });
 on("#stSheet","click",()=>{
   if(!PLAN.length)return toast("Build the structure first");
-  let out=`OBJECTIVE\t${$("#cgObj")?$("#cgObj").value:""}\nCONVERSION GOALS\t${$("#cgGoals")?$("#cgGoals").value:""}\nBUDGET\t${$("#cgBudget")?$("#cgBudget").value:""}\nBID STRATEGY\t${$("#cgBid")?$("#cgBid").value:""}\n\n`;
+  const pv=($("#cgPresence")&&$("#cgPresence").value)==="PRESENCE"
+    ? "Presence - people regularly in your targeted locations" : "Presence or interest";
+  const ev=($("#cgEuPol")&&$("#cgEuPol").value)==="CONTAINS_EU_POLITICAL_ADVERTISING"?"Yes":"No";
+  let out=`OBJECTIVE\t${$("#cgObj")?$("#cgObj").value:""}\nCONVERSION GOALS\t${$("#cgGoals")?$("#cgGoals").value:""}\nBUDGET\t${$("#cgBudget")?$("#cgBudget").value:""}\nBID STRATEGY\t${$("#cgBid")?$("#cgBid").value:""}\nLOCATION OPTIONS\t${pv}\nEU POLITICAL ADS\t${ev}\n\n`;
   PLAN.forEach(p=>{ out+=`CAMPAIGN\t${p.campaign}\n`;
     p.groups.forEach(g=>{ out+=`\nAD GROUP\t${g.name}\n`;
       out+=`SR\tHeadline\tLength\tMax\tPin\tKeyword\n`;
@@ -4007,7 +4138,189 @@ on("#mtCopy","click",()=>{
 });
 drawMeta();
 
+/* ═══════════ 07 deploy to Google Ads ═══════════
+   The browser never talks to Google Ads directly: there is no CORS on the
+   API and a developer token in a page would be a token anyone can read. The
+   Apps Script holds it and does the calling, as the account that deployed
+   the script, so there is no refresh token anywhere either. */
+function apSettings(){
+  const S={
+    dailyBudget : num($("#cgBudget").value)||1000,
+    cpc         : num($("#cgCpc").value)||null,
+    status      : ($("#cgStatus").value||"Paused").toUpperCase()==="ENABLED"?"ENABLED":"PAUSED",
+    bidStrategy : $("#cgBid").value||"Maximize conversions",
+    presence    : ($("#cgPresence")&&$("#cgPresence").value)||"PRESENCE",
+    euPolitical : ($("#cgEuPol")&&$("#cgEuPol").value)||"DOES_NOT_CONTAIN_EU_POLITICAL_ADVERTISING",
+    locationIds : lines($("#apLocIds").value).map(x=>x.replace(/[^0-9]/g,"")).filter(Boolean),
+    languageIds : ["1000"]
+  };
+  return S;
+}
+function drawApSettings(){
+  const S=apSettings();
+  const row=(l,v,good)=>`<div class="apg"><span>${esc(l)}</span>
+    <span class="pill ${good===false?"p-warn":"p-ok"}">${esc(v)}</span></div>`;
+  $("#apSettings").innerHTML=
+    row("Campaign type","Search")+
+    row("Status on creation",S.status==="ENABLED"?"Enabled":"Paused")+
+    row("Daily budget",S.dailyBudget)+
+    row("Bid strategy",S.bidStrategy)+
+    row("Location setting",S.presence==="PRESENCE"?"Presence only":"Presence or interest",S.presence==="PRESENCE")+
+    row("EU political ads",S.euPolitical.indexOf("DOES_NOT")===0?"Declared No":"Declared Yes",S.euPolitical.indexOf("DOES_NOT")===0)+
+    row("Search partners","Off")+
+    row("Display network","Off")+
+    row("Locations",S.locationIds.length?S.locationIds.join(", "):"none set",!!S.locationIds.length)+
+    row("Tracking template","Ad group level")+
+    `<div class="f-note" style="margin-top:10px">Presence and the EU political declaration are set on the
+      campaign itself through the API \u2014 neither has an Editor CSV column, which is why they had to be
+      clicked by hand before.</div>`;
+}
+["cgBudget","cgCpc","cgStatus","cgBid","cgPresence","cgEuPol","apLocIds"].forEach(id=>{
+  const el=$("#"+id); if(el)el.addEventListener("change",drawApSettings);
+  if(el)el.addEventListener("input",drawApSettings);
+});
+function apPlan(){
+  if(!PLAN.length)return null;
+  const lp=PROJ.url||$("#inLp").value.trim();
+  return {
+    channel:CH, finalUrl:lp, path1:PROJ.p1||"", path2:PROJ.p2||"",
+    settings:apSettings(),
+    campaigns:PLAN.map(p=>({
+      name:p.campaign,
+      adgroups:p.groups.map(g=>({
+        name:g.name, matchType:g.mt||"B",
+        trackingTemplate:TPL[CH],
+        params:{adgroup:paramVal(g.n.adgroup),campaign:paramVal(g.n.campaign),strategy:paramVal(g.n.strategy)},
+        keywords:g.kws,
+        headlines:(ADG[g.name]?ADG[g.name].h:g.ad.h).filter(r=>r&&r[0]&&r[0].trim()),
+        descriptions:(ADG[g.name]?ADG[g.name].d:g.ad.d).filter(r=>r&&r[0]&&r[0].trim())
+      }))
+    })),
+    assets:{
+      callouts:AS.co.filter(Boolean),
+      sitelinks:AS.sl.filter(x=>x[0]).map(x=>[x[0],x[1],x[2],slUrl(x[0],x[3])||lp]),
+      snippets:AS.sn.map(([h,v])=>[h,v.filter(x=>x.trim())]).filter(x=>x[1].length>=3)
+    }
+  };
+}
+function drawApPlan(){
+  const pl=apPlan();
+  if(!pl){ $("#apPlan").innerHTML=`<div class="empty">Build the structure on tab 05 first.</div>`;
+    $("#apPlanStat").textContent="no structure built"; return; }
+  const ags=pl.campaigns.reduce((a,c)=>a+c.adgroups.length,0);
+  const kws=pl.campaigns.reduce((a,c)=>a+c.adgroups.reduce((b,g)=>b+g.keywords.length,0),0);
+  const ops=pl.campaigns.map(c=>2+pl.settings.locationIds.length+1+
+    c.adgroups.length*2+c.adgroups.reduce((b,g)=>b+g.keywords.length,0)+
+    (pl.assets.callouts.length+pl.assets.sitelinks.length+pl.assets.snippets.length)*2);
+  $("#apPlanStat").textContent=`${pl.campaigns.length} campaigns \u00b7 ${ags} ad groups`;
+  const thin=[];
+  pl.campaigns.forEach(c=>c.adgroups.forEach(g=>{
+    if(g.headlines.length<3||g.descriptions.length<2)
+      thin.push(`${g.name} \u2014 ${g.headlines.length} headlines, ${g.descriptions.length} descriptions`);
+  }));
+  $("#apPlan").innerHTML=
+    pl.campaigns.map((c,i)=>`<div class="apg"><span style="font-family:var(--mono);font-size:12px">${esc(c.name)}</span>
+      <span class="pill p-mute">${c.adgroups.length} ad groups \u00b7 ${ops[i]} operations</span></div>`).join("")+
+    `<div class="apg"><span>Keywords</span><span class="pill p-mute">${kws}</span></div>`+
+    `<div class="apg"><span>Assets</span><span class="pill p-mute">${pl.assets.callouts.length} callouts \u00b7 ${pl.assets.sitelinks.length} sitelinks \u00b7 ${pl.assets.snippets.length} snippets</span></div>`+
+    (pl.settings.locationIds.length?"":`<div class="check c-warn" style="margin-top:10px"><span class="ic">!</span><span>
+      <b>No location ID set.</b> Without one the campaign targets everywhere. Look one up on the left.</span></div>`)+
+    (thin.length?`<div class="check c-bad" style="margin-top:10px"><span class="ic">\u2715</span><span>
+      <b>Google will reject these ad groups</b> \u2014 it needs 3 headlines and 2 descriptions:<br>${thin.map(esc).join("<br>")}</span></div>`:"");
+}
+async function adsCall(action,extra){
+  if(!AUTH.logUrl)return {error:"No Apps Script URL is set."};
+  if(!USER)return {error:"Sign in first."};
+  if(!tokenLive()){ tokenPanel(); return {error:"Your Google sign-in expired. Sign in again, then retry."}; }
+  try{
+    const ctl=new AbortController(), bail=setTimeout(()=>ctl.abort(),120000);
+    const r=await fetch(AUTH.logUrl,{method:"POST",signal:ctl.signal,
+      headers:{"Content-Type":"text/plain;charset=utf-8"},
+      body:JSON.stringify(Object.assign({action,credential:USER.credential},extra||{}))});
+    clearTimeout(bail);
+    if(!r.ok)return {error:`Apps Script returned ${r.status}. Redeploy it as a new version.`};
+    return await r.json();
+  }catch(e){ return {error:"Could not reach the Apps Script: "+((e&&e.message)||e)}; }
+}
+const apLine=(l,ic,h)=>`<div class="check c-${l}"><span class="ic">${ic}</span><span>${h}</span></div>`;
+on("#apCheck","click",async()=>{
+  const cid=$("#apCid").value.replace(/[^0-9]/g,"");
+  if(!cid)return toast("Put the customer ID in first");
+  $("#apStat").innerHTML=`<span class="pill p-mute">checking\u2026</span>`;
+  $("#apCheckOut").innerHTML=apLine("warn","\u2026","Asking Google\u2026");
+  const r=await adsCall("ads-check",{customerId:cid});
+  if(r.error){
+    $("#apStat").innerHTML=`<span class="pill p-bad">not connected</span>`;
+    $("#apCheckOut").innerHTML=apLine("bad","\u2715",`<b>Not connected.</b> ${esc(r.error)}`)+
+      apLine("warn","!","Work through <b>Set up once</b> on the right. The step people miss is the adwords scope in <code>appsscript.json</code> and running <code>adsSelfTest()</code>.");
+    return;
+  }
+  const c=r.customer||{};
+  $("#apStat").innerHTML=`<span class="pill p-ok">connected</span>`;
+  $("#apCheckOut").innerHTML=
+    apLine("ok","\u2713",`<b>${esc(c.name||cid)}</b> \u2014 ${esc(c.currency||"?")}, status ${esc(c.status||"?")}, API ${esc(r.version)}`)+
+    (c.test?apLine("ok","\u2713","<b>This is a test account.</b> It never serves an ad and never spends \u2014 the right place to trial this.")
+           :apLine("warn","!","<b>This is a live account.</b> Campaigns are created paused, but they are real. Deploy only when you mean it."))+
+    ((r.notes||[]).length?apLine("warn","!",(r.notes||[]).map(esc).join("<br>")):"")+
+    apLine("ok","\u2713",`${(r.accessible||[]).length} account${(r.accessible||[]).length===1?"":"s"} reachable with these credentials.`);
+});
+on("#apGeo","click",async()=>{
+  const name=($("#cgLoc")&&$("#cgLoc").value.trim())||PROJ.city||"";
+  if(!name)return toast("Set the target location on tab 01 first");
+  const cc=/united arab emirates|dubai|abu dhabi|sharjah|ajman/i.test(name)?"AE":"IN";
+  const first=name.split(",")[0].trim();
+  $("#apGeoOut").innerHTML=apLine("warn","\u2026",`Looking up <b>${esc(first)}</b>\u2026`);
+  const r=await adsCall("ads-geo",{names:[first],countryCode:cc});
+  if(r.error)return $("#apGeoOut").innerHTML=apLine("bad","\u2715",esc(r.error));
+  const list=(r.suggestions||[]).filter(x=>x.id).slice(0,8);
+  if(!list.length)return $("#apGeoOut").innerHTML=apLine("warn","!","Google returned nothing for that name. Paste the ID by hand.");
+  $("#apGeoOut").innerHTML=`<div class="f-note" style="margin-bottom:8px">Pick the one that matches. City beats region.</div>`+
+    list.map(x=>`<div class="apg"><span>${esc(x.canonical||x.name)} <span class="pill p-mute">${esc(x.type||"")}</span></span>
+      <button class="btn btn-sm" data-geo="${esc(x.id)}">use ${esc(x.id)}</button></div>`).join("");
+});
+on("#apGeoOut","click",e=>{
+  const id=e.target.dataset.geo; if(!id)return;
+  const ta=$("#apLocIds"), have=lines(ta.value);
+  if(!have.includes(id))have.push(id);
+  ta.value=have.join("\n"); drawApSettings(); drawApPlan();
+  toast(`Location ${id} added`);
+});
+async function apRun(mode){
+  const cid=$("#apCid").value.replace(/[^0-9]/g,"");
+  if(!cid)return toast("Put the customer ID in first");
+  const pl=apPlan();
+  if(!pl)return toast("Build the structure on tab 05 first");
+  if(mode==="deploy"&&!confirm(
+    `Create ${pl.campaigns.length} campaign${pl.campaigns.length===1?"":"s"} in account ${cid}?\n\n`+
+    `They are created ${pl.settings.status==="ENABLED"?"ENABLED and will start serving":"paused"}.`))return;
+  $("#apOut").innerHTML=apLine("warn","\u2026",mode==="deploy"?"Deploying\u2026 this can take a minute.":"Validating against Google\u2026");
+  const r=await adsCall("ads-deploy",{customerId:cid,mode,plan:pl});
+  if(r.error)return $("#apOut").innerHTML=apLine("bad","\u2715",`<b>Failed.</b> ${esc(r.error)}`);
+  const rows=(r.campaigns||[]).map(c=>c.error
+    ? apLine("bad","\u2715",`<b>${esc(c.campaign)}</b><br>${esc(c.error)}`)
+    : apLine("ok","\u2713",`<b>${esc(c.campaign)}</b> \u2014 ${c.operations} operations ${r.mode==="deploy"?"created":"checked, nothing created"}`));
+  const head=r.failed
+    ? apLine("bad","\u2715",`<b>${r.failed} of ${(r.campaigns||[]).length} failed.</b> Nothing partial was created \u2014 each campaign is all or nothing.`)
+    : apLine("ok","\u2713",r.mode==="deploy"
+        ? `<b>Deployed to ${esc(r.customerId)}.</b> Open the account and check before enabling.`
+        : `<b>Everything validated.</b> Google accepted every field and created nothing. Press Deploy when ready.`);
+  $("#apOut").innerHTML=head+rows.join("");
+  logEvent(mode==="deploy"?"ads-deploy":"ads-validate",`${cid} ${(r.campaigns||[]).length} campaigns`);
+}
+on("#apValidate","click",()=>apRun("validate"));
+on("#apDeploy","click",()=>apRun("deploy"));
+on("#apPayload","click",()=>{
+  const pl=apPlan(); if(!pl)return toast("Build the structure first");
+  copy(JSON.stringify(pl,null,2)); toast("Request copied");
+});
+on("#cgLocId","input",()=>{
+  const v=$("#cgLocId").value.replace(/[^0-9]/g,"");
+  const ta=$("#apLocIds"); if(!ta||!v)return;
+  if(!lines(ta.value).length){ ta.value=v; drawApSettings(); drawApPlan(); }
+});
+
 drawDemo(); fillAudPick(); showDGCard();
+drawApSettings(); drawApPlan();
 initAuth();
 /* Catch any button that lost its handler during an edit. */
 (function(){
