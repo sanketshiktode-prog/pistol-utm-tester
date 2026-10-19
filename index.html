@@ -210,7 +210,7 @@ code{font-family:var(--mono);background:rgba(0,0,0,.05);padding:1px 4px;border-r
     <div class="wordmark">Search Ops Toolkit <span>· Google Ads</span></div>
     <div class="spacer"></div>
     <div class="badge-env" id="varCount">0 VARIANTS</div>
-    <span class="pill p-mute" id="buildTag" title="build">b-15oct-1</span>
+    <span class="pill p-mute" id="buildTag" title="build">b-19oct-3</span>
     <div id="userChip" class="hidden" style="display:flex;align-items:center;gap:9px">
       <div class="divider-v"></div>
       <span id="userName" style="font-size:12.5px;font-weight:500"></span>
@@ -449,9 +449,9 @@ Static Square</textarea>
           <span class="f-note">Attached to every Demand Gen ad group. Segments must already exist in the account.</span>
         </div>
         <div class="f">
-          <span class="f-lab">Custom segment sources \u2014 one per line</span>
+          <span class="f-lab">Custom segment sources — one per line</span>
           <textarea id="audSources" rows="5" placeholder="https://competitor1.com&#10;https://youtube.com/@channel&#10;com.magicbricks.app"></textarea>
-          <span class="f-note">Exported as a build list. Custom segments have to be created in the Google Ads interface \u2014 no CSV or Editor route exists.</span>
+          <span class="f-note">Exported as a build list. Custom segments have to be created in the Google Ads interface — no CSV or Editor route exists.</span>
         </div>
       </div>
     </div>
@@ -811,6 +811,33 @@ Static Square</textarea>
     </div>
 
     <div class="card">
+      <div class="card-hd"><h2>Business name and images</h2><span class="hint" id="imgStat">none</span></div>
+      <div class="card-bd">
+        <div class="callout">Google shows the business name and logo together or not at all, so both are needed
+          before either appears. Images are cropped here to the ratios Google accepts, so nothing is rejected
+          for shape.</div>
+        <label class="f" style="margin-top:12px"><span class="f-lab">Business name <span class="pill p-mute">max 25</span></span>
+          <input type="text" id="asBizName" maxlength="25" placeholder="PropertyPistol" spellcheck="false">
+          <span class="f-note">The advertiser people see, not the project.</span></label>
+        <div class="row2">
+          <label class="f"><span class="f-lab">Logo <span class="pill p-mute">1:1</span></span>
+            <input type="file" id="imgLogo" accept="image/*">
+            <span class="f-note">Cropped square, 1200×1200. Minimum source 128×128.</span></label>
+          <label class="f"><span class="f-lab">Square image <span class="pill p-mute">1:1</span></span>
+            <input type="file" id="imgSquare" accept="image/*">
+            <span class="f-note">Cropped square, 1200×1200. Minimum source 300×300.</span></label>
+        </div>
+        <label class="f"><span class="f-lab">Landscape image <span class="pill p-mute">1.91:1</span></span>
+          <input type="file" id="imgLandscape" accept="image/*">
+          <span class="f-note">Cropped to 1200×628. Minimum source 600×314. Optional, but it wins extra space.</span></label>
+        <div id="imgPreview" class="row2" style="margin-top:12px"></div>
+        <div class="btnrow" style="margin-top:12px">
+          <button class="btn btn-sm" id="imgClear">Clear the images</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
       <div class="card-hd"><h2>Checks</h2></div>
       <div class="card-bd" id="asChecks"><div class="empty">Nothing added yet.</div></div>
     </div>
@@ -828,16 +855,18 @@ Static Square</textarea>
         <span class="f-note" style="margin:0">Set on the Tracking URLs tab.</span>
       </div>
       <div class="btnrow" style="margin-bottom:14px">
-        <label class="f-lab" style="margin:0">Assets go to</label>
-        <select id="stAssetCamp" style="max-width:340px"><option value="">— build first —</option></select>
-        <span class="f-note" style="margin:0">One campaign carries them; copy across in Editor.</span>
+        <label class="f-lab" style="margin:0">Assets</label>
+        <span class="pill p-ok">every campaign</span>
+        <span class="f-note" style="margin:0">Callouts, sitelinks, snippets, business name and images are
+          attached to every campaign in the build. Nothing to copy across by hand.</span>
+        <select id="stAssetCamp" class="hidden"></select>
       </div>
       <div class="btnrow">
         <button class="btn btn-pri" id="stBuild">Build full campaign structure</button>
         <button class="btn" id="stRebuild">Rebuild and discard my edits</button>
         <button class="btn btn-navy" id="stAll">Download ZIP</button>
         <button class="btn" id="stAllLoose">Files separately</button>
-        <button class="btn" id="stAssetsCsv">Assets only (one campaign)</button>
+        <button class="btn" id="stAssetsCsv">Assets only (CSV)</button>
         <button class="btn" id="stSheet">Copy as sheet</button>
         <button class="btn" id="stKwCsv">Keywords CSV</button>
         <button class="btn btn-navy" id="stAllCsv">Download everything (one CSV)</button>
@@ -952,10 +981,18 @@ Static Square</textarea>
         <div class="callout">Nothing is created until you press <b>Deploy</b>. <b>Validate against Google</b> sends the
           whole structure to the API with <code>validateOnly</code> set, so Google checks every field and
           creates nothing.</div>
-        <label class="f" style="margin-top:12px"><span class="f-lab">Customer ID</span>
+        <div class="f" style="margin-top:12px">
+          <span class="f-lab">Client account
+            <button class="mini-act" type="button" id="apLoadAccts">load the list</button></span>
+          <select id="apAcct"><option value="">— load the list, or type the ID below —</option></select>
+          <span class="f-note">Every project sits in its own client account, so picking it by name is safer
+            than typing ten digits. The list comes from the manager account in <code>ADS.loginCid</code>.</span>
+        </div>
+        <label class="f"><span class="f-lab">Customer ID</span>
           <input type="text" id="apCid" placeholder="1234567890" spellcheck="false" inputmode="numeric">
-          <span class="f-note">Ten digits, no dashes. Use the test account while you are trialling this \u2014 a test
-            account never serves an ad and never spends.</span></label>
+          <span class="f-note">Ten digits, no dashes — the test <b>client</b> account, not the manager.
+            A test account never serves an ad and never spends. It has to sit under a test manager account,
+            not under your production MCC.</span></label>
         <div class="btnrow">
           <button class="btn btn-sm btn-navy" id="apCheck">Check the connection</button>
         </div>
@@ -966,7 +1003,7 @@ Static Square</textarea>
     <div class="card">
       <div class="card-hd"><h2>Location IDs</h2><span class="hint">criterion IDs the API needs</span></div>
       <div class="card-bd">
-        <label class="f"><span class="f-lab">Location IDs \u2014 one per line</span>
+        <label class="f"><span class="f-lab">Location IDs — one per line</span>
           <textarea id="apLocIds" rows="3" spellcheck="false" inputmode="numeric" placeholder="1007785"></textarea>
           <span class="f-note">Filled from the Location ID on tab 01 if you set one. These are the same numbers
             Editor shows in its Locations view.</span></label>
@@ -974,6 +1011,48 @@ Static Square</textarea>
           <button class="btn btn-sm" id="apGeo">Look up the ID for the target location</button>
         </div>
         <div id="apGeoOut" style="margin-top:12px"></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-hd"><h2>Negative keywords</h2><span class="hint" id="negStat">—</span></div>
+      <div class="card-bd">
+        <label class="chk">
+          <input type="checkbox" id="negExactInPhrase" checked>
+          <span>Negate the exact keywords inside the phrase ad group, so an exact query is served by the
+            exact ad group and never by the phrase one</span>
+        </label>
+        <div class="f" style="margin-top:14px">
+          <span class="f-lab">Negative lists in the account
+            <button class="mini-act" type="button" id="negLoadLists">load the lists</button></span>
+          <select id="negLists" multiple size="5"></select>
+          <span class="f-note">Built once in the manager account and shared down. They are attached by
+            reference, so editing the list later reaches every campaign using it.</span>
+        </div>
+        <label class="f"><span class="f-lab">Extra negatives for this build — one per line</span>
+          <textarea id="negExtra" rows="4" spellcheck="false" placeholder="rent&#10;&quot;resale flats&quot;&#10;[free site visit]"></textarea>
+          <span class="f-note">Plain text is broad. Wrap in <code>&quot;quotes&quot;</code> for phrase or
+            <code>[brackets]</code> for exact. Added at campaign level.</span></label>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-hd"><h2>Demographics</h2><span class="hint">excluded on every campaign</span></div>
+      <div class="card-bd">
+        <div class="f">
+          <span class="f-lab">Exclude age</span>
+          <div id="demoAge"></div>
+        </div>
+        <div class="f">
+          <span class="f-lab">Exclude household income</span>
+          <div id="demoInc"></div>
+          <span class="f-note">Top 50% and unknown are normally kept; everything below is excluded.</span>
+        </div>
+        <div class="f">
+          <span class="f-lab">Exclude gender</span>
+          <div id="demoGen"></div>
+          <span class="f-note">Leave both unticked unless the project genuinely calls for it.</span>
+        </div>
       </div>
     </div>
 
@@ -1007,17 +1086,27 @@ Static Square</textarea>
       <div class="card-hd"><h2>Set up once</h2></div>
       <div class="card-bd">
         <ol class="steps">
-          <li><b>Developer token</b> \u2014 MCC \u2192 Admin \u2192 API Center. Paste it into <code>ADS.devToken</code>
+          <li><b>Developer token</b> — MCC → Admin → API Center. Paste it into <code>ADS.devToken</code>
             in <code>apps-script-ads-api.gs</code>. A new token has Test access, which works only against test
-            accounts \u2014 right for the trial, and the reason to trial on one.</li>
-          <li><b>A test account</b> \u2014 create one under the MCC and mark it a test account.</li>
-          <li><b>The adwords scope</b> \u2014 in the Apps Script, Project Settings \u2192 show
+            accounts — right for the trial, and the reason to trial on one.</li>
+          <li><b>A test manager account</b> — a test account <b>cannot</b> live under your production
+            MCC; Google keeps the two hierarchies apart. Open
+            <a href="https://developers.google.com/google-ads/api/docs/best-practices/test-accounts" target="_blank" rel="noopener">Google's test account page</a>
+            and press <b>Create a test manager account</b>, signing in with a Google account that is not
+            linked to the production MCC. Then, inside it, <b>Accounts → Create new account</b> — every
+            client created there is automatically a test account.</li>
+          <li><b>Point the script at it</b> — while trialling, <code>ADS.loginCid</code> is the <b>test
+            manager</b> ID, not the production MCC. The Customer ID box takes the test <b>client</b> ID.
+            Give the Google account that deployed the script access to the test manager, or it cannot
+            reach it. Switch <code>ADS.loginCid</code> back to the production MCC once Basic access is
+            approved.</li>
+          <li><b>The adwords scope</b> — in the Apps Script, Project Settings → show
             <code>appsscript.json</code>, add <code>https://www.googleapis.com/auth/adwords</code> to
             <code>oauthScopes</code>, then run <code>adsSelfTest()</code> once from the editor and accept the
             permission prompt. Skip this and every call returns 401.</li>
-          <li><b>Redeploy</b> \u2014 Deploy \u2192 Manage deployments \u2192 pencil \u2192 Version: New version
-            \u2192 Deploy.</li>
-          <li><b>Production access</b> \u2014 a real account needs Basic access, applied for in the Cloud console
+          <li><b>Redeploy</b> — Deploy → Manage deployments → pencil → Version: New version
+            → Deploy.</li>
+          <li><b>Production access</b> — a real account needs Basic access, applied for in the Cloud console
             after brand verification. Test access cannot touch it.</li>
         </ol>
       </div>
@@ -1760,7 +1849,7 @@ on("#kwSheet","click",()=>{
 const H_MAX=30, D_MAX=90, H_CAP=15, D_CAP=4, PATH_MAX=15;
 let ADG=sess.get("pp_adgroups",null)||{};
 let ADCUR=sess.get("pp_adcur","")||"";
-const PROJ_KEYS=["url","cfg","price","loc","p1","p2","proj","dev","micro","city","offer","usps","marks","amen","priceMode","allIn"];
+const PROJ_KEYS=["url","cfg","price","loc","p1","p2","proj","dev","micro","city","offer","usps","marks","amen","priceMode","allIn","bizName"];
 let PROJ=Object.assign({url:"",cfg:"",price:"",loc:"",p1:"",p2:"",proj:"",dev:"",micro:"",city:"",offer:"",usps:"",marks:"",amen:"",priceMode:"Starting At",allIn:""},sess.get("pp_proj",{}));
 const blankGroup=()=>({h:Array.from({length:H_CAP},()=>["",""]),d:Array.from({length:D_CAP},()=>["",""]),
   kw:"",man:[],kill:[],edited:false});
@@ -3898,16 +3987,34 @@ function entityFiles(){
      ["Search partners",isDG?"n/a":"Off",
       "Editor \u2192 campaign \u2192 Networks","Partner traffic converts far worse on these campaigns"]])]);
 
-  /* assets carry the first campaign only — copy across in Editor */
-  const one=($("#stAssetCamp")&&$("#stAssetCamp").value)||camps[0]||"";
-  const co=AS.co.filter(Boolean).map(t=>[one,t,"Enabled"]);
+  /* Assets go on every campaign. They used to carry one campaign name and be
+     copied across inside Editor; one row per campaign removes that step and
+     the chance of forgetting it. */
+  const co=[]; camps.forEach(c=>AS.co.filter(Boolean).forEach(t=>co.push([c,t,"Enabled"])));
   if(co.length)files.push(["6-callouts.csv",mk(["Campaign","Callout text","Status"],co)]);
-  const sl=AS.sl.filter(x=>x[0]).map(s=>[one,s[0],s[1],s[2],slUrl(s[0],s[3])||lp,"Enabled"]);
+  const sl=[]; camps.forEach(c=>AS.sl.filter(x=>x[0]).forEach(x=>
+    sl.push([c,x[0],x[1],x[2],slUrl(x[0],x[3])||lp,"Enabled"])));
   if(sl.length)files.push(["7-sitelinks.csv",mk(
     ["Campaign","Link text","Description line 1","Description line 2","Final URL","Status"],sl)]);
-  const sn=AS.sn.map(([hd,v])=>{const vv=v.filter(x=>x.trim());return vv.length>=3?[one,hd,vv.join(";"),"Enabled"]:null;}).filter(Boolean);
+  const sn=[]; camps.forEach(c=>AS.sn.forEach(([hd,v])=>{
+    const vv=v.filter(x=>x.trim()); if(vv.length>=3)sn.push([c,hd,vv.join(";"),"Enabled"]); }));
   if(sn.length)files.push(["8-snippets.csv",mk(
     ["Campaign","Structured snippet header","Structured snippet values","Status"],sn)]);
+  /* Editor has no column for a business name or an image asset, so they
+     travel as a note for whoever imports by hand. The API deploy sets them. */
+  const bizName=($("#asBizName")&&$("#asBizName").value.trim())||"";
+  const imgKeys=Object.keys(IMGS).filter(k=>IMGS[k]&&IMGS[k].data);
+  if(bizName||imgKeys.length){
+    const rows=[];
+    camps.forEach(c=>{
+      if(bizName)rows.push([c,"Business name",bizName,"Google Ads \u2192 Assets \u2192 Business name"]);
+      imgKeys.forEach(k=>rows.push([c,IMG_SPEC[k].label,
+        `${IMGS[k].w}\u00d7${IMGS[k].h} prepared in the toolkit`,
+        "Google Ads \u2192 Assets \u2192 Images"]));
+    });
+    files.push(["9-business-and-images.csv",mk(
+      ["Campaign","Asset","Value","Where to add it"],rows)]);
+  }
   return files;
 }
 const LOC_PRESETS=[
@@ -3960,17 +4067,19 @@ on("#stAll","click",()=>{
    and you paste it across the rest. */
 on("#stAssetsCsv","click",()=>{
   if(!PLAN.length)return toast("Build the structure first");
-  const camp=($("#stAssetCamp")&&$("#stAssetCamp").value)||PLAN[0].campaign;
+  const camps=[...new Set(PLAN.map(p=>p.campaign))];
   const lp=PROJ.url||$("#inLp").value.trim();
   const H=["Campaign","Callout text","Link text","Description line 1","Description line 2",
     "Final URL","Structured snippet header","Structured snippet values","Status"];
   const rows=[];
-  AS.co.filter(Boolean).forEach(t=>rows.push([camp,t,"","","","","","","Enabled"]));
-  AS.sl.filter(x=>x[0]).forEach(s=>rows.push([camp,"",s[0],s[1],s[2],slUrl(s[0],s[3])||lp,"","","Enabled"]));
-  AS.sn.forEach(([hd,v])=>{ const vv=v.filter(x=>x.trim()); if(vv.length<3)return;
-    rows.push([camp,"","","","","",hd,vv.join(";"),"Enabled"]); });
+  camps.forEach(camp=>{
+    AS.co.filter(Boolean).forEach(t=>rows.push([camp,t,"","","","","","","Enabled"]));
+    AS.sl.filter(x=>x[0]).forEach(s=>rows.push([camp,"",s[0],s[1],s[2],slUrl(s[0],s[3])||lp,"","","Enabled"]));
+    AS.sn.forEach(([hd,v])=>{ const vv=v.filter(x=>x.trim()); if(vv.length<3)return;
+      rows.push([camp,"","","","","",hd,vv.join(";"),"Enabled"]); });
+  });
   if(!rows.length)return toast("No assets yet — generate them on the Assets tab");
-  dl("assets-one-campaign.csv",H.map(csvq).join(",")+"\n"+rows.map(r=>r.map(csvq).join(",")).join("\n"));
+  dl("assets-all-campaigns.csv",H.map(csvq).join(",")+"\n"+rows.map(r=>r.map(csvq).join(",")).join("\n"));
   logEvent("export","assets");
 });
 on("#stSheet","click",()=>{
@@ -4152,7 +4261,12 @@ function apSettings(){
     presence    : ($("#cgPresence")&&$("#cgPresence").value)||"PRESENCE",
     euPolitical : ($("#cgEuPol")&&$("#cgEuPol").value)||"DOES_NOT_CONTAIN_EU_POLITICAL_ADVERTISING",
     locationIds : lines($("#apLocIds").value).map(x=>x.replace(/[^0-9]/g,"")).filter(Boolean),
-    languageIds : ["1000"]
+    languageIds : ["1000"],
+    negKeywords : lines($("#negExtra")?$("#negExtra").value:""),
+    sharedSets  : [...($("#negLists")?$("#negLists").selectedOptions:[])].map(o=>o.value).filter(Boolean),
+    exAge       : demoPicked("age"),
+    exGender    : demoPicked("gen"),
+    exIncome    : demoPicked("inc")
   };
   return S;
 }
@@ -4171,6 +4285,16 @@ function drawApSettings(){
     row("Display network","Off")+
     row("Locations",S.locationIds.length?S.locationIds.join(", "):"none set",!!S.locationIds.length)+
     row("Tracking template","Ad group level")+
+    row("Negative lists",S.sharedSets.length?`${S.sharedSets.length} attached`:"none")+
+    row("Extra negatives",S.negKeywords.length||"none")+
+    row("Exact negated in phrase",
+      ($("#negExactInPhrase")&&$("#negExactInPhrase").checked)?"yes":"no")+
+    row("Age excluded",S.exAge.length?S.exAge.map(x=>x.replace("AGE_RANGE_","").replace("_UP","+").replace("_","-")).join(", "):"none")+
+    row("Income excluded",S.exIncome.length?`${S.exIncome.length} band${S.exIncome.length===1?"":"s"}`:"none")+
+    row("Gender excluded",S.exGender.length?S.exGender.join(", ").toLowerCase():"none")+
+    row("Business name",($("#asBizName")&&$("#asBizName").value.trim())||"not set",
+      !!($("#asBizName")&&$("#asBizName").value.trim()))+
+    row("Images",Object.keys(IMGS).filter(k=>IMGS[k]&&IMGS[k].data).length||"none")+
     `<div class="f-note" style="margin-top:10px">Presence and the EU political declaration are set on the
       campaign itself through the API \u2014 neither has an Editor CSV column, which is why they had to be
       clicked by hand before.</div>`;
@@ -4192,6 +4316,9 @@ function apPlan(){
         trackingTemplate:TPL[CH],
         params:{adgroup:paramVal(g.n.adgroup),campaign:paramVal(g.n.campaign),strategy:paramVal(g.n.strategy)},
         keywords:g.kws,
+        /* the exact ad group's own list, negated inside the phrase one */
+        negExact:(g.mt==="P"&&$("#negExactInPhrase")&&$("#negExactInPhrase").checked)
+          ? (p.groups.find(x=>x.mt==="E")||{kws:[]}).kws : [],
         headlines:(ADG[g.name]?ADG[g.name].h:g.ad.h).filter(r=>r&&r[0]&&r[0].trim()),
         descriptions:(ADG[g.name]?ADG[g.name].d:g.ad.d).filter(r=>r&&r[0]&&r[0].trim())
       }))
@@ -4199,7 +4326,12 @@ function apPlan(){
     assets:{
       callouts:AS.co.filter(Boolean),
       sitelinks:AS.sl.filter(x=>x[0]).map(x=>[x[0],x[1],x[2],slUrl(x[0],x[3])||lp]),
-      snippets:AS.sn.map(([h,v])=>[h,v.filter(x=>x.trim())]).filter(x=>x[1].length>=3)
+      snippets:AS.sn.map(([h,v])=>[h,v.filter(x=>x.trim())]).filter(x=>x[1].length>=3),
+      businessName:($("#asBizName")&&$("#asBizName").value.trim())||"",
+      /* the preview data URL stays in the browser; only the bytes travel */
+      logo:      IMGS.logo      ?{data:IMGS.logo.data}      :null,
+      square:    IMGS.square    ?{data:IMGS.square.data}    :null,
+      landscape: IMGS.landscape ?{data:IMGS.landscape.data} :null
     }
   };
 }
@@ -4209,9 +4341,13 @@ function drawApPlan(){
     $("#apPlanStat").textContent="no structure built"; return; }
   const ags=pl.campaigns.reduce((a,c)=>a+c.adgroups.length,0);
   const kws=pl.campaigns.reduce((a,c)=>a+c.adgroups.reduce((b,g)=>b+g.keywords.length,0),0);
-  const ops=pl.campaigns.map(c=>2+pl.settings.locationIds.length+1+
-    c.adgroups.length*2+c.adgroups.reduce((b,g)=>b+g.keywords.length,0)+
-    (pl.assets.callouts.length+pl.assets.sitelinks.length+pl.assets.snippets.length)*2);
+  const imgN=["logo","square","landscape"].filter(k=>pl.assets[k]).length;
+  const bizN=pl.assets.businessName?1:0;
+  const extra=pl.settings.negKeywords.length+pl.settings.sharedSets.length+
+    pl.settings.exAge.length+pl.settings.exGender.length+pl.settings.exIncome.length;
+  const ops=pl.campaigns.map(c=>2+pl.settings.locationIds.length+1+extra+
+    c.adgroups.length*2+c.adgroups.reduce((b,g)=>b+g.keywords.length+(g.negExact||[]).length,0)+
+    (pl.assets.callouts.length+pl.assets.sitelinks.length+pl.assets.snippets.length+imgN+bizN)*2);
   $("#apPlanStat").textContent=`${pl.campaigns.length} campaigns \u00b7 ${ags} ad groups`;
   const thin=[];
   pl.campaigns.forEach(c=>c.adgroups.forEach(g=>{
@@ -4222,7 +4358,12 @@ function drawApPlan(){
     pl.campaigns.map((c,i)=>`<div class="apg"><span style="font-family:var(--mono);font-size:12px">${esc(c.name)}</span>
       <span class="pill p-mute">${c.adgroups.length} ad groups \u00b7 ${ops[i]} operations</span></div>`).join("")+
     `<div class="apg"><span>Keywords</span><span class="pill p-mute">${kws}</span></div>`+
-    `<div class="apg"><span>Assets</span><span class="pill p-mute">${pl.assets.callouts.length} callouts \u00b7 ${pl.assets.sitelinks.length} sitelinks \u00b7 ${pl.assets.snippets.length} snippets</span></div>`+
+    `<div class="apg"><span>Assets, on every campaign</span><span class="pill p-mute">${pl.assets.callouts.length} callouts \u00b7 ${pl.assets.sitelinks.length} sitelinks \u00b7 ${pl.assets.snippets.length} snippets${imgN?` \u00b7 ${imgN} image${imgN===1?"":"s"}`:""}${bizN?" \u00b7 business name":""}</span></div>`+
+    `<div class="apg"><span>Negatives</span><span class="pill p-mute">${pl.settings.negKeywords.length} typed \u00b7 ${pl.settings.sharedSets.length} list${pl.settings.sharedSets.length===1?"":"s"} \u00b7 ${pl.campaigns.reduce((a2,c)=>a2+c.adgroups.reduce((b2,g)=>b2+(g.negExact||[]).length,0),0)} exact-in-phrase</span></div>`+
+    (bizN&&!pl.assets.logo?`<div class="check c-warn" style="margin-top:10px"><span class="ic">!</span><span>
+      <b>Business name set but no logo.</b> Google shows the two together or not at all, so neither will appear.</span></div>`:"")+
+    (!bizN&&pl.assets.logo?`<div class="check c-warn" style="margin-top:10px"><span class="ic">!</span><span>
+      <b>Logo set but no business name.</b> Google needs both before either shows.</span></div>`:"")+
     (pl.settings.locationIds.length?"":`<div class="check c-warn" style="margin-top:10px"><span class="ic">!</span><span>
       <b>No location ID set.</b> Without one the campaign targets everywhere. Look one up on the left.</span></div>`)+
     (thin.length?`<div class="check c-bad" style="margin-top:10px"><span class="ic">\u2715</span><span>
@@ -4243,6 +4384,28 @@ async function adsCall(action,extra){
   }catch(e){ return {error:"Could not reach the Apps Script: "+((e&&e.message)||e)}; }
 }
 const apLine=(l,ic,h)=>`<div class="check c-${l}"><span class="ic">${ic}</span><span>${h}</span></div>`;
+/* One real failure makes every operation that referenced it fail too, so the
+   API answers with the cause once and "Resource was not found" eighty times.
+   The cascade is noise \u2014 the first real message is the whole story. */
+function explainErr(raw){
+  const parts=String(raw||"").split(" | ").map(x=>x.trim()).filter(Boolean);
+  const real=parts.filter(x=>!/Resource was not found/i.test(x));
+  const cascade=parts.length-real.length;
+  const first=real[0]||parts[0]||"";
+  let plain="";
+  if(/name is already assigned to another active or paused campaign/i.test(first))
+    plain=`<b>These campaigns already exist in this account.</b> Nothing was created again \u2014 Google will not
+      allow two campaigns with the same name. Check the account first: if the earlier deploy worked, you are done.
+      To build them again, rename them (change the enquiry name or ticket size on tab 01) or remove the old ones.`;
+  else if(/RESOURCE_EXHAUSTED|quota/i.test(first))
+    plain=`<b>Daily operation limit reached.</b> A Test or Basic developer token allows 15,000 operations a day.`;
+  else if(/CUSTOMER_NOT_ENABLED|account is not active/i.test(first))
+    plain=`<b>That account is not active.</b> Check its status in Google Ads.`;
+  const detail=real.slice(0,4).map(esc).join("<br>");
+  return (plain?plain+`<div class="mini" style="margin-top:8px">${detail}</div>`:detail)+
+    (cascade?`<div class="mini" style="margin-top:6px">and ${cascade} follow-on error${cascade===1?"":"s"}
+      caused by the one above \u2014 nothing partial was created.</div>`:"");
+}
 on("#apCheck","click",async()=>{
   const cid=$("#apCid").value.replace(/[^0-9]/g,"");
   if(!cid)return toast("Put the customer ID in first");
@@ -4264,6 +4427,141 @@ on("#apCheck","click",async()=>{
     ((r.notes||[]).length?apLine("warn","!",(r.notes||[]).map(esc).join("<br>")):"")+
     apLine("ok","\u2713",`${(r.accessible||[]).length} account${(r.accessible||[]).length===1?"":"s"} reachable with these credentials.`);
 });
+/* ═══════ business name and images ═══════
+   Google rejects an image whose shape is wrong, and nobody wants to open
+   Photoshop for every project. The browser crops: centre-crop to the ratio,
+   scale to the size Google recommends, re-encode as JPEG. What goes to the
+   API is already the right shape, so nothing comes back rejected. */
+const IMG_SPEC={
+  logo      :{w:1200,h:1200,minW:128,minH:128,label:"Logo"},
+  square    :{w:1200,h:1200,minW:300,minH:300,label:"Square image"},
+  landscape :{w:1200,h:628, minW:600,minH:314,label:"Landscape image"}
+};
+let IMGS=sess.get("pp_imgs",null)||{};
+const saveImgs=()=>sess.set("pp_imgs",IMGS);
+function cropTo(file,spec){
+  return new Promise((resolve,reject)=>{
+    const fr=new FileReader();
+    fr.onerror=()=>reject(new Error("Could not read that file"));
+    fr.onload=()=>{
+      const im=new Image();
+      im.onerror=()=>reject(new Error("That file is not an image the browser can open"));
+      im.onload=()=>{
+        if(im.width<spec.minW||im.height<spec.minH)
+          return reject(new Error(`Too small — ${im.width}\u00d7${im.height}. Google needs at least ${spec.minW}\u00d7${spec.minH}.`));
+        const want=spec.w/spec.h, have=im.width/im.height;
+        let sw=im.width, sh=im.height, sx=0, sy=0;
+        if(have>want){ sw=im.height*want; sx=(im.width-sw)/2; }   /* trim the sides */
+        else         { sh=im.width/want;  sy=(im.height-sh)/2; }  /* trim top and bottom */
+        const c=document.createElement("canvas");
+        c.width=spec.w; c.height=spec.h;
+        const g=c.getContext("2d");
+        g.fillStyle="#fff"; g.fillRect(0,0,spec.w,spec.h);
+        g.drawImage(im,sx,sy,sw,sh,0,0,spec.w,spec.h);
+        const url=c.toDataURL("image/jpeg",0.9);
+        resolve({data:url.split(",")[1],mime:"image/jpeg",w:spec.w,h:spec.h,
+                 src:`${im.width}\u00d7${im.height}`,preview:url});
+      };
+      im.src=fr.result;
+    };
+    fr.readAsDataURL(file);
+  });
+}
+function drawImgs(){
+  const keys=Object.keys(IMGS).filter(k=>IMGS[k]&&IMGS[k].data);
+  const st=$("#imgStat");
+  if(st)st.innerHTML=keys.length?`<span class="pill p-ok">${keys.length} ready</span>`:`<span class="pill p-mute">none</span>`;
+  const box=$("#imgPreview"); if(!box)return;
+  box.innerHTML=keys.length?keys.map(k=>`<div>
+      <img src="${IMGS[k].preview}" alt="${esc(IMG_SPEC[k].label)}"
+        style="width:100%;border:1px solid var(--line);border-radius:6px;display:block">
+      <div class="mini" style="margin-top:5px">${esc(IMG_SPEC[k].label)} \u00b7 ${IMGS[k].w}\u00d7${IMGS[k].h}
+        <span class="p-mute">from ${esc(IMGS[k].src)}</span></div></div>`).join("")
+    :`<div class="empty" style="padding:14px">No images yet.</div>`;
+}
+Object.keys(IMG_SPEC).forEach(k=>{
+  const el=$("#img"+k.charAt(0).toUpperCase()+k.slice(1));
+  if(!el)return;
+  el.addEventListener("change",async e=>{
+    const f=e.target.files&&e.target.files[0]; if(!f)return;
+    try{
+      IMGS[k]=await cropTo(f,IMG_SPEC[k]);
+      saveImgs(); drawImgs();
+      toast(`${IMG_SPEC[k].label} cropped to ${IMG_SPEC[k].w}\u00d7${IMG_SPEC[k].h}`);
+    }catch(err){ e.target.value=""; toast(String(err.message||err)); }
+  });
+});
+on("#imgClear","click",()=>{
+  IMGS={}; saveImgs(); drawImgs();
+  Object.keys(IMG_SPEC).forEach(k=>{
+    const el=$("#img"+k.charAt(0).toUpperCase()+k.slice(1)); if(el)el.value="";});
+  toast("Images cleared");
+});
+on("#asBizName","input",()=>{ PROJ.bizName=$("#asBizName").value; sess.set("pp_proj",PROJ); });
+
+/* ═══════ demographics ═══════ */
+const DEMO_AGE=[["AGE_RANGE_18_24","18-24",true],["AGE_RANGE_25_34","25-34",false],
+  ["AGE_RANGE_35_44","35-44",false],["AGE_RANGE_45_54","45-54",false],
+  ["AGE_RANGE_55_64","55-64",false],["AGE_RANGE_65_UP","65+",true],
+  ["AGE_RANGE_UNDETERMINED","Unknown",false]];
+const DEMO_INC=[["INCOME_RANGE_0_50","Lower 50%",true],["INCOME_RANGE_50_60","50-60%",false],
+  ["INCOME_RANGE_60_70","60-70%",false],["INCOME_RANGE_70_80","70-80%",false],
+  ["INCOME_RANGE_80_90","80-90%",false],["INCOME_RANGE_90_UP","Top 10%",false],
+  ["INCOME_RANGE_UNDETERMINED","Unknown",false]];
+const DEMO_GEN=[["MALE","Male",false],["FEMALE","Female",false],["UNDETERMINED","Unknown",false]];
+function drawDemoBoxes(){
+  const put=(sel,list,kind)=>{ const el=$(sel); if(!el)return;
+    el.innerHTML=list.map(([v,label,def])=>
+      `<label class="chk" style="display:inline-flex;margin-right:14px">
+         <input type="checkbox" data-demo="${kind}" value="${v}"${def?" checked":""}><span>${esc(label)}</span></label>`).join("");
+  };
+  put("#demoAge",DEMO_AGE,"age"); put("#demoInc",DEMO_INC,"inc"); put("#demoGen",DEMO_GEN,"gen");
+}
+const demoPicked=kind=>[...document.querySelectorAll(`[data-demo="${kind}"]`)]
+  .filter(b=>b.checked).map(b=>b.value);
+
+/* ═══════ negative keyword lists ═══════ */
+let NEGLISTS=[];
+on("#negLoadLists","click",async()=>{
+  const cid=$("#apCid").value.replace(/[^0-9]/g,"");
+  if(!cid)return toast("Pick the client account first");
+  const sel=$("#negLists");
+  sel.innerHTML=`<option value="">loading\u2026</option>`;
+  const r=await adsCall("ads-lists",{customerId:cid});
+  if(r.error){ sel.innerHTML=""; return $("#negStat").innerHTML=`<span class="pill p-bad">${esc(r.error.slice(0,60))}</span>`; }
+  NEGLISTS=r.lists||[];
+  sel.innerHTML=NEGLISTS.length
+    ? NEGLISTS.map(l=>`<option value="${esc(l.rn)}">${esc(l.name)} \u00b7 ${l.members} keyword${l.members===1?"":"s"}</option>`).join("")
+    : `<option value="">\u2014 no negative lists in this account \u2014</option>`;
+  $("#negStat").innerHTML=`<span class="pill p-ok">${NEGLISTS.length} list${NEGLISTS.length===1?"":"s"}</span>`;
+});
+
+let ACCTS=[];
+const acctName=id=>{ const a=ACCTS.find(x=>x.id===String(id)); return a?a.name:""; };
+function drawAcctPick(){
+  const sel=$("#apAcct"), cur=$("#apCid").value.replace(/[^0-9]/g,"");
+  if(!ACCTS.length){ sel.innerHTML=`<option value="">\u2014 load the list, or type the ID below \u2014</option>`; return; }
+  sel.innerHTML=`<option value="">\u2014 pick an account \u2014</option>`+
+    ACCTS.map(a=>`<option value="${esc(a.id)}"${a.id===cur?" selected":""}>${esc(a.name)} \u00b7 ${esc(a.id)}${a.test?" \u00b7 test":""}</option>`).join("");
+}
+on("#apLoadAccts","click",async()=>{
+  const sel=$("#apAcct");
+  sel.innerHTML=`<option value="">loading\u2026</option>`;
+  const r=await adsCall("ads-accounts",{});
+  if(r.error){ sel.innerHTML=`<option value="">\u2014 could not load \u2014</option>`;
+    return $("#apCheckOut").innerHTML=apLine("bad","\u2715",`<b>Could not list the accounts.</b> ${esc(r.error)}`); }
+  ACCTS=r.accounts||[]; drawAcctPick();
+  toast(`${ACCTS.length} client account${ACCTS.length===1?"":"s"} loaded`);
+});
+on("#apAcct","change",()=>{
+  const v=$("#apAcct").value; if(!v)return;
+  $("#apCid").value=v;
+  $("#apStat").innerHTML=`<span class="pill p-mute">not checked</span>`;
+  $("#apCheckOut").innerHTML=apLine("warn","!",
+    `Now set to <b>${esc(acctName(v))}</b> \u00b7 <code>${esc(v)}</code>. Press <b>Check the connection</b> to confirm.`);
+});
+on("#apCid","input",()=>{ const sel=$("#apAcct");
+  if(sel&&sel.value&&sel.value!==$("#apCid").value.replace(/[^0-9]/g,""))sel.value=""; });
 on("#apGeo","click",async()=>{
   const name=($("#cgLoc")&&$("#cgLoc").value.trim())||PROJ.city||"";
   if(!name)return toast("Set the target location on tab 01 first");
@@ -4290,19 +4588,22 @@ async function apRun(mode){
   if(!cid)return toast("Put the customer ID in first");
   const pl=apPlan();
   if(!pl)return toast("Build the structure on tab 05 first");
+  const who=acctName(cid);
   if(mode==="deploy"&&!confirm(
-    `Create ${pl.campaigns.length} campaign${pl.campaigns.length===1?"":"s"} in account ${cid}?\n\n`+
-    `They are created ${pl.settings.status==="ENABLED"?"ENABLED and will start serving":"paused"}.`))return;
+    `Create ${pl.campaigns.length} campaign${pl.campaigns.length===1?"":"s"} in\n\n`+
+    `    ${who?who+"\n    ":""}${cid}\n\n`+
+    `They are created ${pl.settings.status==="ENABLED"?"ENABLED and will start serving":"paused"}.\n`+
+    `Check the account name before you press OK.`))return;
   $("#apOut").innerHTML=apLine("warn","\u2026",mode==="deploy"?"Deploying\u2026 this can take a minute.":"Validating against Google\u2026");
   const r=await adsCall("ads-deploy",{customerId:cid,mode,plan:pl});
   if(r.error)return $("#apOut").innerHTML=apLine("bad","\u2715",`<b>Failed.</b> ${esc(r.error)}`);
   const rows=(r.campaigns||[]).map(c=>c.error
-    ? apLine("bad","\u2715",`<b>${esc(c.campaign)}</b><br>${esc(c.error)}`)
+    ? apLine("bad","\u2715",`<b>${esc(c.campaign)}</b><br>${explainErr(c.error)}`)
     : apLine("ok","\u2713",`<b>${esc(c.campaign)}</b> \u2014 ${c.operations} operations ${r.mode==="deploy"?"created":"checked, nothing created"}`));
   const head=r.failed
     ? apLine("bad","\u2715",`<b>${r.failed} of ${(r.campaigns||[]).length} failed.</b> Nothing partial was created \u2014 each campaign is all or nothing.`)
     : apLine("ok","\u2713",r.mode==="deploy"
-        ? `<b>Deployed to ${esc(r.customerId)}.</b> Open the account and check before enabling.`
+        ? `<b>Deployed to ${esc(who||r.customerId)}</b>${who?` <code>${esc(r.customerId)}</code>`:""}. Open the account and check before enabling.`
         : `<b>Everything validated.</b> Google accepted every field and created nothing. Press Deploy when ready.`);
   $("#apOut").innerHTML=head+rows.join("");
   logEvent(mode==="deploy"?"ads-deploy":"ads-validate",`${cid} ${(r.campaigns||[]).length} campaigns`);
@@ -4320,6 +4621,11 @@ on("#cgLocId","input",()=>{
 });
 
 drawDemo(); fillAudPick(); showDGCard();
+drawDemoBoxes(); drawImgs();
+if($("#asBizName")&&PROJ.bizName)$("#asBizName").value=PROJ.bizName;
+["negExtra","negLists","negExactInPhrase"].forEach(id=>{
+  const el=$("#"+id); if(el)el.addEventListener("change",drawApSettings); });
+$$("#demoAge input,#demoInc input,#demoGen input").forEach(el=>el.addEventListener("change",drawApSettings));
 drawApSettings(); drawApPlan();
 initAuth();
 /* Catch any button that lost its handler during an edit. */
