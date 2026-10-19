@@ -210,7 +210,7 @@ code{font-family:var(--mono);background:rgba(0,0,0,.05);padding:1px 4px;border-r
     <div class="wordmark">Search Ops Toolkit <span>· Google Ads</span></div>
     <div class="spacer"></div>
     <div class="badge-env" id="varCount">0 VARIANTS</div>
-    <span class="pill p-mute" id="buildTag" title="build">b-19oct-3</span>
+    <span class="pill p-mute" id="buildTag" title="build">b-19oct-4</span>
     <div id="userChip" class="hidden" style="display:flex;align-items:center;gap:9px">
       <div class="divider-v"></div>
       <span id="userName" style="font-size:12.5px;font-weight:500"></span>
@@ -4360,6 +4360,9 @@ function drawApPlan(){
     `<div class="apg"><span>Keywords</span><span class="pill p-mute">${kws}</span></div>`+
     `<div class="apg"><span>Assets, on every campaign</span><span class="pill p-mute">${pl.assets.callouts.length} callouts \u00b7 ${pl.assets.sitelinks.length} sitelinks \u00b7 ${pl.assets.snippets.length} snippets${imgN?` \u00b7 ${imgN} image${imgN===1?"":"s"}`:""}${bizN?" \u00b7 business name":""}</span></div>`+
     `<div class="apg"><span>Negatives</span><span class="pill p-mute">${pl.settings.negKeywords.length} typed \u00b7 ${pl.settings.sharedSets.length} list${pl.settings.sharedSets.length===1?"":"s"} \u00b7 ${pl.campaigns.reduce((a2,c)=>a2+c.adgroups.reduce((b2,g)=>b2+(g.negExact||[]).length,0),0)} exact-in-phrase</span></div>`+
+    ((bizN||pl.assets.logo)?`<div class="check c-warn" style="margin-top:10px"><span class="ic">!</span><span>
+      <b>Business name and logo need a verified account.</b> They are sent in their own call after the
+      campaign, so a refusal on a test account leaves everything else standing.</span></div>`:"")+
     (bizN&&!pl.assets.logo?`<div class="check c-warn" style="margin-top:10px"><span class="ic">!</span><span>
       <b>Business name set but no logo.</b> Google shows the two together or not at all, so neither will appear.</span></div>`:"")+
     (!bizN&&pl.assets.logo?`<div class="check c-warn" style="margin-top:10px"><span class="ic">!</span><span>
@@ -4393,7 +4396,15 @@ function explainErr(raw){
   const cascade=parts.length-real.length;
   const first=real[0]||parts[0]||"";
   let plain="";
-  if(/name is already assigned to another active or paused campaign/i.test(first))
+  if(/Customer is not verified/i.test(first))
+    plain=`<b>The account is not verified with Google.</b> Business name, logo and images need advertiser
+      verification, and a test account can never pass it \u2014 there is no business to verify. These will
+      work on a real client account once it is verified. Everything else deployed normally.`;
+  else if(/field type is incompatible with the given campaign type/i.test(first))
+    plain=`<b>That asset type does not belong on a Search campaign.</b> Build b-19oct-4 moved images to
+      <code>AD_IMAGE</code> and business name and logo to account level. If you still see this, you are on
+      an older build \u2014 hard refresh with Ctrl+Shift+R.`;
+  else if(/name is already assigned to another active or paused campaign/i.test(first))
     plain=`<b>These campaigns already exist in this account.</b> Nothing was created again \u2014 Google will not
       allow two campaigns with the same name. Check the account first: if the earlier deploy worked, you are done.
       To build them again, rename them (change the enquiry name or ticket size on tab 01) or remove the old ones.`;
@@ -4597,9 +4608,15 @@ async function apRun(mode){
   $("#apOut").innerHTML=apLine("warn","\u2026",mode==="deploy"?"Deploying\u2026 this can take a minute.":"Validating against Google\u2026");
   const r=await adsCall("ads-deploy",{customerId:cid,mode,plan:pl});
   if(r.error)return $("#apOut").innerHTML=apLine("bad","\u2715",`<b>Failed.</b> ${esc(r.error)}`);
-  const rows=(r.campaigns||[]).map(c=>c.error
-    ? apLine("bad","\u2715",`<b>${esc(c.campaign)}</b><br>${explainErr(c.error)}`)
-    : apLine("ok","\u2713",`<b>${esc(c.campaign)}</b> \u2014 ${c.operations} operations ${r.mode==="deploy"?"created":"checked, nothing created"}`));
+  const rows=(r.campaigns||[]).map(c=>{
+    if(c.error) return apLine("bad","\u2715",`<b>${esc(c.campaign)}</b><br>${explainErr(c.error)}`);
+    const main=apLine("ok","\u2713",`<b>${esc(c.campaign)}</b> \u2014 ${c.operations} operations ${r.mode==="deploy"?"created":"checked, nothing created"}`);
+    if(!c.brand) return main;
+    return main+(c.brand.ok
+      ? apLine("ok","\u2713",`Business name and logo attached to the account.`)
+      : apLine("warn","!",`<b>The campaign is fine.</b> Business name and logo were refused, and nothing
+          else was affected.<br>${explainErr(c.brand.error)}`));
+  });
   const head=r.failed
     ? apLine("bad","\u2715",`<b>${r.failed} of ${(r.campaigns||[]).length} failed.</b> Nothing partial was created \u2014 each campaign is all or nothing.`)
     : apLine("ok","\u2713",r.mode==="deploy"
