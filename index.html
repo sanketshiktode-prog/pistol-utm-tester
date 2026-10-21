@@ -210,7 +210,7 @@ code{font-family:var(--mono);background:rgba(0,0,0,.05);padding:1px 4px;border-r
     <div class="wordmark">Search Ops Toolkit <span>· Google Ads</span></div>
     <div class="spacer"></div>
     <div class="badge-env" id="varCount">0 VARIANTS</div>
-    <span class="pill p-mute" id="buildTag" title="build">b-21oct-6</span>
+    <span class="pill p-mute" id="buildTag" title="build">b-21oct-7</span>
     <div id="userChip" class="hidden" style="display:flex;align-items:center;gap:9px">
       <div class="divider-v"></div>
       <span id="userName" style="font-size:12.5px;font-weight:500"></span>
@@ -5199,149 +5199,350 @@ on("#crFromBrief","click",()=>{
 
 /* ── drawing helpers ───────────────────────────────────────────────────── */
 const crF=(w,px)=>`${Math.round(px)}px Archivo, Inter, system-ui, sans-serif`;
+/* ═══════════ creative renderer ═══════════
+   Rebuilt against the reference sets. The house layout is a system, not a
+   stack of centred text:
+
+     · a thin gold frame inset 8.2% of the width, with notched corners, the
+       lockup sitting above it and the disclaimer below it
+     · developer logo | hairline divider | project in large caps, with the
+       micro-market under it in letterspaced small caps between two short rules
+     · the RERA block top right: label, number, portal, QR
+     · the offer as a chamfered black plaque straddling the frame's top edge
+     · the price as a TWO CELL bar — "PREMIUM" over the configuration on the
+       left, the numeral large on the right with its unit stacked beside it
+     · a tall canvas places the render as a band over a gradient sampled from
+       the render itself, rather than cover-cropping it to the full height
+
+   Measured off the 1200×1200 reference: frame at x 0.082–0.917, y 0.179–0.930. */
+
+const GOLD="#C9A24B", GOLD_HI="#E8CC8A", PLAQUE="#0D0D0F";
+const val=id=>(($("#"+id)&&$("#"+id).value)||"").trim();
+
 function crFit(g,text,font,maxW){
-  /* shrink until it fits rather than letting it run off the edge */
-  let size=parseFloat(font);
-  for(let i=0;i<40;i++){
-    g.font=font.replace(/^[\d.]+px/,size+"px");
-    if(g.measureText(text).width<=maxW)break;
-    size-=1; if(size<8)break;
+  let size=parseInt(font,10)||32;
+  g.font=font;
+  while(size>8&&g.measureText(text).width>maxW){
+    size-=1; g.font=font.replace(/\d+px/,size+"px");
   }
   return size;
 }
-function crCover(g,im,W,H){
-  const r=Math.max(W/im.naturalWidth,H/im.naturalHeight);
+function crCover(g,im,W,H,dx,dy,dw,dh){
+  const r=Math.max(dw/im.naturalWidth,dh/im.naturalHeight);
   const w=im.naturalWidth*r, h=im.naturalHeight*r;
-  g.drawImage(im,(W-w)/2,(H-h)/2,w,h);
+  g.drawImage(im,dx+(dw-w)/2,dy+(dh-h)/2,w,h);
 }
-function crPill(g,cx,y,text,font,accent,padX,h){
-  g.font=font;
-  const tw=g.measureText(text).width;
-  const w=tw+padX*2, x=cx-w/2, r=h/2;
-  g.save();
+/* letterspaced caps — canvas has no letter-spacing, so it is drawn by hand */
+function crTrack(g,text,x,y,track,align){
+  const chars=[...String(text||"")];
+  const total=chars.reduce((a,c)=>a+g.measureText(c).width,0)+track*(chars.length-1);
+  let cx = align==="center" ? x-total/2 : align==="right" ? x-total : x;
+  chars.forEach(c=>{ g.fillText(c,cx,y); cx+=g.measureText(c).width+track; });
+  return total;
+}
+/* a rectangle with its corners cut off, as on every plaque in the samples */
+function crChamfer(g,x,y,w,h,c){
   g.beginPath();
-  g.moveTo(x+r,y); g.lineTo(x+w-r,y); g.quadraticCurveTo(x+w,y,x+w,y+r);
-  g.lineTo(x+w,y+h-r); g.quadraticCurveTo(x+w,y+h,x+w-r,y+h);
-  g.lineTo(x+r,y+h); g.quadraticCurveTo(x,y+h,x,y+h-r);
-  g.lineTo(x,y+r); g.quadraticCurveTo(x,y,x+r,y); g.closePath();
-  g.fillStyle="rgba(10,12,16,0.88)"; g.fill();
-  g.lineWidth=Math.max(1.5,h*0.035); g.strokeStyle=accent; g.stroke();
-  g.fillStyle="#FFFFFF"; g.textAlign="center"; g.textBaseline="middle";
-  g.fillText(text,cx,y+h/2+1);
-  g.restore();
-  return w;
+  g.moveTo(x+c,y); g.lineTo(x+w-c,y); g.lineTo(x+w,y+c);
+  g.lineTo(x+w,y+h-c); g.lineTo(x+w-c,y+h); g.lineTo(x+c,y+h);
+  g.lineTo(x,y+h-c); g.lineTo(x,y+c); g.closePath();
 }
+/* the frame: a hairline rectangle broken at the corners by short brackets */
+function crFrame(g,x,y,w,h,S,accent){
+  const n=Math.round(26*S);
+  g.save(); g.strokeStyle=accent; g.lineWidth=Math.max(1,Math.round(1.6*S));
+  g.globalAlpha=.85;
+  [[x+n,y,x+w-n,y],[x+w,y+n,x+w,y+h-n],
+   [x+w-n,y+h,x+n,y+h],[x,y+h-n,x,y+n]].forEach(([a,b,c,d])=>{
+    g.beginPath(); g.moveTo(a,b); g.lineTo(c,d); g.stroke();
+  });
+  /* the corner brackets themselves */
+  const k=Math.round(16*S);
+  [[x,y+n,x,y+n-k,x+n-k,y,x+n,y],
+   [x+w,y+n,x+w,y+n-k,x+w-n+k,y,x+w-n,y],
+   [x,y+h-n,x,y+h-n+k,x+n-k,y+h,x+n,y+h],
+   [x+w,y+h-n,x+w,y+h-n+k,x+w-n+k,y+h,x+w-n,y+h]].forEach(p=>{
+    g.beginPath(); g.moveTo(p[0],p[1]); g.lineTo(p[2],p[3]); g.lineTo(p[4],p[5]); g.stroke();
+  });
+  g.restore();
+}
+/* the offer plaque: black, gold hairline, chamfered, centred on a given line */
+function crPlaque(g,cx,cy,text,S,accent){
+  if(!text)return 0;
+  const fs=Math.round(38*S);
+  g.font=`700 ${fs}px Archivo, Inter, sans-serif`;
+  const size=crFit(g,text,g.font,g.canvas.width*0.70);
+  g.font=`700 ${size}px Archivo, Inter, sans-serif`;
+  const tw=g.measureText(text).width;
+  const padX=Math.round(34*S), h=Math.round(size*1.85), w=tw+padX*2;
+  const x=cx-w/2, y=cy-h/2, c=Math.round(12*S);
+  g.save();
+  crChamfer(g,x,y,w,h,c); g.fillStyle=PLAQUE; g.globalAlpha=.94; g.fill();
+  g.globalAlpha=1; g.strokeStyle=accent; g.lineWidth=Math.max(1,Math.round(1.4*S)); g.stroke();
+  g.fillStyle="#FFFFFF"; g.textAlign="center"; g.textBaseline="middle";
+  g.fillText(text,cx,cy+size*0.04);
+  g.restore();
+  return h;
+}
+/* the price bar: configuration on the left under a small PREMIUM label, the
+   amount on the right with its unit stacked beside the numeral */
+function crPriceBar(g,cx,topY,cfg,amount,unit,tail,S,accent){
+  if(!cfg&&!amount)return 0;
+  const h=Math.round(96*S), c=Math.round(14*S);
+  const padX=Math.round(30*S), gap=Math.round(26*S);
+  const cfgSize=Math.round(44*S), kickSize=Math.round(17*S);
+  const numSize=Math.round(70*S), unitSize=Math.round(23*S), tailSize=Math.round(15*S);
+  g.font=`700 ${cfgSize}px Archivo, Inter, sans-serif`;
+  const cfgW=cfg?g.measureText(cfg).width:0;
+  g.font=`800 ${numSize}px Archivo, Inter, sans-serif`;
+  const numW=amount?g.measureText(amount).width:0;
+  g.font=`700 ${unitSize}px Archivo, Inter, sans-serif`;
+  const unitW=Math.max(unit?g.measureText(unit).width:0,
+                       tail?g.measureText(tail).width*0.9:0);
+  const rightW=amount?numW+(unitW?unitW+Math.round(8*S):0):0;
+  const w=padX*2+cfgW+(cfgW&&rightW?gap*2:0)+rightW;
+  const x=cx-w/2, y=topY;
+  g.save();
+  crChamfer(g,x,y,w,h,c); g.fillStyle=PLAQUE; g.globalAlpha=.94; g.fill();
+  g.globalAlpha=1; g.strokeStyle=accent; g.lineWidth=Math.max(1,Math.round(1.4*S)); g.stroke();
+  let cur=x+padX;
+  if(cfgW){
+    g.textAlign="left"; g.textBaseline="alphabetic";
+    g.fillStyle=accent; g.font=`600 ${kickSize}px Inter, sans-serif`;
+    crTrack(g,"PREMIUM",cur,y+h*0.33,Math.round(5*S),"left");
+    g.fillStyle="#FFFFFF"; g.font=`700 ${cfgSize}px Archivo, Inter, sans-serif`;
+    g.fillText(cfg,cur,y+h*0.78);
+    cur+=cfgW+gap;
+  }
+  if(cfgW&&rightW){
+    g.strokeStyle=accent; g.globalAlpha=.6; g.lineWidth=Math.max(1,Math.round(1.2*S));
+    g.beginPath(); g.moveTo(cur,y+h*0.18); g.lineTo(cur,y+h*0.82); g.stroke();
+    g.globalAlpha=1; cur+=gap;
+  }
+  if(rightW){
+    g.textAlign="left"; g.textBaseline="alphabetic";
+    g.fillStyle=GOLD_HI; g.font=`800 ${numSize}px Archivo, Inter, sans-serif`;
+    g.fillText(amount,cur,y+h*0.74);
+    const ux=cur+numW+Math.round(8*S);
+    if(unit){ g.fillStyle="#FFFFFF"; g.font=`700 ${unitSize}px Archivo, Inter, sans-serif`;
+      g.fillText(unit,ux,y+h*0.52); }
+    if(tail){ g.fillStyle="#D8D8D8"; g.font=`600 ${tailSize}px Inter, sans-serif`;
+      crTrack(g,tail,ux,y+h*0.74,Math.round(2*S),"left"); }
+  }
+  g.restore();
+  return h;
+}
+/* "₹89 LACS* ONWARDS" split into the parts the bar lays out separately */
+function crMoneyParts(raw){
+  const t=String(raw||"").trim();
+  if(!t)return null;
+  const m=/^([^\d]*[\d.,]+)\s*([A-Za-z]+\*?)?\s*(.*)$/.exec(t);
+  if(!m)return {amount:t,unit:"",tail:""};
+  return {amount:(m[1]||"").trim(), unit:(m[2]||"").trim().toUpperCase(),
+          tail:(m[3]||"").trim().toUpperCase()};
+}
+/* average colour of a horizontal strip, used to build the backdrop a tall
+   canvas needs: the render is a band on it, not something stretched to fill */
+function crStrip(im,frac,top){
+  const c=document.createElement("canvas"); c.width=32; c.height=8;
+  const g=c.getContext("2d");
+  const sh=Math.max(1,Math.round(im.naturalHeight*frac));
+  g.drawImage(im,0,top?0:im.naturalHeight-sh,im.naturalWidth,sh,0,0,32,8);
+  const d=g.getImageData(0,0,32,8).data;
+  let r=0,gr=0,b=0;
+  for(let i=0;i<d.length;i+=4){ r+=d[i]; gr+=d[i+1]; b+=d[i+2]; }
+  const n=d.length/4;
+  return [Math.round(r/n),Math.round(gr/n),Math.round(b/n)];
+}
+const crRgb=a=>`rgb(${a[0]},${a[1]},${a[2]})`;
+const crDark=(a,k)=>`rgb(${Math.round(a[0]*k)},${Math.round(a[1]*k)},${Math.round(a[2]*k)})`;
 
-/* ── one creative ──────────────────────────────────────────────────────── */
 function crRenderOne(W,H){
   const c=document.createElement("canvas"); c.width=W; c.height=H;
   const g=c.getContext("2d");
-  const accent=($("#crAccent")&&$("#crAccent").value)||"#D4AF61";
-  const scrim=(($("#crScrim")&&+$("#crScrim").value)||62)/100;
-  const val=id=>(($("#"+id)&&$("#"+id).value)||"").trim();
-  const S=Math.min(W,H)/1200;                /* one scale for every size */
-  const tall=H/W>1.2, wide=W/H>1.5;
+  const S=Math.min(W,H)/1200;
+  const ratio=H/W;
+  const tall=ratio>=1.5, wide=W/H>=1.7, portrait=ratio>1&&!tall;
+  const accent=val("crAccent")||GOLD;
+  const scrim=(parseInt(val("crScrim"),10)||62)/100;
+  const useFrame=$("#crFrame")?$("#crFrame").checked:true;
 
-  g.fillStyle="#0A0C10"; g.fillRect(0,0,W,H);
-  if(CR.hero)crCover(g,CR.hero,W,H);
-
-  /* scrims: text sits on them, never straight on the picture */
-  let gr=g.createLinearGradient(0,0,0,H*0.34);
-  gr.addColorStop(0,`rgba(6,10,20,${0.86*scrim})`); gr.addColorStop(1,"rgba(6,10,20,0)");
-  g.fillStyle=gr; g.fillRect(0,0,W,H*0.34);
-  /* The bottom carries the most text, so it gets the strongest scrim — gold
-     on a sunlit render is otherwise unreadable. */
-  const btop=H*(tall?0.48:wide?0.38:0.42);
-  gr=g.createLinearGradient(0,H,0,btop);
-  gr.addColorStop(0,`rgba(4,7,14,${Math.min(0.97,1.05*scrim)})`);
-  gr.addColorStop(0.55,`rgba(4,7,14,${0.82*scrim})`);
-  gr.addColorStop(1,"rgba(4,7,14,0)");
-  g.fillStyle=gr; g.fillRect(0,btop,W,H-btop);
-
-  const pad=Math.round(W*0.055);
-
-  if($("#crFrame")&&$("#crFrame").checked){
-    g.strokeStyle=accent; g.globalAlpha=0.55;
-    g.lineWidth=Math.max(1.5,2*S);
-    g.strokeRect(pad*0.62,pad*0.62,W-pad*1.24,H-pad*1.24);
-    g.globalAlpha=1;
+  /* ── 1. the picture ───────────────────────────────────────────────────── */
+  g.fillStyle="#07090F"; g.fillRect(0,0,W,H);
+  const hero=CR.hero;
+  let band=[0,H];
+  if(hero){
+    if(tall){
+      /* a 9:16 canvas is mostly not the render. The reference builds a
+         gradient out of the render's own sky and ground and sets the render
+         into it as a band, which is why it reads as composed rather than
+         cropped. */
+      const sky=crStrip(hero,.18,true), ground=crStrip(hero,.18,false);
+      const grad=g.createLinearGradient(0,0,0,H);
+      grad.addColorStop(0,crDark(sky,.45));
+      grad.addColorStop(.30,crRgb(sky));
+      grad.addColorStop(.70,crDark(ground,.62));
+      grad.addColorStop(.86,crDark(ground,.26));
+      grad.addColorStop(1,"#05070C");
+      g.fillStyle=grad; g.fillRect(0,0,W,H);
+      const bh=Math.round(W*hero.naturalHeight/hero.naturalWidth);
+      const by=Math.round(H*0.33);
+      g.drawImage(hero,0,by,W,bh);
+      band=[by,by+bh];
+      /* feather the band into the gradient */
+      const f=Math.round(H*0.11);
+      [[by,by+f,crRgb(sky)],[by+bh-f,by+bh,crRgb(ground)]].forEach(([a,b,col],i)=>{
+        const gg=g.createLinearGradient(0,a,0,b);
+        gg.addColorStop(i?0:1,col.replace("rgb","rgba").replace(")",",0)"));
+        gg.addColorStop(i?1:0,col);
+        g.fillStyle=gg; g.fillRect(0,a,W,b-a);
+      });
+    }else{
+      crCover(g,hero,W,H,0,0,W,H);
+    }
   }
+  /* Light scrims only. The reference leans on a render that is already dark
+     at top and bottom; a heavy black wash is what made these look cheap. */
+  const topG=g.createLinearGradient(0,0,0,H*(wide?.34:.30));
+  topG.addColorStop(0,`rgba(5,8,14,${0.62*scrim})`);
+  topG.addColorStop(1,"rgba(5,8,14,0)");
+  g.fillStyle=topG; g.fillRect(0,0,W,H*(wide?.34:.30));
+  const bStart=H*(tall?.60:wide?.56:.58);
+  const botG=g.createLinearGradient(0,bStart,0,H);
+  botG.addColorStop(0,"rgba(5,8,14,0)");
+  botG.addColorStop(.45,`rgba(5,8,14,${0.46*scrim})`);
+  botG.addColorStop(.78,`rgba(5,8,14,${0.80*scrim})`);
+  botG.addColorStop(1,`rgba(5,8,14,${0.95*scrim})`);
+  g.fillStyle=botG; g.fillRect(0,bStart,W,H-bStart);
 
-  /* top: logo on the left, RERA on the right */
-  /* developer and project sit together at the top, as on the samples:
-     logo, a hairline divider, then the project name. */
-  const topY=pad;
-  const lockH=Math.round((wide?52:62)*S);
-  let lx=pad;
+  /* ── 2. the frame ─────────────────────────────────────────────────────── */
+  const fx=W*0.082, fw=W*0.836;
+  const fy=H*(tall?0.315:wide?0.215:0.179);
+  const fy2=H*(tall?0.775:wide?0.872:0.898);
+  if(useFrame)crFrame(g,fx,fy,fw,fy2-fy,S,accent);
+
+  /* ── 3. the lockup ────────────────────────────────────────────────────── */
+  const lockY=H*(tall?0.225:wide?0.075:0.072);
+  const logoH=Math.round((wide?58:72)*S);
+  let lx=fx;
   if(CR.logo){
-    const lw=CR.logo.naturalWidth/CR.logo.naturalHeight*lockH;
-    const cap=Math.min(lw,W*0.34);
-    g.drawImage(CR.logo,lx,topY,cap,lockH); lx+=cap;
+    const lw=Math.round(logoH*CR.logo.naturalWidth/CR.logo.naturalHeight);
+    g.drawImage(CR.logo,lx,lockY-logoH/2,lw,logoH);
+    lx+=lw+Math.round(26*S);
+    g.save(); g.strokeStyle="rgba(255,255,255,.55)";
+    g.lineWidth=Math.max(1,Math.round(1.5*S));
+    g.beginPath(); g.moveTo(lx,lockY-logoH*0.46); g.lineTo(lx,lockY+logoH*0.46); g.stroke();
+    g.restore();
+    lx+=Math.round(26*S);
   }else if(val("crDev")){
-    g.textAlign="left"; g.textBaseline="middle"; g.fillStyle="#FFFFFF";
-    const t=val("crDev").toUpperCase();
-    const fsz=crFit(g,t,crF(W,Math.round(42*S)),W*0.34);
-    g.font=crF(W,fsz); g.fillText(t,lx,topY+lockH/2);
-    lx+=g.measureText(t).width;
+    const ds=Math.round(44*S);
+    g.font=`800 ${ds}px Archivo, Inter, sans-serif`;
+    g.fillStyle="#FFFFFF"; g.textAlign="left"; g.textBaseline="middle";
+    g.fillText(val("crDev").toUpperCase(),lx,lockY);
+    lx+=g.measureText(val("crDev").toUpperCase()).width+Math.round(24*S);
+    g.save(); g.strokeStyle="rgba(255,255,255,.55)";
+    g.lineWidth=Math.max(1,Math.round(1.5*S));
+    g.beginPath(); g.moveTo(lx,lockY-logoH*0.4); g.lineTo(lx,lockY+logoH*0.4); g.stroke();
+    g.restore();
+    lx+=Math.round(24*S);
   }
-  if(val("crProj")&&lx>pad){
-    const gapL=Math.round(18*S);
-    g.strokeStyle="rgba(255,255,255,0.45)"; g.lineWidth=Math.max(1,1.5*S);
-    g.beginPath(); g.moveTo(lx+gapL,topY+lockH*0.12);
-    g.lineTo(lx+gapL,topY+lockH*0.88); g.stroke();
-    g.textAlign="left"; g.textBaseline="middle"; g.fillStyle="#FFFFFF";
-    const t=val("crProj").toUpperCase();
-    const room=W-(lx+gapL*2)-pad-((CR.qr||val("crRera"))?W*0.30:0);
-    g.font=crF(W,crFit(g,t,crF(W,Math.round(40*S)),Math.max(60,room)));
-    g.fillText(t,lx+gapL*2,topY+lockH/2);
-  }
-  if(CR.qr||val("crRera")){
-    const qs=Math.round(92*S);
-    let x=W-pad;
-    if(CR.qr){ x-=qs; g.drawImage(CR.qr,x,topY,qs,qs); x-=Math.round(14*S); }
-    if(val("crRera")){
-      g.textAlign="right"; g.textBaseline="top"; g.fillStyle="#FFFFFF";
-      g.font=crF(W,Math.round(17*S));
-      g.fillText("MahaRERA:",x,topY+Math.round(10*S));
-      g.font=crF(W,Math.round(23*S));
-      g.fillText(val("crRera"),x,topY+Math.round(32*S));
-      g.font=crF(W,Math.round(14*S));
-      g.globalAlpha=0.8; g.fillText("maharera.mahaonline.gov.in",x,topY+Math.round(60*S)); g.globalAlpha=1;
+  const proj=(val("crProj")||"").toUpperCase();
+  const micro=((val("crLoc")||"").split(",")[0]||"").trim().toUpperCase();
+  if(proj){
+    const rightLimit=W*0.60;
+    let ps=Math.round((wide?46:56)*S);
+    g.font=`700 ${ps}px Archivo, Inter, sans-serif`;
+    ps=crFit(g,proj,g.font,Math.max(60,rightLimit-lx));
+    g.font=`700 ${ps}px Archivo, Inter, sans-serif`;
+    g.fillStyle="#FFFFFF"; g.textAlign="left"; g.textBaseline="alphabetic";
+    const baseY=micro?lockY+ps*0.18:lockY+ps*0.36;
+    g.fillText(proj,lx,baseY);
+    if(micro){
+      const pw=g.measureText(proj).width;
+      const ms=Math.round(ps*0.40);
+      g.font=`500 ${ms}px Inter, sans-serif`;
+      g.fillStyle="rgba(255,255,255,.92)";
+      const track=Math.round(ms*0.26);
+      const mw=[...micro].reduce((a,ch)=>a+g.measureText(ch).width,0)+track*(micro.length-1);
+      const mcx=lx+pw/2;
+      crTrack(g,micro,mcx,baseY+ms*1.55,track,"center");
+      /* the two short rules that flank it in every sample */
+      g.save(); g.strokeStyle="rgba(255,255,255,.45)";
+      g.lineWidth=Math.max(1,Math.round(1.2*S));
+      const ry=baseY+ms*1.55-ms*0.32, rlen=Math.round(34*S), gap2=Math.round(14*S);
+      g.beginPath(); g.moveTo(mcx-mw/2-gap2-rlen,ry); g.lineTo(mcx-mw/2-gap2,ry); g.stroke();
+      g.beginPath(); g.moveTo(mcx+mw/2+gap2,ry); g.lineTo(mcx+mw/2+gap2+rlen,ry); g.stroke();
+      g.restore();
     }
   }
 
-  /* offer badge under the top block */
-  if(val("crOffer")){
-    const bh=Math.round((wide?52:62)*S);
-    crPill(g,W/2,Math.round(H*(tall?0.21:wide?0.20:0.185)),val("crOffer"),
-           crF(W,Math.round((wide?30:36)*S)),accent,Math.round(34*S),bh);
+  /* ── 4. RERA, top right ───────────────────────────────────────────────── */
+  const rera=val("crRera");
+  if(rera||CR.qr){
+    const qrS=Math.round((wide?82:104)*S);
+    const right=fx+fw;
+    let qx=right;
+    if(CR.qr){
+      qx=right-qrS;
+      g.fillStyle="#FFFFFF";
+      g.fillRect(qx-Math.round(5*S),lockY-qrS/2-Math.round(5*S),
+                 qrS+Math.round(10*S),qrS+Math.round(10*S));
+      g.drawImage(CR.qr,qx,lockY-qrS/2,qrS,qrS);
+      qx-=Math.round(16*S);
+    }
+    if(rera){
+      g.textAlign="right"; g.textBaseline="alphabetic";
+      const ls=Math.round(17*S), ns=Math.round(27*S), us=Math.round(14*S);
+      g.fillStyle="rgba(255,255,255,.85)"; g.font=`500 ${ls}px Inter, sans-serif`;
+      g.fillText("MahaRERA:",qx,lockY-ns*0.52);
+      g.fillStyle="#FFFFFF"; g.font=`700 ${ns}px Archivo, Inter, sans-serif`;
+      g.fillText(rera,qx,lockY+ns*0.34);
+      g.fillStyle="rgba(255,255,255,.75)"; g.font=`400 ${us}px Inter, sans-serif`;
+      g.fillText("maharera.mahaonline.gov.in",qx,lockY+ns*0.34+us*1.35);
+    }
   }
 
-  /* bottom block: location, then the config / price bar */
-  let y=H-pad-Math.round((wide?16:24)*S);
-  if(val("crDisc")){
-    g.textAlign="center"; g.textBaseline="bottom";
-    g.fillStyle="rgba(255,255,255,0.78)"; g.font=crF(W,Math.round(15*S));
-    g.fillText(val("crDisc"),W/2,y); y-=Math.round(26*S);
+  /* ── 5. the offer, straddling the frame's top edge ────────────────────── */
+  if(val("crOffer"))crPlaque(g,W/2,fy,val("crOffer").toUpperCase(),S,accent);
+
+  /* ── 6. location, price bar, disclaimer ───────────────────────────────── */
+  const money=crMoneyParts(val("crPrice"));
+  const barH=Math.round(96*S);
+  /* the bar straddles the frame's bottom edge, the mirror of the offer
+     plaque on the top edge \u2014 that symmetry is what holds the layout */
+  const barTop=Math.round(fy2-barH/2);
+  const disc=val("crDisc");
+  if(disc){
+    const ds=Math.round((wide?15:17)*S);
+    g.font=`400 ${ds}px Inter, sans-serif`;
+    g.fillStyle="rgba(255,255,255,.80)"; g.textAlign="center"; g.textBaseline="top";
+    const d2=crFit(g,disc,g.font,fw);
+    g.font=`400 ${d2}px Inter, sans-serif`;
+    g.fillText(disc,W/2,barTop+barH+Math.round(20*S));
   }
-  const cfg=val("crCfg"), price=val("crPrice");
-  if(cfg||price){
-    const bh=Math.round((wide?64:78)*S);
-    y-=bh;
-    const fs=Math.round((wide?34:42)*S);
-    g.font=crF(W,fs);
-    const parts=[cfg,price].filter(Boolean);
-    const label=parts.join("   |   ");
-    crPill(g,W/2,y,label,crF(W,crFit(g,label,crF(W,fs),W-pad*3)),accent,Math.round(30*S),bh);
-    y-=Math.round(22*S);
-  }
-  if(val("crLoc")){
-    y-=Math.round(16*S);
-    g.textAlign="center"; g.textBaseline="bottom"; g.fillStyle="#FFFFFF";
-    const fs=Math.round((wide?32:38)*S);
-    const txt="◉  "+val("crLoc");
-    g.font=crF(W,crFit(g,txt,crF(W,fs),W-pad*2));
-    g.fillText(txt,W/2,y);
+  crPriceBar(g,W/2,barTop,(val("crCfg")||"").toUpperCase(),
+             money&&money.amount,money&&money.unit,money&&money.tail,S,accent);
+  const loc=(val("crLoc")||"").toUpperCase();
+  if(loc){
+    const ls=Math.round((wide?38:46)*S);
+    g.font=`700 ${ls}px Archivo, Inter, sans-serif`;
+    const l2=crFit(g,loc,g.font,fw*0.92);
+    g.font=`700 ${l2}px Archivo, Inter, sans-serif`;
+    const lw2=g.measureText(loc).width;
+    const pinW=Math.round(l2*0.78);
+    const startX=W/2-(lw2+pinW*0.9)/2;
+    g.textAlign="left"; g.textBaseline="alphabetic";
+    const ly=barTop-Math.round(40*S);
+    /* the map pin, drawn rather than typed so it never falls back to a box */
+    g.save(); g.fillStyle=accent;
+    const pr=l2*0.30, pcx=startX+pinW*0.42, pcy=ly-l2*0.34;
+    g.beginPath(); g.arc(pcx,pcy,pr,Math.PI,0); 
+    g.lineTo(pcx,pcy+pr*1.75); g.closePath(); g.fill();
+    g.fillStyle="rgba(0,0,0,.55)";
+    g.beginPath(); g.arc(pcx,pcy,pr*0.40,0,Math.PI*2); g.fill();
+    g.restore();
+    g.fillStyle="#FFFFFF";
+    g.fillText(loc,startX+pinW*0.95,ly);
   }
   return c;
 }
