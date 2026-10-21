@@ -210,7 +210,7 @@ code{font-family:var(--mono);background:rgba(0,0,0,.05);padding:1px 4px;border-r
     <div class="wordmark">Search Ops Toolkit <span>· Google Ads</span></div>
     <div class="spacer"></div>
     <div class="badge-env" id="varCount">0 VARIANTS</div>
-    <span class="pill p-mute" id="buildTag" title="build">b-21oct-2</span>
+    <span class="pill p-mute" id="buildTag" title="build">b-21oct-3</span>
     <div id="userChip" class="hidden" style="display:flex;align-items:center;gap:9px">
       <div class="divider-v"></div>
       <span id="userName" style="font-size:12.5px;font-weight:500"></span>
@@ -1654,7 +1654,9 @@ on("#segChannel","click",e=>{const b=e.target.closest("button[data-ch]");if(!b)r
   CH=b.dataset.ch;$$("#segChannel button").forEach(x=>x.setAttribute("aria-pressed",String(x===b)));
   fillStrategies();build();showDGCard();
   const sc=$("#stChannel"); if(sc){sc.textContent=CHANNEL[CH].full;
-    sc.className="pill "+(CH==="demandgen"?"p-ok":"p-live");}});
+    sc.className="pill "+(CH==="demandgen"?"p-ok":"p-live");}
+  /* the deploy tab describes a different campaign type now */
+  drawApSettings(); drawApPlan();});
 $$("[data-all]").forEach(b=>b.addEventListener("click",()=>{
   const s=$("#"+b.dataset.all), on=[...s.selectedOptions].length<s.options.length;
   [...s.options].forEach(o=>o.selected=on&&!(s.id==="inStrat"&&blockedStrat(o.value)));
@@ -4525,24 +4527,49 @@ function drawApSettings(){
   const S=apSettings();
   const row=(l,v,good)=>`<div class="apg"><span>${esc(l)}</span>
     <span class="pill ${good===false?"p-warn":"p-ok"}">${esc(v)}</span></div>`;
-  $("#apSettings").innerHTML=
-    row("Campaign type","Search")+
+  const dg=CH==="demandgen";
+  const common=
+    row("Campaign type",dg?"Demand Gen":"Search")+
     row("Status on creation",S.status==="ENABLED"?"Enabled":"Paused")+
     row("Daily budget",S.dailyBudget)+
-    row("Bid strategy",S.bidStrategy)+
+    row("Bid strategy",dg&&/manual/i.test(S.bidStrategy)?"Maximize conversions (Manual CPC n/a)":S.bidStrategy,
+      !(dg&&/manual/i.test(S.bidStrategy)))+
     row("Location setting",S.presence==="PRESENCE"?"Presence only":"Presence or interest",S.presence==="PRESENCE")+
     row("EU political ads",S.euPolitical.indexOf("DOES_NOT")===0?"Declared No":"Declared Yes",S.euPolitical.indexOf("DOES_NOT")===0)+
-    row("Search partners","Off")+
-    row("Display network","Off")+
     row("Locations",S.locationIds.length?S.locationIds.join(", "):"none set",!!S.locationIds.length)+
     row("Tracking template","Ad group level")+
+    row("Age excluded",S.exAge.length?S.exAge.map(x=>x.replace("AGE_RANGE_","").replace("_UP","+").replace("_","-")).join(", "):"none")+
+    row("Income excluded",S.exIncome.length?`${S.exIncome.length} band${S.exIncome.length===1?"":"s"}`:"none")+
+    row("Gender excluded",S.exGender.length?S.exGender.join(", ").toLowerCase():"none");
+  if(dg){
+    /* what a Demand Gen deploy actually carries \u2014 pictures on the ad, and
+       the two Search-only things it cannot take, named rather than hidden */
+    const cre=typeof CR_OUT!=="undefined"?CR_OUT.length:0;
+    const hasLogo=typeof CR!=="undefined"&&!!CR.logo;
+    const bn=($("#asBizName")&&$("#asBizName").value.trim())||"";
+    const auds=pickedAudiences();
+    const withId=auds.filter(a=>a[2]).length;
+    $("#apSettings").innerHTML=common+
+      row("Surfaces","All Demand Gen placements")+
+      row("Creative sizes",cre?`${cre} rendered`:"none \u2014 render on tab 08",!!cre)+
+      row("Logo image",hasLogo?"uploaded":"missing \u2014 required",hasLogo)+
+      row("Business name",bn||"not set",!!bn)+
+      row("Audience segments",auds.length?`${auds.length} picked, ${withId} with an ID`:"none",
+        !auds.length||!!withId)+
+      row("Negative keywords","not supported on Demand Gen",false)+
+      row("Negative lists","not supported on Demand Gen",false)+
+      `<div class="f-note" style="margin-top:10px">Demand Gen hangs its images off the ad, so the
+        Creative studio renders and the logo are sent with the campaign. Segments without an ID are
+        skipped rather than guessed \u2014 attach those in the interface.</div>`;
+    return;
+  }
+  $("#apSettings").innerHTML=common+
+    row("Search partners","Off")+
+    row("Display network","Off")+
     row("Negative lists",S.sharedSets.length?`${S.sharedSets.length} attached`:"none")+
     row("Extra negatives",S.negKeywords.length||"none")+
     row("Exact negated in phrase",
       ($("#negExactInPhrase")&&$("#negExactInPhrase").checked)?"yes":"no")+
-    row("Age excluded",S.exAge.length?S.exAge.map(x=>x.replace("AGE_RANGE_","").replace("_UP","+").replace("_","-")).join(", "):"none")+
-    row("Income excluded",S.exIncome.length?`${S.exIncome.length} band${S.exIncome.length===1?"":"s"}`:"none")+
-    row("Gender excluded",S.exGender.length?S.exGender.join(", ").toLowerCase():"none")+
     row("Business name",($("#asBizName")&&$("#asBizName").value.trim())||"not set",
       !!($("#asBizName")&&$("#asBizName").value.trim()))+
     row("Images",Object.keys(IMGS).filter(k=>IMGS[k]&&IMGS[k].data).length||"none")+
@@ -4562,7 +4589,7 @@ function apPlan(){
     settings:apSettings(),
     campaigns:PLAN.map(p=>({
       name:p.campaign,
-      adgroups:p.groups.map(g=>({
+      adgroups:p.groups.map((g,gi)=>({
         name:g.name, matchType:g.mt||"B",
         trackingTemplate:TPL[CH],
         params:{adgroup:paramVal(g.n.adgroup),campaign:paramVal(g.n.campaign),strategy:paramVal(g.n.strategy)},
@@ -4570,8 +4597,18 @@ function apPlan(){
         /* the exact ad group's own list, negated inside the phrase one */
         negExact:(g.mt==="P"&&$("#negExactInPhrase")&&$("#negExactInPhrase").checked)
           ? (p.groups.find(x=>x.mt==="E")||{kws:[]}).kws : [],
-        headlines:(ADG[g.name]?ADG[g.name].h:g.ad.h).filter(r=>r&&r[0]&&r[0].trim()),
-        descriptions:(ADG[g.name]?ADG[g.name].d:g.ad.d).filter(r=>r&&r[0]&&r[0].trim())
+        audiences:CH==="demandgen"
+          ? pickedAudiences().map(a=>({name:a[0],type:a[1],id:a[2]||""})) : [],
+        /* Demand Gen ads are not responsive search ads: five headlines under 40
+           carrying brand, project and location, and five descriptions under 90.
+           The build fills g.ad with the Search copy, so the Demand Gen copy is
+           taken from the same generator the export uses. */
+        headlines:CH==="demandgen"
+          ? dgAd(gi).h.filter(Boolean).map(t=>[t,""])
+          : (ADG[g.name]?ADG[g.name].h:g.ad.h).filter(r=>r&&r[0]&&r[0].trim()),
+        descriptions:CH==="demandgen"
+          ? dgAd(gi).d.filter(Boolean).map(t=>[t,""])
+          : (ADG[g.name]?ADG[g.name].d:g.ad.d).filter(r=>r&&r[0]&&r[0].trim())
       }))
     })),
     assets:{
@@ -4583,8 +4620,35 @@ function apPlan(){
       logo:      IMGS.logo      ?{data:IMGS.logo.data}      :null,
       square:    IMGS.square    ?{data:IMGS.square.data}    :null,
       landscape: IMGS.landscape ?{data:IMGS.landscape.data} :null
-    }
+    },
+    /* Demand Gen hangs its pictures off the ad, not the campaign, so the
+       Creative studio renders travel with the plan. Search ignores them. */
+    creatives: CH==="demandgen"?dgCreatives():null,
+    businessName:($("#asBizName")&&$("#asBizName").value.trim())||dgAd().bn||"",
+    cta:"Learn more"
   };
+}
+/* the four rendered sizes plus the uploaded developer logo, as raw base64 */
+function dgCreatives(){
+  const out={};
+  (typeof CR_OUT!=="undefined"?CR_OUT:[]).forEach(o=>{
+    const b64=String(o.url||"").split(",")[1];
+    if(b64)out[o.name]={data:b64};
+  });
+  /* the logo is an uploaded image, not a render, so it is drawn to a square
+     canvas first \u2014 Google wants a 1:1 logo and refuses an odd ratio */
+  if(typeof CR!=="undefined"&&CR.logo){
+    try{
+      const c=document.createElement("canvas"); c.width=c.height=1200;
+      const g=c.getContext("2d");
+      g.fillStyle="#FFFFFF"; g.fillRect(0,0,1200,1200);
+      const im=CR.logo, r=Math.min(1080/im.naturalWidth,1080/im.naturalHeight);
+      const w=im.naturalWidth*r, h=im.naturalHeight*r;
+      g.drawImage(im,(1200-w)/2,(1200-h)/2,w,h);
+      out.logo={data:c.toDataURL("image/jpeg",0.92).split(",")[1]};
+    }catch(e){}
+  }
+  return out;
 }
 function drawApPlan(){
   const pl=apPlan();
@@ -4850,17 +4914,6 @@ async function apRun(mode){
   if(!cid)return toast("Put the customer ID in first");
   const pl=apPlan();
   if(!pl)return toast("Build the structure on tab 05 first");
-  /* The API path builds Search campaigns only \u2014 the backend sets
-     advertisingChannelType SEARCH. Sending a Demand Gen plan through it would
-     create Search campaigns wearing Demand Gen names, which is worse than
-     refusing, because it looks like it worked. */
-  if(CH==="demandgen"){
-    $("#apOut").innerHTML=apLine("bad","\u2715",
-      `<b>Demand Gen does not deploy through the API yet.</b> This tab creates Search
-       campaigns only \u2014 sending this plan would build Search campaigns under Demand Gen
-       names. Use <b>Download everything</b> on tab 05 and import the ZIP in the interface.`);
-    return toast("Demand Gen exports as a ZIP, it does not deploy from here");
-  }
   const who=acctName(cid);
   if(mode==="deploy"&&!confirm(
     `Create ${pl.campaigns.length} campaign${pl.campaigns.length===1?"":"s"} in\n\n`+
@@ -4872,7 +4925,10 @@ async function apRun(mode){
   if(r.error)return $("#apOut").innerHTML=apLine("bad","\u2715",`<b>Failed.</b> ${esc(r.error)}`);
   const rows=(r.campaigns||[]).map(c=>{
     if(c.error) return apLine("bad","\u2715",`<b>${esc(c.campaign)}</b><br>${explainErr(c.error)}`);
-    const main=apLine("ok","\u2713",`<b>${esc(c.campaign)}</b> \u2014 ${c.operations} operations ${r.mode==="deploy"?"created":"checked, nothing created"}`);
+    const main=apLine("ok","\u2713",`<b>${esc(c.campaign)}</b> \u2014 ${c.operations} operations ${r.mode==="deploy"?"created":"checked, nothing created"}`)
+      /* things the campaign type could not take, said out loud rather than
+         dropped quietly between the plan and what Google actually got */
+      +(c.notes||[]).map(n=>apLine("warn","!",esc(n))).join("");
     if(!c.brand) return main;
     return main+(c.brand.ok
       ? apLine("ok","\u2713",`Business name and logo attached to the account.`)
@@ -5133,7 +5189,7 @@ on("#crRender","click",()=>{
         <span class="p-mute">${(o.bytes/1024).toFixed(0)} KB</span></div>
     </div>`).join("")+`</div>`;
   $("#crSizes").innerHTML=`<span class="pill p-ok">${CR_OUT.length} rendered</span>`;
-  crChecks();
+  crChecks(); drawApSettings();
   logEvent("creative",`${CR_OUT.length} sizes`);
 });
 
