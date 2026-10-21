@@ -210,7 +210,7 @@ code{font-family:var(--mono);background:rgba(0,0,0,.05);padding:1px 4px;border-r
     <div class="wordmark">Search Ops Toolkit <span>· Google Ads</span></div>
     <div class="spacer"></div>
     <div class="badge-env" id="varCount">0 VARIANTS</div>
-    <span class="pill p-mute" id="buildTag" title="build">b-21oct-8</span>
+    <span class="pill p-mute" id="buildTag" title="build">b-21oct-9</span>
     <div id="userChip" class="hidden" style="display:flex;align-items:center;gap:9px">
       <div class="divider-v"></div>
       <span id="userName" style="font-size:12.5px;font-weight:500"></span>
@@ -5377,19 +5377,21 @@ const crDark=(a,k)=>`rgb(${Math.round(a[0]*k)},${Math.round(a[1]*k)},${Math.roun
    of them. The earlier renderer set those at 44 and 70, which is why it read
    as a web card rather than a creative. */
 
+/* Header stack first, because it is the house default \u2014 the picker takes
+   the first entry when nothing has been chosen. */
 const CR_LAYOUTS=[
+  ["header","Header stack", "Copy above on light, arched render below \u2014 the default"],
   ["frame", "Gold frame",   "Dark plaques on the render inside a hairline notched frame"],
   ["card",  "White card",   "Render full bleed, scalloped white panel at the foot"],
   ["footer","Light footer", "Render full bleed, light band carrying configuration and price"],
   ["panel", "Centre panel", "Deco panel centred on the render"],
-  ["arch",  "Arch",         "Light ground, arched render, gold ribbon"],
-  ["header","Header stack", "Copy above on light, arched render below"]
+  ["arch",  "Arch",         "Light ground, arched render, ornament rules"]
 ];
 const INK="#14213D", PAPER="#F6F4EF", RED="#E2231A";
 
 function crLayoutId(){
   const el=$("#crLayout");
-  return (el&&el.value)||"frame";
+  return (el&&el.value)||"header";
 }
 function crCtx(W,H){
   const S=Math.min(W,H)/1200;
@@ -5504,9 +5506,12 @@ function crLockup(g,c,x,y,maxW,light){
     g.restore();
   }
 }
+/* like the location, this is drawn first and reports its width so the lockup
+   can be capped to what is left \u2014 otherwise the project name is squeezed to
+   nothing against a long RERA number */
 function crReraBlock(g,c,rightX,y,light){
   const S=c.S;
-  if(!c.rera&&!CR.qr)return;
+  if(!c.rera&&!CR.qr)return 0;
   let qx=rightX;
   if(CR.qr){
     const q=Math.round((c.wide?92:116)*S);
@@ -5516,7 +5521,7 @@ function crReraBlock(g,c,rightX,y,light){
     g.drawImage(CR.qr,qx,y-q/2,q,q);
     qx-=18*S;
   }
-  if(!c.rera)return;
+  if(!c.rera)return rightX-qx;
   const fg=light?INK:"#FFFFFF";
   g.textAlign="right"; g.textBaseline="alphabetic";
   const ls=19*S, ns=30*S, us=15*S;
@@ -5525,6 +5530,10 @@ function crReraBlock(g,c,rightX,y,light){
   g.fillStyle=fg; g.font=F_H(700,ns); g.fillText(c.rera,qx,y+ns*.34);
   g.fillStyle=light?"rgba(20,33,61,.65)":"rgba(255,255,255,.75)"; g.font=F_B(400,us);
   g.fillText("maharera.mahaonline.gov.in",qx,y+ns*.34+us*1.35);
+  g.font=F_H(700,ns);
+  const textW=Math.max(g.measureText(c.rera).width,(()=>{g.font=F_B(400,us);
+    return g.measureText("maharera.mahaonline.gov.in").width;})());
+  return rightX-qx+textW;
 }
 /* the location line, pin and all, centred on cx */
 function crLocLine(g,c,cx,baseY,size,pinColour,textColour,maxW){
@@ -5552,7 +5561,13 @@ function crCfgPriceSplit(g,c,cx,baseY,light,sub){
   const amt=(m&&m.amount)||"", numW=amt?g.measureText(amt).width:0;
   g.font=F_H(700,unitS);
   const unitW=(m&&m.unit)?g.measureText(m.unit).width:0;
-  const rightW=numW+(unitW?unitW+8*S:0);
+  g.font=F_B(600,tailS);
+  /* ONWARDS sits under the unit and is often the wider of the two, so it has
+     to be measured too or it runs out past the box */
+  const tailW=(m&&m.tail)
+    ?[...m.tail].reduce((a,ch)=>a+g.measureText(ch).width,0)+tailS*.3*(m.tail.length-1):0;
+  const stackW=Math.max(unitW,tailW);
+  const rightW=numW+(stackW?stackW+8*S:0);
   const gap=40*S, total=leftW+(leftW&&rightW?gap*2:0)+rightW;
   let x=cx-total/2;
   if(leftW){
@@ -5689,8 +5704,8 @@ frame(g,c){
   const fy=H*(tall?.315:wide?.215:.179), fy2=H*(tall?.775:wide?.872:.898);
   if(!$("#crFrame")||$("#crFrame").checked)crFrame(g,fx,fy,fw,fy2-fy,S,c.accent);
   const lockY=H*(tall?.225:wide?.075:.072);
-  crLockup(g,c,fx,lockY,W*.52,false);
-  crReraBlock(g,c,fx+fw,lockY,false);
+  const rw=crReraBlock(g,c,fx+fw,lockY,false);
+  crLockup(g,c,fx,lockY,fw-rw-W*.04,false);
   if(c.offer)crPlaque(g,W/2,fy,c.offer,S,c.accent);
   const barH=Math.round(104*S), barTop=Math.round(fy2-barH/2);
   crPriceBar(g,W/2,barTop,c.cfg,c.money&&c.money.amount,c.money&&c.money.unit,
@@ -5710,7 +5725,7 @@ card(g,c){
   g.fillStyle="#FFFFFF"; g.fillRect(W*.045,lockY-chipH/2,chipW,chipH);
   g.save(); g.beginPath(); g.rect(W*.045,lockY-chipH/2,chipW,chipH); g.clip();
   crLockup(g,c,W*.045+24*S,lockY,chipW-48*S,true); g.restore();
-  crReraBlock(g,c,W*.955,lockY,false);
+  crReraBlock(g,c,W*.955,lockY,false);   /* the chip already caps the lockup */
   const pw=W*.80, px=(W-pw)/2;
   const ph=H*(tall?.26:wide?.42:.33);
   const py=H*(tall?.70:wide?.54:.63);
@@ -5773,8 +5788,8 @@ panel(g,c){
   vg.addColorStop(1,`rgba(5,10,8,${.62*c.scrim})`);
   g.fillStyle=vg; g.fillRect(0,0,W,H);
   const lockY=H*(tall?.09:.068);
-  crLockup(g,c,W*.05,lockY,W*.46,false);
-  crReraBlock(g,c,W*.95,lockY,false);
+  const rw=crReraBlock(g,c,W*.95,lockY,false);
+  crLockup(g,c,W*.05,lockY,W*.90-rw-W*.04,false);
   const pw=W*(wide?.48:.56), px=(W-pw)/2;
   const ph=H*(tall?.34:wide?.56:.46), py=H*(tall?.30:wide?.24:.24);
   /* the panel needs its own ground, or the copy sits on whatever the render
@@ -5784,11 +5799,11 @@ panel(g,c){
   g.strokeStyle=c.accent; g.lineWidth=Math.max(2,2.4*S); g.globalAlpha=.95;
   g.strokeRect(px,py,pw,ph);
   /* the sunburst that tops the panel in the reference */
-  const rays=11, rw=pw*.34;
+  const rays=11, rayLen=pw*.34;
   for(let i=0;i<rays;i++){
     const t=i/(rays-1), ang=-Math.PI/2+(t-.5)*Math.PI*.78;
     g.beginPath(); g.moveTo(px+pw/2,py);
-    g.lineTo(px+pw/2+Math.cos(ang)*rw,py+Math.sin(ang)*rw+rw*.92); g.stroke();
+    g.lineTo(px+pw/2+Math.cos(ang)*rayLen,py+Math.sin(ang)*rayLen+rayLen*.92); g.stroke();
   }
   g.restore();
   let y=py+ph*(tall?.22:.20);
@@ -5842,19 +5857,25 @@ arch(g,c){
 header(g,c){
   const {W,H,S,wide,tall}=c;
   g.fillStyle=PAPER; g.fillRect(0,0,W,H);
-  const lockY=H*(tall?.07:.062);
-  crLockup(g,c,W*.05,lockY,W*.50,true);
-  crReraBlock(g,c,W*.95,lockY,true);
-  let y=H*(tall?.17:wide?.26:.22);
-  y+=crLocLine(g,c,W/2,y,(wide?44:58)*S,RED,INK,W*.86);
-  const bw=W*.78, bx=(W-bw)/2, bh=(wide?92:124)*S, by=y+(wide?16:26)*S;
+  /* A 9:16 canvas is narrow and very long: scaling off min(W,H) sizes the
+     header for the width and leaves the copy marooned at the top. The whole
+     header band is scaled up on a tall canvas instead. */
+  const TS=tall?S*1.35:S;
+  const ct=tall?Object.assign({},c,{S:TS}):c;
+  const lockY=H*(tall?.095:.062);
+  const rw=crReraBlock(g,c,W*.95,lockY,true);   /* stays at S: it is a legal
+     mark, and growing it on a 1080 wide canvas leaves the lockup no room */
+  crLockup(g,ct,W*.05,lockY,W*.90-rw-W*.04,true);
+  let y=H*(tall?.215:wide?.26:.22);
+  y+=crLocLine(g,ct,W/2,y,(wide?44:58)*TS,RED,INK,W*.86);
+  const bw=W*.86, bx=(W-bw)/2, bh=(wide?92:124)*TS, by=y+(wide?16:26)*TS;
   g.save(); g.strokeStyle=c.accent; g.lineWidth=Math.max(1,1.6*S);
   g.strokeRect(bx,by,bw,bh);
   g.globalAlpha=.6;
   g.beginPath(); g.moveTo(bx-W*.045,by+bh/2); g.lineTo(bx,by+bh/2); g.stroke();
   g.beginPath(); g.moveTo(bx+bw,by+bh/2); g.lineTo(bx+bw+W*.045,by+bh/2); g.stroke();
   g.restore();
-  crCfgPriceSplit(g,c,W/2,by+bh*.60,true,"LUXURY APARTMENTS");
+  crCfgPriceSplit(g,ct,W/2,by+bh*.60,true,"LUXURY APARTMENTS");
   const ay=by+bh+(wide?28:44)*S, ah=H-ay;
   const r=W*.14;
   g.save(); crArch(g,W*.04,ay,W*.92,ah,r); g.clip();
