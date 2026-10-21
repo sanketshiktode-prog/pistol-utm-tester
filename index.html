@@ -198,6 +198,25 @@ code{font-family:var(--mono);background:rgba(0,0,0,.05);padding:1px 4px;border-r
 .p-bad{background:var(--bad-wash);color:var(--bad)}
 
 .hidden{display:none !important}
+
+/* Upload controls. The browser's own file input shows an unstyleable button
+   and a filename that overflows its box; this is a target you can also drop
+   a file onto, and it shows a thumbnail once there is one. */
+.drop{position:relative;display:flex;align-items:center;gap:12px;width:100%;
+  padding:14px 16px;border:1.5px dashed var(--line);border-radius:8px;
+  background:#fff;cursor:pointer;transition:border-color .15s,background .15s;overflow:hidden}
+.drop:hover,.drop.over{border-color:var(--accent);background:#FFF8F2}
+.drop input[type=file]{position:absolute;inset:0;opacity:0;width:100%;height:100%;cursor:pointer}
+.drop-ic{flex:0 0 34px;height:34px;border-radius:7px;background:var(--navy);color:#fff;
+  display:flex;align-items:center;justify-content:center;font-size:17px;font-weight:700}
+.drop.has .drop-ic{background:var(--ok,#1A7F45)}
+.drop-txt{min-width:0;display:flex;flex-direction:column;line-height:1.25}
+.drop-txt b{font-size:13.5px;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.drop-sub{font-size:11.5px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.drop-thumb{flex:0 0 auto;width:40px;height:40px;border-radius:6px;object-fit:cover;
+  border:1px solid var(--line);background:#F2F3F5}
+.drop-sm{padding:11px 13px}
+.drop-sm .drop-ic{flex:0 0 28px;height:28px;font-size:14px}
 </style>
 </head>
 <body>
@@ -474,7 +493,11 @@ Static Square</textarea>
         <div class="f">
           <span class="f-note">Exported as sheet 13 with the segment name, its one input and where to
             create it. Custom segments have no CSV or Editor route — the interface or the API is the
-            only way in, which is why this is a build list rather than an import file.</span>
+            only way in, which is why this is a build list rather than an import file.<br>
+            Once a segment exists, add its ID after the line as
+            <code>https://example.com ::1234567890</code> and the deploy will attach it.
+            Which strategy uses which list: <b>YB</b> the channels, <b>UB</b> the URLs,
+            <b>KB</b> the search terms, <b>In</b> the library segments, <b>Op</b> none.</span>
         </div>
       </div>
     </div>
@@ -1149,15 +1172,25 @@ Static Square</textarea>
         <div class="callout">The hero render is the developer's own artwork, so it is uploaded, not invented.
           Everything over it — logo, RERA, the offer badge, the price bar — is drawn here, in all four
           sizes Demand Gen asks for.</div>
-        <label class="f" style="margin-top:12px"><span class="f-lab">Hero image <span class="pill p-mute">required</span></span>
-          <input type="file" id="crHero" accept="image/*">
-          <span class="f-note">The project render. Use the largest you have — 1920px wide or more.</span></label>
+        <div class="f" style="margin-top:12px"><span class="f-lab">Hero image <span class="pill p-mute">required</span></span>
+          <label class="drop" for="crHero" id="dropHero">
+            <input type="file" id="crHero" accept="image/*">
+            <span class="drop-ic">↑</span>
+            <span class="drop-txt"><b>Choose the project render</b><span class="drop-sub">or drop it here — 1920px wide or more</span></span>
+          </label></div>
         <div class="row2">
-          <label class="f"><span class="f-lab">Developer logo</span>
-            <input type="file" id="crLogo" accept="image/*">
-            <span class="f-note">PNG with a transparent background works best.</span></label>
-          <label class="f"><span class="f-lab">RERA QR code</span>
-            <input type="file" id="crQr" accept="image/*"></label>
+          <div class="f"><span class="f-lab">Developer logo</span>
+            <label class="drop drop-sm" for="crLogo" id="dropLogo">
+              <input type="file" id="crLogo" accept="image/*">
+              <span class="drop-ic">↑</span>
+              <span class="drop-txt"><b>Choose a logo</b><span class="drop-sub">PNG, transparent</span></span>
+            </label></div>
+          <div class="f"><span class="f-lab">RERA QR code</span>
+            <label class="drop drop-sm" for="crQr" id="dropQr">
+              <input type="file" id="crQr" accept="image/*">
+              <span class="drop-ic">↑</span>
+              <span class="drop-txt"><b>Choose a QR</b><span class="drop-sub">PNG or JPG</span></span>
+            </label></div>
         </div>
         <div class="btnrow"><button class="btn btn-sm" id="crClearImgs">Clear the images</button></div>
       </div>
@@ -3655,6 +3688,24 @@ function csLabel(v){
      collapses into "99acrescompune" */
   return t.replace(/[\/._@]+/g,"-").replace(/-+/g,"-").replace(/^-|-$/g,"").slice(0,44);
 }
+/* Which audience a strategy gets. These are the account's own codes, matched
+   exactly rather than by prefix \u2014 "invest" begins with "in" but is not the
+   Inmarket strategy. A segment with no ID yet is still listed, so the deploy
+   reports it as skipped instead of quietly targeting everyone. */
+function audiencesFor(strat){
+  const code=String(strat||"").toLowerCase();
+  const picked=pickedAudiences().map(a=>({name:a[0],type:a[1],id:a[2]||""}));
+  const seg=kind=>customSegments().filter(r=>r[1]===kind)
+    .map(r=>({name:r[0],type:"Custom segment",id:r[5]||""}));
+  if(code==="op")                                        return [];
+  if(["in","luxury","invest","avid"].indexOf(code)>-1)   return picked;
+  if(["yb","yc"].indexOf(code)>-1)                       return seg("YouTube channels");
+  if(["ub","uc","news-portal","property-portal-url"].indexOf(code)>-1)
+                                                         return seg("Website URLs");
+  if(["kb","kc","kg"].indexOf(code)>-1)                  return seg("Search terms");
+  if(["news-app","property-portal-app"].indexOf(code)>-1) return seg("Apps");
+  return picked;
+}
 function customSegments(){
   const b=brief(), rows=[];
   /* [Developer] [Project] [Location], except the developer is dropped when
@@ -3669,9 +3720,15 @@ function customSegments(){
   CS_KINDS.forEach(([id,kind,field])=>{
     const el=$("#"+id); if(!el)return;
     lines(el.value).forEach(v=>{
-      rows.push([`${stem}-${slug(kind.split(" ")[0])}-${slug(csLabel(v))}`.slice(0,80),
-                 kind, v, field,
-                 "Google Ads → Tools → Audience manager → Custom segments → New custom segment"]);
+      /* "the input  ::1234567" lets a segment that has been created carry its
+         ID back in, so the deploy attaches it instead of reporting it skipped */
+      const bits=String(v).split("::");
+      const input=bits[0].trim(), id=(bits[1]||"").replace(/[^0-9]/g,"");
+      if(!input)return;
+      rows.push([`${stem}-${slug(kind.split(" ")[0])}-${slug(csLabel(input))}`.slice(0,80),
+                 kind, input, field,
+                 "Google Ads → Tools → Audience manager → Custom segments → New custom segment",
+                 id]);
     });
   });
   return rows;
@@ -4383,7 +4440,7 @@ function entityFiles(){
     const segRows=customSegments();
     if(segRows.length){
       files.push(["13-custom-segments-to-create.csv",mk(
-        ["Segment name","Signal type","The one input","Field in the interface","Where to create"],
+        ["Segment name","Signal type","The one input","Field in the interface","Where to create","Segment ID"],
         segRows)]);
     }
     files.push(["9-demandgen-settings.csv",
@@ -4771,6 +4828,7 @@ function apPlan(){
     settings:apSettings(),
     campaigns:PLAN.map(p=>({
       name:p.campaign,
+      strategy:p.strat||"",
       adgroups:p.groups.map((g,gi)=>({
         name:g.name, matchType:g.mt||"B",
         trackingTemplate:TPL[CH],
@@ -4779,8 +4837,10 @@ function apPlan(){
         /* the exact ad group's own list, negated inside the phrase one */
         negExact:(g.mt==="P"&&$("#negExactInPhrase")&&$("#negExactInPhrase").checked)
           ? (p.groups.find(x=>x.mt==="E")||{kws:[]}).kws : [],
-        audiences:CH==="demandgen"
-          ? pickedAudiences().map(a=>({name:a[0],type:a[1],id:a[2]||""})) : [],
+        /* Each strategy is meant to reach different people \u2014 that is why four
+           of them are run. Handing every campaign the same audience made them
+           four copies of one campaign. */
+        audiences:CH==="demandgen" ? audiencesFor(p.strat) : [],
         /* Demand Gen ads are not responsive search ads: five headlines under 40
            carrying brand, project and location, and five descriptions under 90.
            The build fills g.ad with the Search copy, so the Demand Gen copy is
@@ -5216,13 +5276,34 @@ function crLoad(file){
   });
 }
 ["hero","logo","qr"].forEach(k=>{
-  const el=$("#cr"+k.charAt(0).toUpperCase()+k.slice(1));
+  const cap=k.charAt(0).toUpperCase()+k.slice(1);
+  const el=$("#cr"+cap), zone=$("#drop"+cap);
   if(!el)return;
-  el.addEventListener("change",async e=>{
-    const f=e.target.files&&e.target.files[0]; if(!f)return;
-    try{ CR[k]=await crLoad(f); crStat(); if(k==="hero")toast("Hero loaded — press Render"); }
-    catch(err){ e.target.value=""; toast(String(err.message||err)); }
-  });
+  const kb=n=>n<1024?n+" B":n<1048576?(n/1024).toFixed(0)+" KB":(n/1048576).toFixed(1)+" MB";
+  const take=async f=>{
+    if(!f)return;
+    try{
+      CR[k]=await crLoad(f); crStat();
+      if(zone){
+        zone.classList.add("has");
+        const t=zone.querySelector(".drop-txt");
+        if(t)t.innerHTML=`<b>${esc(f.name)}</b><span class="drop-sub">${
+          CR[k].naturalWidth}×${CR[k].naturalHeight} · ${kb(f.size)}</span>`;
+        let th=zone.querySelector(".drop-thumb");
+        if(!th){ th=document.createElement("img"); th.className="drop-thumb"; zone.appendChild(th); }
+        th.src=CR[k].src;
+      }
+      if(k==="hero")toast("Hero loaded — press Render");
+    }catch(err){ el.value=""; toast(String(err.message||err)); }
+  };
+  el.addEventListener("change",e=>take(e.target.files&&e.target.files[0]));
+  if(zone){
+    ["dragenter","dragover"].forEach(ev=>zone.addEventListener(ev,e=>{
+      e.preventDefault(); zone.classList.add("over"); }));
+    ["dragleave","drop"].forEach(ev=>zone.addEventListener(ev,e=>{
+      e.preventDefault(); zone.classList.remove("over"); }));
+    zone.addEventListener("drop",e=>take(e.dataTransfer&&e.dataTransfer.files&&e.dataTransfer.files[0]));
+  }
 });
 function crStat(){
   const el=$("#crStat"); if(!el)return;
@@ -5233,6 +5314,15 @@ function crStat(){
 on("#crClearImgs","click",()=>{
   CR={hero:null,logo:null,qr:null};
   ["crHero","crLogo","crQr"].forEach(i=>{const e=$("#"+i); if(e)e.value="";});
+  [["dropHero","Choose the project render","or drop it here — 1920px wide or more"],
+   ["dropLogo","Choose a logo","PNG, transparent"],
+   ["dropQr","Choose a QR","PNG or JPG"]].forEach(([id,a,b2])=>{
+    const z=$("#"+id); if(!z)return;
+    z.classList.remove("has");
+    const t=z.querySelector(".drop-txt");
+    if(t)t.innerHTML=`<b>${a}</b><span class="drop-sub">${b2}</span>`;
+    const th=z.querySelector(".drop-thumb"); if(th)th.remove();
+  });
   CR_OUT=[]; crStat(); $("#crOut").innerHTML=`<div class="empty">Upload a hero image, then render.</div>`;
 });
 
@@ -5443,7 +5533,10 @@ function crLayoutId(){
   return (el&&el.value)||"header";
 }
 function crCtx(W,H){
-  const S=Math.min(W,H)/1200;
+  /* Sizing off min(W,H) is right for a square or a tall canvas, where the
+     width is the constraint. On 1.91:1 it halves every size while the canvas
+     is still 1200 wide, which is why the landscape read as microscopic. */
+  const S=(W/H>=1.7) ? (W/1200)*0.72 : Math.min(W,H)/1200;
   const loc=(val("crLoc")||"").toUpperCase();
   return {W,H,S, wide:W/H>=1.7, tall:H/W>=1.5,
     accent:val("crAccent")||GOLD,
@@ -5597,10 +5690,19 @@ function crLocLine(g,c,cx,baseY,size,pinColour,textColour,maxW){
   return s2;
 }
 /* configuration beside the price, split by a hairline — the light layouts */
-function crCfgPriceSplit(g,c,cx,baseY,light,sub){
+/* maxW is the box this has to live inside. Without it the block is laid out
+   at its natural size and simply runs past the border it sits in. */
+function crCfgPriceSplit(g,c,cx,baseY,light,sub,maxW){
   const S=c.S, m=c.money;
-  const cfgS=(c.wide?48:60)*S, subS=cfgS*.46, numS=(c.wide?66:84)*S;
-  const unitS=numS*.42, tailS=numS*.21;
+  var k=1;
+  if(maxW){
+    /* measure once at full size, then shrink everything by one factor so the
+       proportions hold */
+    const probe=crCfgPriceWidth(g,c,sub,1);
+    if(probe>maxW)k=maxW/probe;
+  }
+  const cfgS=(c.wide?48:60)*S*k, subS=cfgS*.46, numS=(c.wide?66:84)*S*k;
+  const unitS=numS*.42, tailS=numS*.21, gapK=k;
   const fg=light?INK:"#FFFFFF";
   g.font=F_H(700,cfgS); const cfgW=c.cfg?g.measureText(c.cfg).width:0;
   g.font=F_B(500,subS);
@@ -5617,7 +5719,7 @@ function crCfgPriceSplit(g,c,cx,baseY,light,sub){
     ?[...m.tail].reduce((a,ch)=>a+g.measureText(ch).width,0)+tailS*.3*(m.tail.length-1):0;
   const stackW=Math.max(unitW,tailW);
   const rightW=numW+(stackW?stackW+8*S:0);
-  const gap=40*S, total=leftW+(leftW&&rightW?gap*2:0)+rightW;
+  const gap=40*S*gapK, total=leftW+(leftW&&rightW?gap*2:0)+rightW;
   let x=cx-total/2;
   if(leftW){
     g.textAlign="left"; g.textBaseline="alphabetic"; g.fillStyle=fg;
@@ -5652,6 +5754,28 @@ function crCfgPriceSplit(g,c,cx,baseY,light,sub){
   }
   return numS;
 }
+/* the width crCfgPriceSplit would take at a given scale, measured the same
+   way it lays out, so the two can never disagree */
+function crCfgPriceWidth(g,c,sub,k){
+  const S=c.S, m=c.money;
+  const cfgS=(c.wide?48:60)*S*k, subS=cfgS*.46, numS=(c.wide?66:84)*S*k;
+  const unitS=numS*.42, tailS=numS*.21;
+  g.font=F_H(700,cfgS); const cfgW=c.cfg?g.measureText(c.cfg).width:0;
+  g.font=F_B(500,subS);
+  const subW=sub?[...sub].reduce((a,ch)=>a+g.measureText(ch).width,0)+subS*.22*(sub.length-1):0;
+  const leftW=Math.max(cfgW,subW);
+  g.font=F_H(800,numS);
+  const numW=(m&&m.amount)?g.measureText(m.amount).width:0;
+  g.font=F_H(700,unitS);
+  const unitW=(m&&m.unit)?g.measureText(m.unit).width:0;
+  g.font=F_B(600,tailS);
+  const tailW=(m&&m.tail)
+    ?[...m.tail].reduce((a,ch)=>a+g.measureText(ch).width,0)+tailS*.3*(m.tail.length-1):0;
+  const stackW=Math.max(unitW,tailW);
+  const rightW=numW+(stackW?stackW+8*S:0);
+  return leftW+(leftW&&rightW?80*S*k:0)+rightW;
+}
+
 /* configuration over price, centred — the panel layout */
 function crCfgPriceStack(g,c,cx,topY,sub){
   const S=c.S, m=c.money;
@@ -5719,10 +5843,13 @@ function crScrims(g,c){
   g.fillStyle=bg; g.fillRect(0,b,W,H-b);
 }
 /* the render, either filling the canvas or set into a gradient as a band */
-function crHero(g,c,x,y,w,h){
+function crHero(g,c,x,y,w,h,bleed){
   const hero=CR.hero;
   if(!hero){ g.fillStyle="#0B1020"; g.fillRect(x,y,w,h); return; }
-  if(c.tall&&h>=c.H*.9){
+  /* The band-and-gradient treatment paints the WHOLE canvas, so it is only
+     ever right for a full-bleed layout. Called from inside a clipped arch it
+     washed the entire creative in a gradient sampled from the trees. */
+  if(bleed&&c.tall&&h>=c.H*.9){
     const sky=crStrip(hero,.18,true), ground=crStrip(hero,.18,false);
     const gr=g.createLinearGradient(0,0,0,c.H);
     gr.addColorStop(0,crDark(sky,.45)); gr.addColorStop(.30,crRgb(sky));
@@ -5748,7 +5875,7 @@ const CR_DRAW={
 /* 1. Gold frame — dark plaques on the render, hairline notched frame */
 frame(g,c){
   const {W,H,S,wide,tall}=c;
-  crHero(g,c,0,0,W,H); crScrims(g,c);
+  crHero(g,c,0,0,W,H,true); crScrims(g,c);
   const fx=W*.082, fw=W*.836;
   const fy=H*(tall?.315:wide?.215:.179), fy2=H*(tall?.775:wide?.872:.898);
   if(!$("#crFrame")||$("#crFrame").checked)crFrame(g,fx,fy,fw,fy2-fy,S,c.accent);
@@ -5766,7 +5893,7 @@ frame(g,c){
 /* 2. White card — render full bleed, scalloped white panel at the foot */
 card(g,c){
   const {W,H,S,wide,tall}=c;
-  crHero(g,c,0,0,W,H); crScrims(g,c);
+  crHero(g,c,0,0,W,H,true); crScrims(g,c);
   const lockY=H*(tall?.10:.072);
   /* the logo sits in its own white chip here, as on the reference */
   const chipH=(wide?84:100)*S, chipW=Math.min(W*.46,(CR.logo
@@ -5786,7 +5913,7 @@ card(g,c){
   let y=py+r+(wide?48:62)*S;
   y+=crLocLine(g,c,W/2,y,(wide?42:52)*S,RED,INK,pw*.9)*.5;
   crOrnRule(g,W/2,y+18*S,pw*.42,S,RED); y+=56*S;
-  crCfgPriceSplit(g,c,W/2,y+(wide?44:56)*S,true,"PREMIUM");
+  crCfgPriceSplit(g,c,W/2,y+(wide?44:56)*S,true,"PREMIUM",pw*.86);
   if(c.offer){
     const t=c.offer, fs=(wide?30:38)*S;
     g.font=F_H(700,fs); const s2=crFit(g,t,g.font,pw*.82); g.font=F_H(700,s2);
@@ -5804,7 +5931,7 @@ footer(g,c){
   const {W,H,S,wide,tall}=c;
   const bandH=H*(tall?.17:wide?.26:.22);
   const bandY=H-bandH;
-  crHero(g,c,0,0,W,bandY+2);
+  crHero(g,c,0,0,W,bandY+2,true);
   const tg=g.createLinearGradient(0,0,0,H*.30);
   tg.addColorStop(0,`rgba(5,8,14,${.52*c.scrim})`); tg.addColorStop(1,"rgba(5,8,14,0)");
   g.fillStyle=tg; g.fillRect(0,0,W,H*.30);
@@ -5824,14 +5951,14 @@ footer(g,c){
     g.fillStyle="#FFFFFF"; g.textAlign="center"; g.textBaseline="middle";
     g.fillText(c.offer,W/2,by+bh/2+s2*.04);
   }
-  crCfgPriceSplit(g,c,W/2,bandY+bandH*(wide?.66:.60),true,"APARTMENTS");
+  crCfgPriceSplit(g,c,W/2,bandY+bandH*(wide?.66:.60),true,"APARTMENTS",W*.86);
   crDisclaimer(g,c,W/2,H-(wide?22:26)*S-10*S,true,W*.9);
 },
 
 /* 4. Centre panel — a deco panel set on the render */
 panel(g,c){
   const {W,H,S,wide,tall}=c;
-  crHero(g,c,0,0,W,H);
+  crHero(g,c,0,0,W,H,true);
   const vg=g.createRadialGradient(W/2,H*.45,W*.12,W/2,H*.45,W*.72);
   vg.addColorStop(0,`rgba(5,10,8,${.30*c.scrim})`);
   vg.addColorStop(1,`rgba(5,10,8,${.62*c.scrim})`);
@@ -5897,7 +6024,7 @@ arch(g,c){
   crRibbon(g,c,W/2,ay+ah,c.offer?"":c.cfg?"":"");
   let y=ay+ah+(wide?54:76)*S;
   crOrnRule(g,W/2,y-28*S,W*.56,S,c.accent);
-  crCfgPriceSplit(g,c,W/2,y+(wide?40:54)*S,true,"LUXURIOUS APARTMENTS");
+  crCfgPriceSplit(g,c,W/2,y+(wide?40:54)*S,true,"LUXURIOUS APARTMENTS",W*.80);
   crOrnRule(g,W/2,y+(wide?74:104)*S,W*.56,S,c.accent);
   crDisclaimer(g,c,W/2,H-(wide?24:30)*S-8*S,true,W*.9);
 },
@@ -5911,30 +6038,65 @@ header(g,c){
      header band is scaled up on a tall canvas instead. */
   const TS=tall?S*1.35:S;
   const ct=tall?Object.assign({},c,{S:TS}):c;
-  const lockY=H*(tall?.095:.062);
-  const rw=crReraBlock(g,c,W*.95,lockY,true);   /* stays at S: it is a legal
-     mark, and growing it on a 1080 wide canvas leaves the lockup no room */
-  crLockup(g,ct,W*.05,lockY,W*.90-rw-W*.04,true);
-  let y=H*(tall?.215:wide?.26:.22);
-  y+=crLocLine(g,ct,W/2,y,(wide?44:58)*TS,RED,INK,W*.86);
-  const bw=W*.86, bx=(W-bw)/2, bh=(wide?92:124)*TS, by=y+(wide?16:26)*TS;
+  const lockY=H*(tall?.085:.062);
+  if(tall){
+    /* 1080 across cannot hold a developer, a project and a RERA number on one
+       line without shrinking all three. On a tall canvas the RERA block drops
+       to its own line and the lockup gets the full width. */
+    crLockup(g,ct,W*.05,lockY,W*.90,true);
+    crReraBlock(g,c,W*.95,lockY+H*.055,true);
+  }else{
+    const rw=crReraBlock(g,c,W*.95,lockY,true);
+    crLockup(g,ct,W*.05,lockY,W*.90-rw-W*.04,true);
+  }
+  if(wide){
+    /* Stacking copy above a picture needs vertical room a 1.91:1 canvas does
+       not have. Wide sits them side by side: copy on the left, the arched
+       render filling the right. */
+    const colW=W*.44, cx=W*.045+colW/2;
+    const ax=W*.54, aw=W*.42, ay2=H*.10, ah2=H*.80, r2=aw*.22;
+    g.save(); crArch(g,ax,ay2,aw,ah2,r2); g.clip();
+    crHero(g,c,ax,ay2,aw,ah2); g.restore();
+    g.save(); g.strokeStyle=c.accent; g.lineWidth=Math.max(1,2*S);
+    crArch(g,ax,ay2,aw,ah2,r2); g.stroke(); g.restore();
+    let yy=H*.36;
+    yy+=crLocLine(g,c,cx,yy,46*S,RED,INK,colW);
+    const bw2=colW, bx2=W*.045, bh2=108*S, by2=yy+20*S;
+    g.save(); g.strokeStyle=c.accent; g.lineWidth=Math.max(1,1.6*S);
+    g.strokeRect(bx2,by2,bw2,bh2); g.restore();
+    crCfgPriceSplit(g,c,cx,by2+bh2*.60,true,"LUXURY APARTMENTS",bw2*.88);
+    if(c.offer){
+      const fs=32*S;
+      g.font=F_H(700,fs); const s2=crFit(g,c.offer,g.font,colW); g.font=F_H(700,s2);
+      const tw=g.measureText(c.offer).width, th=s2*1.8;
+      g.fillStyle=c.accent; g.fillRect(cx-(tw+44*S)/2,by2+bh2+18*S,tw+44*S,th);
+      g.fillStyle=INK; g.textAlign="center"; g.textBaseline="middle";
+      g.fillText(c.offer,cx,by2+bh2+18*S+th/2+s2*.04);
+    }
+    crDisclaimer(g,c,cx,H-34*S,true,colW);
+    return;
+  }
+  let y=H*(tall?.245:.22);
+  y+=crLocLine(g,ct,W/2,y,58*TS,RED,INK,W*.86);
+  const bw=W*.86, bx=(W-bw)/2, bh=124*TS, by=y+26*TS;
   g.save(); g.strokeStyle=c.accent; g.lineWidth=Math.max(1,1.6*S);
   g.strokeRect(bx,by,bw,bh);
   g.globalAlpha=.6;
   g.beginPath(); g.moveTo(bx-W*.045,by+bh/2); g.lineTo(bx,by+bh/2); g.stroke();
   g.beginPath(); g.moveTo(bx+bw,by+bh/2); g.lineTo(bx+bw+W*.045,by+bh/2); g.stroke();
   g.restore();
-  crCfgPriceSplit(g,ct,W/2,by+bh*.60,true,"LUXURY APARTMENTS");
-  const ay=by+bh+(wide?28:44)*S, ah=H-ay;
-  const r=W*.14;
+  crCfgPriceSplit(g,ct,W/2,by+bh*.60,true,"LUXURY APARTMENTS",bw*.88);
+  /* the offer tab straddles the arch's top edge, so the arch needs to start
+     clear of the box or the tab lands on its border */
+  const ay=by+bh+(tall?70:44)*TS, ah=H-ay, r=W*.14;
   g.save(); crArch(g,W*.04,ay,W*.92,ah,r); g.clip();
   crHero(g,c,W*.04,ay,W*.92,ah); g.restore();
   g.save(); g.strokeStyle=c.accent; g.lineWidth=Math.max(1,2*S);
   crArch(g,W*.04,ay,W*.92,ah,r); g.stroke(); g.restore();
   if(c.offer){
-    const fs=(wide?28:36)*S;
-    g.font=F_H(700,fs); const s2=crFit(g,c.offer,g.font,W*.64); g.font=F_H(700,s2);
-    const tw=g.measureText(c.offer).width, th=s2*1.8, tw2=tw+48*S;
+    const fs=36*TS;
+    g.font=F_H(700,fs); const s2=crFit(g,c.offer,g.font,W*.72); g.font=F_H(700,s2);
+    const tw=g.measureText(c.offer).width, th=s2*1.8, tw2=tw+48*TS;
     g.fillStyle=c.accent; g.fillRect(W/2-tw2/2,ay-th/2,tw2,th);
     g.fillStyle=INK; g.textAlign="center"; g.textBaseline="middle";
     g.fillText(c.offer,W/2,ay+s2*.04);
