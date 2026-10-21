@@ -210,7 +210,7 @@ code{font-family:var(--mono);background:rgba(0,0,0,.05);padding:1px 4px;border-r
     <div class="wordmark">Search Ops Toolkit <span>· Google Ads</span></div>
     <div class="spacer"></div>
     <div class="badge-env" id="varCount">0 VARIANTS</div>
-    <span class="pill p-mute" id="buildTag" title="build">b-21oct-10</span>
+    <span class="pill p-mute" id="buildTag" title="build">b-22oct-1</span>
     <div id="userChip" class="hidden" style="display:flex;align-items:center;gap:9px">
       <div class="divider-v"></div>
       <span id="userName" style="font-size:12.5px;font-weight:500"></span>
@@ -2713,6 +2713,7 @@ function onCredential(res){
   try{sessionStorage.setItem("pp_user",JSON.stringify(USER));}catch(e){}
   showUser(); logEvent("sign-in","");
   const w=$("#expWarn"); if(w)w.classList.add("hidden");
+  scheduleRenew();
 }
 /* A Google sign-in token is good for one hour. The toolkit used to keep the
    expired one in the session and still show the name in the corner, so the
@@ -2721,6 +2722,46 @@ function onCredential(res){
    it is used, and a stale one is replaced rather than sent. */
 const tokenLeft=()=>USER&&USER.exp?USER.exp*1000-Date.now():0;
 const tokenLive=()=>!!USER&&tokenLeft()>60000;
+
+/* A Google sign-in token cannot be made to last longer than its hour, but it
+   can be replaced before it dies. While the Google session in the browser is
+   still good, One Tap re-issues one without showing anything, so a long
+   build is never interrupted by a sign-in screen. */
+let RENEW_TIMER=null, RENEWING=false;
+function renewToken(){
+  return new Promise(res=>{
+    if(RENEWING)return res(false);
+    if(!(window.google&&google.accounts&&google.accounts.id))return res(false);
+    RENEWING=true;
+    const was=USER&&USER.exp;
+    const done=ok=>{ RENEWING=false; res(ok); };
+    try{
+      google.accounts.id.cancel();
+      google.accounts.id.prompt(n=>{
+        /* the callback fires on display, not on completion, so the new token
+           is detected by watching for a later expiry */
+        if(n&&(n.isNotDisplayed&&n.isNotDisplayed()||n.isSkippedMoment&&n.isSkippedMoment()))
+          setTimeout(()=>done(!!(USER&&USER.exp&&USER.exp!==was)),400);
+      });
+      const t0=Date.now();
+      const poll=setInterval(()=>{
+        if(USER&&USER.exp&&USER.exp!==was){ clearInterval(poll); done(true); }
+        else if(Date.now()-t0>6000){ clearInterval(poll); done(false); }
+      },250);
+    }catch(e){ done(false); }
+  });
+}
+/* renew a few minutes before the hour is up, and keep doing so */
+function scheduleRenew(){
+  if(RENEW_TIMER)clearTimeout(RENEW_TIMER);
+  const left=tokenLeft();
+  if(!left)return;
+  const when=Math.max(15000,left-4*60*1000);
+  RENEW_TIMER=setTimeout(async()=>{
+    const ok=await renewToken();
+    if(ok)scheduleRenew(); else tokenPanel();
+  },when);
+}
 function tokenPanel(){
   const w=$("#expWarn"); if(!w)return;
   const dead=USER&&!tokenLive();
@@ -2764,7 +2805,7 @@ function initAuth(){
       const u=JSON.parse(s);
       /* An expired token in the session is worse than none: it hides the
          gate and then fails every call. Only a live one is restored. */
-      if(u&&u.exp&&u.exp*1000-Date.now()>60000){ USER=u; showUser(); restored=true; }
+      if(u&&u.exp&&u.exp*1000-Date.now()>60000){ USER=u; showUser(); restored=true; scheduleRenew(); }
       else sessionStorage.removeItem("pp_user");
     }
   }catch(e){}
@@ -4854,7 +4895,14 @@ function drawApPlan(){
 async function adsCall(action,extra){
   if(!AUTH.logUrl)return {error:"No Apps Script URL is set."};
   if(!USER)return {error:"Sign in first."};
-  if(!tokenLive()){ tokenPanel(); return {error:"Your Google sign-in expired. Sign in again, then retry."}; }
+  if(!tokenLive()){
+    /* try to replace it quietly before giving up on the call */
+    const ok=await renewToken();
+    if(!ok||!tokenLive()){
+      tokenPanel();
+      return {error:"Your Google sign-in expired and could not be renewed. Sign in again, then retry."};
+    }
+  }
   try{
     const ctl=new AbortController(), bail=setTimeout(()=>ctl.abort(),120000);
     const r=await fetch(AUTH.logUrl,{method:"POST",signal:ctl.signal,
