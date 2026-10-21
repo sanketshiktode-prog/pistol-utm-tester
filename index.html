@@ -4914,6 +4914,23 @@ async function apRun(mode){
   if(!cid)return toast("Put the customer ID in first");
   const pl=apPlan();
   if(!pl)return toast("Build the structure on tab 05 first");
+  /* An older Apps Script has no Demand Gen builder and would create a Search
+     campaign under these names without complaining, so the script is asked
+     what it can build before a Demand Gen plan is sent to it. */
+  if(CH==="demandgen"){
+    $("#apOut").innerHTML=apLine("warn","\u2026","Checking the Apps Script version\u2026");
+    const chk=await adsCall("ads-check",{customerId:cid});
+    const chans=(chk&&chk.capabilities&&chk.capabilities.channels)||[];
+    if(chans.indexOf("demandgen")===-1){
+      $("#apOut").innerHTML=apLine("bad","\u2715",
+        `<b>The Apps Script is an older version.</b> It cannot build Demand Gen campaigns, and
+         sending this plan to it would create <b>Search</b> campaigns under Demand Gen names.
+         Paste the new <code>search-ops-toolkit.gs</code> into the script, then
+         <b>Deploy \u2192 Manage deployments \u2192 pencil \u2192 Version: New version \u2192 Deploy</b>.
+         Saving the script alone does not change the live URL.`);
+      return toast("Update the Apps Script first");
+    }
+  }
   const who=acctName(cid);
   if(mode==="deploy"&&!confirm(
     `Create ${pl.campaigns.length} campaign${pl.campaigns.length===1?"":"s"} in\n\n`+
