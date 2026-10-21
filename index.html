@@ -491,13 +491,16 @@ Static Square</textarea>
             <span class="f-note">People who use these apps</span></label>
         </div>
         <div class="f">
-          <span class="f-note">Exported as sheet 13 with the segment name, its one input and where to
-            create it. Custom segments have no CSV or Editor route — the interface or the API is the
-            only way in, which is why this is a build list rather than an import file.<br>
-            Once a segment exists, add its ID after the line as
-            <code>https://example.com ::1234567890</code> and the deploy will attach it.
-            Which strategy uses which list: <b>YB</b> the channels, <b>UB</b> the URLs,
-            <b>KB</b> the search terms, <b>In</b> the library segments, <b>Op</b> none.</span>
+          <div class="btnrow" style="margin-bottom:8px">
+            <button class="btn btn-sm btn-pri" id="csBuild">Create these in the account</button>
+            <span class="hint" id="csStat"></span>
+          </div>
+          <span class="f-note">One press creates each line as its own custom segment in the client
+            account and writes the ID back here, so the next deploy attaches them. A segment that is
+            already there is matched by name rather than made twice. Sheet 13 lists them either way.<br>
+            Which strategy uses which list: <b>yb/yc</b> the channels, <b>ub/uc</b> and the portal and
+            news URL strategies the URLs, <b>kb/kc/kg</b> the search terms, the app strategies the apps,
+            <b>In</b>/luxury/invest/avid the library segments, <b>Op</b> none.</span>
         </div>
       </div>
     </div>
@@ -3671,7 +3674,9 @@ function adFor(kws){
 /* One line in, one segment out. Google builds a custom segment from a single
    kind of signal — searched terms, browsed sites, watched channels or used
    apps — so a segment carrying a URL and a keyword at once matches neither
-   well. Each row below is therefore one segment with exactly one input. */
+   well. Each row below is therefore one segment with exactly one input.
+   These are created through the API by "Create these in the account", which
+   writes each new ID back beside its line. */
 const CS_KINDS=[
   ["csKw",  "Search terms",     "People who searched any of these terms"],
   ["csUrl", "Website URLs",     "People who browse types of websites"],
@@ -5232,6 +5237,44 @@ async function apRun(mode){
   $("#apOut").innerHTML=head+rows.join("");
   logEvent(mode==="deploy"?"ads-deploy":"ads-validate",`${cid} ${(r.campaigns||[]).length} campaigns`);
 }
+/* Creating the segments is what makes them attachable: a segment with no ID
+   can only be reported as skipped at deploy time. */
+on("#csBuild","click",async()=>{
+  const rows=customSegments();
+  if(!rows.length)return toast("Add some lines to the custom segment fields first");
+  const cid=$("#apCid").value.replace(/[^0-9]/g,"");
+  if(!cid)return toast("Pick the client account on tab 07 first");
+  const todo=rows.filter(r=>!r[5]);
+  if(!todo.length)return toast("Every segment already has an ID");
+  const st=$("#csStat");
+  if(st)st.innerHTML=`<span class="pill p-mute">creating ${todo.length}…</span>`;
+  const r=await adsCall("ads-segments",{customerId:cid,
+    segments:rows.map(x=>({name:x[0],kind:x[1],input:x[2]}))});
+  if(r.error){ if(st)st.innerHTML=`<span class="pill p-bad">failed</span>`;
+    return toast(explainErr?String(r.error).slice(0,160):r.error); }
+  /* write each ID back beside the line that produced it */
+  const byName={}; (r.segments||[]).forEach(x=>{ byName[x.name]=x.id; });
+  let wrote=0;
+  CS_KINDS.forEach(([id,kind])=>{
+    const el=$("#"+id); if(!el)return;
+    const out=lines(el.value).map(v=>{
+      const bits=String(v).split("::");
+      const input=bits[0].trim();
+      if(!input)return v;
+      if((bits[1]||"").trim())return v;                 /* already has one */
+      const row=rows.find(x=>x[1]===kind&&x[2]===input);
+      const nid=row&&byName[row[0]];
+      if(nid){ wrote++; return `${input} ::${nid}`; }
+      return v;
+    });
+    el.value=out.join("\n");
+  });
+  const made=(r.segments||[]).filter(x=>x.made).length;
+  if(st)st.innerHTML=`<span class="pill p-ok">${made} created · ${(r.segments||[]).length-made} already there</span>`;
+  toast(`${made} segments created, ${wrote} IDs written back`);
+  drawApSettings(); drawApPlan();
+  logEvent("ads-segments",`${cid} ${made} created`);
+});
 on("#apValidate","click",()=>apRun("validate"));
 on("#apDeploy","click",()=>apRun("deploy"));
 on("#apPayload","click",()=>{

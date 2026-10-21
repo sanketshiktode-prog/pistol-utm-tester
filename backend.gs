@@ -299,6 +299,7 @@ function adsRoute(body, v) {
   if (body.action === 'ads-geo')    return adsGeo(body);
   if (body.action === 'ads-accounts') return adsAccounts(body);
   if (body.action === 'ads-lists')    return adsSharedSets(body);
+  if (body.action === 'ads-segments') return adsSegments(body, v);
   if (body.action === 'ads-deploy') return adsDeploy(body, v);
   return null;
 }
@@ -493,6 +494,79 @@ function adsGeo(body) {
              type: g.targetType, country: g.countryCode, reach: s.reach };
   });
   return { ok: true, suggestions: out };
+}
+
+/* ── build the custom segments in the account ─────────────────────────────── */
+
+/* A custom segment CAN be created through the API, contrary to the note this
+   toolkit used to carry: CustomAudience takes KEYWORD, URL and APP members.
+   It is not part of googleAds:mutate though \u2014 custom_audience_operation is
+   absent from MutateOperation \u2014 so it goes to its own endpoint.
+
+   Creating them here is what lets a Demand Gen deploy actually attach them:
+   a segment with no ID can only be reported as skipped. */
+const CS_TYPE = {
+  'Search terms'    : ['KEYWORD', 'People who searched any of these terms'],
+  'Website URLs'    : ['URL',     'People who browse types of websites'],
+  'YouTube channels': ['URL',     'People who browse these channels'],
+  'Apps'            : ['APP',     'People who use types of apps']
+};
+
+function adsSegments(body, v) {
+  const cid = digits(body.customerId);
+  if (!cid) return { error: 'No customer ID given.' };
+  const rows = body.segments || [];
+  if (!rows.length) return { error: 'No segments were sent.' };
+
+  /* What is already there, so a second press does not make duplicates. */
+  const have = {};
+  const q = adsCall('customers/' + cid + '/googleAds:search', {
+    query: 'SELECT custom_audience.id, custom_audience.name, custom_audience.status ' +
+           "FROM custom_audience WHERE custom_audience.status = 'ENABLED'"
+  });
+  if (!q.error) (q.body.results || []).forEach(function (x) {
+    const ca = x.customAudience || {};
+    if (ca.name) have[String(ca.name).toLowerCase()] = String(ca.id);
+  });
+
+  const out = [], ops = [], pending = [];
+  rows.forEach(function (r) {
+    const name = String(r.name || '').trim();
+    const kind = String(r.kind || '').trim();
+    const input = String(r.input || '').trim();
+    if (!name || !input || !CS_TYPE[kind]) return;
+    const existing = have[name.toLowerCase()];
+    if (existing) { out.push({ name: name, id: existing, made: false }); return; }
+    const member = { memberType: CS_TYPE[kind][0] };
+    if (CS_TYPE[kind][0] === 'KEYWORD') member.keyword = input;
+    else if (CS_TYPE[kind][0] === 'URL') member.url = input;
+    else member.app = input;
+    ops.push({ create: {
+      name: name,
+      /* AUTO lets Google read the signal from the members, which is what the
+         interface does for a custom segment. */
+      type: 'AUTO',
+      description: 'Built by the Search Ops Toolkit',
+      members: [member]
+    }});
+    pending.push(name);
+  });
+
+  if (ops.length) {
+    const r = adsCall('customers/' + cid + '/customAudiences:mutate', { operations: ops });
+    if (r.error) return { error: r.error, created: out };
+    (r.body.results || []).forEach(function (res, i) {
+      const id = String(res.resourceName || '').split('/').pop();
+      out.push({ name: pending[i], id: id, made: true });
+    });
+  }
+
+  try {
+    if (v && v.ok && typeof write === 'function')
+      write([new Date(), v.email, v.name, typeof role === 'function' ? role(v.email) : '',
+             'ads-segments', cid, out.length + ' segments']);
+  } catch (e) {}
+  return { ok: true, customerId: cid, segments: out };
 }
 
 /* ── the deploy ───────────────────────────────────────────────────────────── */
