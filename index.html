@@ -210,7 +210,7 @@ code{font-family:var(--mono);background:rgba(0,0,0,.05);padding:1px 4px;border-r
     <div class="wordmark">Search Ops Toolkit <span>· Google Ads</span></div>
     <div class="spacer"></div>
     <div class="badge-env" id="varCount">0 VARIANTS</div>
-    <span class="pill p-mute" id="buildTag" title="build">b-21oct-5</span>
+    <span class="pill p-mute" id="buildTag" title="build">b-21oct-6</span>
     <div id="userChip" class="hidden" style="display:flex;align-items:center;gap:9px">
       <div class="divider-v"></div>
       <span id="userName" style="font-size:12.5px;font-weight:500"></span>
@@ -450,9 +450,31 @@ Static Square</textarea>
           <span class="f-note">Attached to every Demand Gen ad group. Segments must already exist in the account.</span>
         </div>
         <div class="f">
-          <span class="f-lab">Custom segment sources — one per line</span>
-          <textarea id="audSources" rows="5" placeholder="https://competitor1.com&#10;https://youtube.com/@channel&#10;com.magicbricks.app"></textarea>
-          <span class="f-note">Exported as a build list. Custom segments have to be created in the Google Ads interface — no CSV or Editor route exists.</span>
+          <span class="f-lab">Custom segments to build — one line becomes one segment</span>
+          <span class="f-note" style="margin-bottom:8px">Google builds a custom segment from one kind of
+            signal at a time, so each line below is created as its own segment. Mixing a URL and a keyword
+            into one segment makes it match neither well.</span>
+        </div>
+        <div class="row2">
+          <label class="f"><span class="f-lab">Search terms — one keyword per line</span>
+            <textarea id="csKw" rows="4" placeholder="flats in koregaon park&#10;3 bhk pune riverfront&#10;luxury apartments pune"></textarea>
+            <span class="f-note">People who searched any of these terms</span></label>
+          <label class="f"><span class="f-lab">Website URLs — one URL per line</span>
+            <textarea id="csUrl" rows="4" placeholder="https://www.competitor-project.com&#10;https://www.99acres.com/pune&#10;https://housing.com/pune"></textarea>
+            <span class="f-note">People who browse sites like these</span></label>
+        </div>
+        <div class="row2">
+          <label class="f"><span class="f-lab">YouTube channels — one URL per line</span>
+            <textarea id="csYt" rows="4" placeholder="https://www.youtube.com/@channelname&#10;https://www.youtube.com/@builderchannel"></textarea>
+            <span class="f-note">People who watch these channels</span></label>
+          <label class="f"><span class="f-lab">Apps — one package ID per line</span>
+            <textarea id="csApp" rows="4" placeholder="com.til.magicbricks&#10;com.nnacres.app&#10;in.housing.app"></textarea>
+            <span class="f-note">People who use these apps</span></label>
+        </div>
+        <div class="f">
+          <span class="f-note">Exported as sheet 13 with the segment name, its one input and where to
+            create it. Custom segments have no CSV or Editor route — the interface or the API is the
+            only way in, which is why this is a build list rather than an import file.</span>
         </div>
       </div>
     </div>
@@ -2530,27 +2552,18 @@ on("#snCsv","click",()=>{
 function genHeadlines(){
   const b=brief(); if(!b.proj)return null;
   const used=new Set(), out=[];
+  /* Pinned 1 is this ad group's own keywords, so the headline matches the
+     query that triggered it. The brand forms are only a fallback for an ad
+     group that has no keywords in it yet. */
+  const kws=kwOf().filter(k=>!blocked(k)).map(k=>tc(k));
   const brand=[b.proj, addPart(b.proj,b.micro), addPart(b.proj,b.city),
     b.dev?`${b.proj} By ${b.dev}`:"", b.dev?`${b.dev} ${b.micro}`:"",
-    `${b.proj} ${b.micro} ${b.city}`, b.offer?`${b.proj} ${b.offer}`:""].filter(Boolean);
-  /* room left for the price once the rest of the line is written */
-  const withPrice=(prefix,suffix)=>{
-    const room=H_MAX-(prefix.length+((suffix||"").length));
-    const pf=priceFit(room); if(!pf)return "";
-    return `${prefix}${pf}${suffix||""}`;
-  };
-  const money=[
-    b.cfg?withPrice(`${b.cfg} `,""):"",
-    b.cfg?withPrice(`Luxury ${b.cfg} `,""):"",
-    b.cfg?withPrice(`Premium ${b.cfg} `,""):"",
-    withPrice("Homes ",""),
-    b.cfg?`Spacious ${b.cfg} Homes`:""].filter(Boolean);
-
+    `${b.proj} ${b.micro} ${b.city}`].filter(Boolean);
+  pick(kws.concat(brand),H_MAX,5,used).forEach(t=>out.push([t,"1"]));
+  pick(scrub(moneyHeadlines(b,H_MAX)),H_MAX,5,used).forEach(t=>out.push([t,"2"]));
   const proof=[...b.usps.map(tc), ...b.marks.map(u=>tc(u.replace(/\s*-\s*/," - "))),
     "Book A Free Site Visit","Download Brochure Now","Get Price List Instantly",
     "Limited Units Available","Instant Call Back"];
-  pick(brand,H_MAX,5,used).forEach(t=>out.push([t,"1"]));
-  pick(money,H_MAX,5,used).forEach(t=>out.push([t,"2"]));
   pick(proof,H_MAX,H_CAP-out.length,used).forEach(t=>out.push([t,"3"]));
   while(out.length<H_CAP)out.push(["",""]);
   return out.slice(0,H_CAP);
@@ -2561,6 +2574,7 @@ function genDescriptions(){
   const m1=tc(b.marks[0]||""), m2=tc(b.marks[1]||"");
   const where=placeOf(b);
   const cands=[
+    ...sentenceD1(b,D_MAX), ...sentenceD2(b,D_MAX),
     compose([`${addPart(b.proj,b.micro)} \u2014 ${b.cfg}`, b.price&&`From ${b.price}`, "Book A Free Site Visit Today"],D_MAX),
     compose([`${b.cfg} At ${withPlace(b.proj,where)}`, b.price&&`From ${b.price}`, "Enquire For Floor Plans"],D_MAX),
     compose([u1&&u2?`${u1} & ${u2} At ${b.proj}`:`${u1||"Premium Homes"} At ${b.proj}`, "Download The Brochure"],D_MAX),
@@ -3438,25 +3452,117 @@ function kwForStrategy(code){
    Pin 1  5 headlines drawn from the ad group's own keywords
    Pin 2  5 headlines on configuration and price
    Pin 3  4 USPs and 1 call to action                       */
+/* ═══════════ configuration and price copy ═══════════
+   "2, 3 & 3.5 BHK" is one label but several products. Splitting it lets a
+   30 character headline name one configuration AND its price, which is what
+   the pinned-2 slot is for — the generic nouns it used to fall back on
+   ("Homes", "Flats", "Spacious Apartments") carry no information at all. */
+function cfgParts(cfg){
+  const s=String(cfg||"").trim();
+  if(!s)return [];
+  const m=/^(.*?)\s*\b(BHK|RK)\b\s*(.*)$/i.exec(s);
+  if(!m)return [s];
+  const unit=m[2].toUpperCase(), tail=(m[3]||"").trim();
+  const nums=m[1].split(/[,&\/]|\band\b/i).map(x=>x.trim()).filter(Boolean);
+  if(nums.length<2)return [s];
+  const out=nums.map(n=>`${n} ${unit}${tail?" "+tail:""}`);
+  if(nums.length>=2)out.push(`${nums[0]} & ${nums[1]} ${unit}`);
+  return out;
+}
+/* "2, 3 or 3.5 BHK" — reads as a sentence where "&" reads as a label */
+function cfgOr(cfg){
+  const s=String(cfg||"").trim();
+  const m=/^(.*?)\s*\b(BHK|RK)\b\s*(.*)$/i.exec(s);
+  if(!m)return s;
+  const nums=m[1].split(/[,&\/]|\band\b/i).map(x=>x.trim()).filter(Boolean);
+  if(nums.length<2)return s;
+  const unit=m[2].toUpperCase(), tail=(m[3]||"").trim();
+  const last=nums.pop();
+  return `${nums.join(", ")} or ${last} ${unit}${tail?" "+tail:""}`;
+}
+/* The price as a buyer reads it, whatever was typed. "1.70CR" becomes
+   "\u20B91.70 Cr" \u2014 the currency mark is the whole point of putting a price
+   in a headline, and the unit is written the way the market writes it. */
+function barePrice(){
+  let p=String(PROJ.price||"").trim().replace(/\*+$/,"").trim();
+  if(!p)return "";
+  /* anchored on the digit, because "1.70CR" has no word boundary before the
+     unit and a \\b there simply never matches */
+  p=p.replace(/(\d)\s*(crores?|cr)\b/i,"$1 Cr")
+     .replace(/(\d)\s*(lakhs?|lacs?|l)\b/i,"$1 Lacs")
+     .replace(/(\d)\s*(k|thousand)\b/i,"$1 K")
+     .replace(/\s+/g," ").trim();
+  if(REGION==="ae"){ if(!/aed/i.test(p))p="AED "+p; }
+  else if(!/[\u20B9]/.test(p)&&/^[\d.,]/.test(p))p="\u20B9"+p;
+  return p;
+}
+/* Pinned 2 is reserved for configuration and price. Every line here names a
+   real configuration, a real price, or both — never a generic noun. The
+   connectors are the ones that fit: "|", "From", "Starting At", "Onwards". */
+function moneyHeadlines(b,max){
+  const bare=barePrice();
+  const short=bare?priceUnitShort(bare):"";
+  const cfgs=[b.cfg,...cfgParts(b.cfg)].filter(Boolean);
+  const out=[];
+  const add=t=>{ const f=fit(t,max); if(f&&!out.some(x=>x.toLowerCase()===f.toLowerCase()))out.push(f); };
+  if(bare)cfgs.forEach(c=>{
+    add(`${c} | ${bare}*`);
+    add(`${c} | ${short}*`);
+    add(`${c} From ${bare}*`);
+    add(`${c} From ${short}*`);
+    add(`${c} At ${short}*`);
+  });
+  priceForms().forEach(add);        /* "Starting At X*", "From X*", "X Onwards*" */
+  cfgs.forEach(add);                /* a real configuration still beats a noun */
+  return out;
+}
+/* Pinned 1 descriptions carry project, configuration, price and location in
+   a sentence, rather than four fragments stapled together with full stops. */
+function sentenceD1(b,max){
+  const where=placeOf(b)||b.micro||b.city||"";
+  const bare=barePrice(), cfg=b.cfg||"", orCfg=cfgOr(cfg);
+  const city=(b.city||"").trim();
+  /* placeOf already returns "Micro, City" for some briefs, so the city is
+     only added when it is not in there already \u2014 otherwise the sentence
+     reads "Koregaon Park, Pune, Pune". */
+  const wide=where&&city&&!where.toLowerCase().includes(city.toLowerCase())
+    ?`${where}, ${city}`:where;
+  const cands=[];
+  if(cfg&&bare&&wide)cands.push(
+    `${b.proj} in ${wide} offers ${cfg} residences starting at ${bare}*.`,
+    `Own a ${orCfg} at ${b.proj}, ${wide}, from ${bare}*.`,
+    `${cfg} at ${b.proj} in ${where}, priced from ${bare}*.`);
+  if(cfg&&bare)cands.push(
+    `${b.proj} offers ${cfg} residences from ${bare}*.`,
+    `${cfg} at ${b.proj}${where?" in "+where:""} from ${bare}*.`);
+  if(cfg&&wide)cands.push(`${b.proj} in ${wide} offers ${cfg} residences.`);
+  if(bare)cands.push(`${b.proj}${where?" in "+where:""}, starting at ${bare}*.`);
+  return cands.filter(Boolean);
+}
+/* Pinned 2 descriptions carry what the project actually offers and the ask. */
+function sentenceD2(b,max){
+  const u=b.usps.map(tc), m=b.marks.map(tc), a=b.amen.map(tc);
+  const out=[];
+  if(u[0]&&u[1])out.push(`${u[0]} and ${u[1]}. Book a free site visit today.`);
+  if(u[0])out.push(`${u[0]}. Download the brochure for floor plans and pricing.`);
+  if(u[1]&&u[2])out.push(`${u[1]} with ${u[2]}. Enquire now for the full price list.`);
+  if(m[0]&&m[1])out.push(`${m[0]} and ${m[1]}. Request a call back from our team.`);
+  if(m[0])out.push(`${m[0]}. Book a site visit and see the location for yourself.`);
+  if(a[0]&&a[1])out.push(`${a[0]}, ${a[1]} and more. Get the price list instantly.`);
+  if(u[2])out.push(`${u[2]}. Enquire today for floor plans and availability.`);
+  if(b.offer)out.push(`${tc(b.offer)}. Limited homes — book your site visit now.`);
+  return out;
+}
 function adFor(kws){
   const b=brief(), used=new Set(), H=[];
   const kwH=kws.filter(k=>!blocked(k)).slice(0,14).map(k=>tc(k));
   pick(kwH,H_MAX,5,used).forEach(t=>H.push([t,"1"]));
   const place=placeOf(b), where=place||b.city||b.micro||"";
-  const withPrice2=(prefix)=>{
-    const room=H_MAX-prefix.length;
-    const pf=priceFit(room); return pf?`${prefix}${pf}`:"";
-  };
-  const money=[
-    b.cfg?withPrice2(`${b.cfg} `):"",
-    b.cfg?withPrice2(`Luxury ${b.cfg} `):"",
-    b.cfg?withPrice2(`Premium ${b.cfg} `):"",
-    withPrice2("Homes "),
-    b.cfg&&where?`${b.cfg} In ${where}`:"",
-    where?withPrice2(`Homes In ${where} `):"",
-    b.cfg?`Spacious ${b.cfg} Homes`:"",
-    where?`Homes In ${where}`:""].filter(Boolean);
-  pick(scrub(money),H_MAX,5,used).forEach(t=>H.push([t,"2"]));
+  /* Pinned 2 is the configuration-and-price slot. It used to fall back on
+     "Homes", "Spacious ... Homes" and the like, which say nothing a buyer
+     can act on; now every line carries a real configuration, a real price,
+     or both. */
+  pick(scrub(moneyHeadlines(b,H_MAX)),H_MAX,5,used).forEach(t=>H.push([t,"2"]));
   const usp=pick(b.usps.map(tc),H_MAX,4,used);
   usp.forEach(t=>H.push([t,"3"]));
   const cta=pick(["Book A Free Site Visit","Download Brochure Now","Get Price List Instantly",
@@ -3470,25 +3576,60 @@ function adFor(kws){
   const dUsed=new Set();
   const price=pricePhrase();
   const CTA=["Book A Free Site Visit","Download The Brochure","Enquire For Floor Plans","Get The Price List"];
-  /* pinned 1 — project, location, configuration, price */
-  const p1=pick([
-    compose([`${withPlace(b.proj,where)}`, b.cfg, price],D_MAX),
-    compose([`${b.cfg} At ${withPlace(b.proj,where)}`, price],D_MAX),
-    compose([`${addPart(b.proj,b.micro)} \u2014 ${b.cfg}`, price],D_MAX),
-    compose([`${where?b.proj+" In "+where:b.proj}`, b.cfg&&`${b.cfg} ${price}`],D_MAX)
-  ].filter(Boolean).filter(x=>!banned(x)),D_MAX,2,dUsed).map(t=>[t,"1"]);
-  /* pinned 2 — USP and a call to action */
-  const p2=pick([
-    compose([u[0]&&u[1]?`${u[0]} & ${u[1]}`:(u[0]||"Premium Homes"), CTA[0]],D_MAX),
-    compose([u[2]||u[1]||u[0]||"World-Class Amenities", m[0], CTA[1]],D_MAX),
-    compose([joinParts(b.offer||"New Launch","At",b.proj), u[3]||u[0]||"", CTA[2]],D_MAX),
-    compose([m[0]||u[0]||"Prime Location", CTA[3]],D_MAX)
-  ].filter(Boolean).filter(x=>!banned(x)),D_MAX,2,dUsed).map(t=>[t,"2"]);
+  /* pinned 1 — project, configuration, price and location, as a sentence */
+  const p1=pick(sentenceD1(b,D_MAX).filter(x=>!banned(x)),D_MAX,2,dUsed).map(t=>[t,"1"]);
+  /* pinned 2 — what the project offers, and the ask */
+  const p2=pick(sentenceD2(b,D_MAX).concat([
+    compose([u[0]&&u[1]?`${u[0]} & ${u[1]}`:(u[0]||""), CTA[0]],D_MAX),
+    compose([u[2]||u[1]||u[0]||"", m[0], CTA[1]],D_MAX)
+  ].filter(Boolean)).filter(x=>!banned(x)),D_MAX,2,dUsed).map(t=>[t,"2"]);
   const D=[...p1,...p2]; while(D.length<D_CAP)D.push(["",""]);
   return {h:H.slice(0,H_CAP),d:D.slice(0,D_CAP)};
 }
 
 
+
+/* One line in, one segment out. Google builds a custom segment from a single
+   kind of signal — searched terms, browsed sites, watched channels or used
+   apps — so a segment carrying a URL and a keyword at once matches neither
+   well. Each row below is therefore one segment with exactly one input. */
+const CS_KINDS=[
+  ["csKw",  "Search terms",     "People who searched any of these terms"],
+  ["csUrl", "Website URLs",     "People who browse types of websites"],
+  ["csYt",  "YouTube channels", "People who browse types of websites (channel URL)"],
+  ["csApp", "Apps",             "People who use types of apps"]
+];
+function csLabel(v){
+  let t=String(v||"").trim();
+  /* a channel is best named by its handle, not by "youtube-com-..." */
+  const yt=/youtube\.com\/(?:@|c\/|channel\/|user\/)?([^\/?#]+)/i.exec(t);
+  if(yt) t=yt[1];
+  else t=t.replace(/^https?:\/\/(www\.)?/i,"").replace(/\/+$/,"");
+  /* dots and slashes need a separator of their own, or "99acres.com/pune"
+     collapses into "99acrescompune" */
+  return t.replace(/[\/._@]+/g,"-").replace(/-+/g,"-").replace(/^-|-$/g,"").slice(0,44);
+}
+function customSegments(){
+  const b=brief(), rows=[];
+  /* [Developer] [Project] [Location], except the developer is dropped when
+     the project already carries any part of it \u2014 "Global Group Global
+     Riverfront" names the same company twice, and trimming it down to the
+     leftover word gives a worse name still ("Group Global Riverfront"). */
+  const key=x=>String(x||"").toLowerCase().replace(/[^a-z0-9]/g,"");
+  const projWords=new Set(String(b.proj||"").split(/\s+/).map(key).filter(Boolean));
+  const devCarried=String(b.dev||"").split(/\s+/).some(w=>projWords.has(key(w)));
+  const stem=[devCarried?"":slug(b.dev||""), slug(b.proj||"project"),
+              slug(b.micro||b.city||"")].filter(Boolean).join("-");
+  CS_KINDS.forEach(([id,kind,field])=>{
+    const el=$("#"+id); if(!el)return;
+    lines(el.value).forEach(v=>{
+      rows.push([`${stem}-${slug(kind.split(" ")[0])}-${slug(csLabel(v))}`.slice(0,80),
+                 kind, v, field,
+                 "Google Ads → Tools → Audience manager → Custom segments → New custom segment"]);
+    });
+  });
+  return rows;
+}
 
 /* ═══════════ Demand Gen targeting ═══════════
    Demographics and existing audience segments can be imported. Creating a
@@ -4193,21 +4334,11 @@ function entityFiles(){
     if(aRows.length)files.push(["12-audiences.csv",mk(
       ["Campaign","Ad group","Audience name","Audience type","Audience ID","Status"],aRows)]);
 
-    const srcLines=(($("#audSources")&&$("#audSources").value)||"")
-      .split("\n").map(s=>s.trim()).filter(Boolean);
-    if(srcLines.length){
-      const b2=brief();
+    const segRows=customSegments();
+    if(segRows.length){
       files.push(["13-custom-segments-to-create.csv",mk(
-        ["Suggested segment name","Type","Source","Where to create"],
-        srcLines.map(s=>{
-          const type=/^https?:\/\/(www\.)?(youtube|youtu\.be)/i.test(s)?"YouTube channel or video"
-            : /^https?:\/\//i.test(s)?"Website URL"
-            : /^[a-z0-9]+(\.[a-z0-9]+)+$/i.test(s)?"App"
-            : "Search term";
-          let label=s.replace(/^https?:\/\/(www\.)?/i,"").replace(/\/$/,"").slice(0,40);
-          return [`${slug(b2.proj||"project")}-${slug(label)}`,type,s,
-                  "Google Ads \u2192 Tools \u2192 Audience manager \u2192 Custom segments"];
-        }))]);
+        ["Segment name","Signal type","The one input","Field in the interface","Where to create"],
+        segRows)]);
     }
     files.push(["9-demandgen-settings.csv",
       mk(["Setting","Value"],dgSettings())]);
