@@ -210,7 +210,7 @@ code{font-family:var(--mono);background:rgba(0,0,0,.05);padding:1px 4px;border-r
     <div class="wordmark">Search Ops Toolkit <span>· Google Ads</span></div>
     <div class="spacer"></div>
     <div class="badge-env" id="varCount">0 VARIANTS</div>
-    <span class="pill p-mute" id="buildTag" title="build">b-21oct-9</span>
+    <span class="pill p-mute" id="buildTag" title="build">b-21oct-10</span>
     <div id="userChip" class="hidden" style="display:flex;align-items:center;gap:9px">
       <div class="divider-v"></div>
       <span id="userName" style="font-size:12.5px;font-weight:500"></span>
@@ -4696,11 +4696,12 @@ function drawApSettings(){
       row("Negative lists","not supported on Demand Gen",false)+
       row("Demographics",(S.exAge.length||S.exGender.length||S.exIncome.length)
         ?"as an audience on the ad group":"all, no audience needed")+
+      row("Location & language","on the ad group, not the campaign")+
       `<div class="f-note" style="margin-top:10px">Demand Gen hangs its images off the ad, so the
-        Creative studio renders and the logo are sent with the campaign. It also groups its targeting:
-        the exclusions above become one audience listing the bands that are <b>kept</b>, attached to the
-        ad group \u2014 Google refuses age and income criteria on a Demand Gen ad group on their own.
-        Segments without an ID are skipped rather than guessed.</div>`;
+        Creative studio renders and the logo are sent with the campaign. Its targeting all sits on the
+        <b>ad group</b>, not the campaign \u2014 location, language, and one audience carrying the
+        demographic bands that are <b>kept</b> rather than the ones excluded. Sent at campaign level
+        Google refuses every one of them. Segments without an ID are skipped rather than guessed.</div>`;
     return;
   }
   $("#apSettings").innerHTML=common+
