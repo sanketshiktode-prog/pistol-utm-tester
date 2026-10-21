@@ -210,7 +210,7 @@ code{font-family:var(--mono);background:rgba(0,0,0,.05);padding:1px 4px;border-r
     <div class="wordmark">Search Ops Toolkit <span>· Google Ads</span></div>
     <div class="spacer"></div>
     <div class="badge-env" id="varCount">0 VARIANTS</div>
-    <span class="pill p-mute" id="buildTag" title="build">b-21oct-7</span>
+    <span class="pill p-mute" id="buildTag" title="build">b-21oct-8</span>
     <div id="userChip" class="hidden" style="display:flex;align-items:center;gap:9px">
       <div class="divider-v"></div>
       <span id="userName" style="font-size:12.5px;font-weight:500"></span>
@@ -1187,6 +1187,11 @@ Static Square</textarea>
           <input type="text" id="crDisc" value="Images are for illustrative purposes only and may differ from actual."></label>
         <div class="btnrow" style="margin-top:12px">
           <button class="btn btn-sm btn-navy" id="crFromBrief">Refill from the brief</button>
+        </div>
+        <div class="f">
+          <span class="f-lab">Layout</span>
+          <select id="crLayout"></select>
+          <span class="f-note" id="crLayoutNote"></span>
         </div>
       </div>
     </div>
@@ -5220,7 +5225,10 @@ const GOLD="#C9A24B", GOLD_HI="#E8CC8A", PLAQUE="#0D0D0F";
 const val=id=>(($("#"+id)&&$("#"+id).value)||"").trim();
 
 function crFit(g,text,font,maxW){
-  let size=parseInt(font,10)||32;
+  /* the size is the px value, not the first number in the string \u2014 a font
+     written weight-first ("700 62px Archivo") made this read 700 */
+  const m=/(\d+(?:\.\d+)?)px/.exec(font);
+  let size=m?Math.round(parseFloat(m[1])):32;
   g.font=font;
   while(size>8&&g.measureText(text).width>maxW){
     size-=1; g.font=font.replace(/\d+px/,size+"px");
@@ -5250,8 +5258,9 @@ function crChamfer(g,x,y,w,h,c){
 /* the frame: a hairline rectangle broken at the corners by short brackets */
 function crFrame(g,x,y,w,h,S,accent){
   const n=Math.round(26*S);
-  g.save(); g.strokeStyle=accent; g.lineWidth=Math.max(1,Math.round(1.6*S));
-  g.globalAlpha=.85;
+  g.save(); g.strokeStyle=accent; g.lineWidth=Math.max(2,Math.round(2.6*S));
+  g.globalAlpha=1;
+  g.shadowColor="rgba(0,0,0,.55)"; g.shadowBlur=Math.round(6*S);
   [[x+n,y,x+w-n,y],[x+w,y+n,x+w,y+h-n],
    [x+w-n,y+h,x+n,y+h],[x,y+h-n,x,y+n]].forEach(([a,b,c,d])=>{
     g.beginPath(); g.moveTo(a,b); g.lineTo(c,d); g.stroke();
@@ -5357,195 +5366,521 @@ function crStrip(im,frac,top){
 const crRgb=a=>`rgb(${a[0]},${a[1]},${a[2]})`;
 const crDark=(a,k)=>`rgb(${Math.round(a[0]*k)},${Math.round(a[1]*k)},${Math.round(a[2]*k)})`;
 
-function crRenderOne(W,H){
-  const c=document.createElement("canvas"); c.width=W; c.height=H;
-  const g=c.getContext("2d");
+/* ═══════════ creative layouts ═══════════
+   Six layout families, read off the reference sets. They share the same
+   material — logo lockup, RERA block, location, configuration, price, offer,
+   disclaimer — and differ in where that material sits and whether it sits on
+   the render or on paper beside it.
+
+   Type is sized from the references, not from what fits: on a 1200px canvas
+   the configuration runs 52–62px and the price numeral 72–86px in every one
+   of them. The earlier renderer set those at 44 and 70, which is why it read
+   as a web card rather than a creative. */
+
+const CR_LAYOUTS=[
+  ["frame", "Gold frame",   "Dark plaques on the render inside a hairline notched frame"],
+  ["card",  "White card",   "Render full bleed, scalloped white panel at the foot"],
+  ["footer","Light footer", "Render full bleed, light band carrying configuration and price"],
+  ["panel", "Centre panel", "Deco panel centred on the render"],
+  ["arch",  "Arch",         "Light ground, arched render, gold ribbon"],
+  ["header","Header stack", "Copy above on light, arched render below"]
+];
+const INK="#14213D", PAPER="#F6F4EF", RED="#E2231A";
+
+function crLayoutId(){
+  const el=$("#crLayout");
+  return (el&&el.value)||"frame";
+}
+function crCtx(W,H){
   const S=Math.min(W,H)/1200;
-  const ratio=H/W;
-  const tall=ratio>=1.5, wide=W/H>=1.7, portrait=ratio>1&&!tall;
-  const accent=val("crAccent")||GOLD;
-  const scrim=(parseInt(val("crScrim"),10)||62)/100;
-  const useFrame=$("#crFrame")?$("#crFrame").checked:true;
+  const loc=(val("crLoc")||"").toUpperCase();
+  return {W,H,S, wide:W/H>=1.7, tall:H/W>=1.5,
+    accent:val("crAccent")||GOLD,
+    scrim:(parseInt(val("crScrim"),10)||62)/100,
+    dev:(val("crDev")||"").toUpperCase(),
+    proj:(val("crProj")||"").toUpperCase(),
+    loc, micro:((loc.split(",")[0])||"").trim(),
+    cfg:(val("crCfg")||"").toUpperCase(),
+    money:crMoneyParts(val("crPrice")),
+    offer:(val("crOffer")||"").toUpperCase(),
+    rera:val("crRera"), disc:val("crDisc")};
+}
+const F_H=(w,s)=>`${w} ${Math.round(s)}px Archivo, Inter, sans-serif`;
+const F_B=(w,s)=>`${w} ${Math.round(s)}px Inter, sans-serif`;
 
-  /* ── 1. the picture ───────────────────────────────────────────────────── */
-  g.fillStyle="#07090F"; g.fillRect(0,0,W,H);
-  const hero=CR.hero;
-  let band=[0,H];
-  if(hero){
-    if(tall){
-      /* a 9:16 canvas is mostly not the render. The reference builds a
-         gradient out of the render's own sky and ground and sets the render
-         into it as a band, which is why it reads as composed rather than
-         cropped. */
-      const sky=crStrip(hero,.18,true), ground=crStrip(hero,.18,false);
-      const grad=g.createLinearGradient(0,0,0,H);
-      grad.addColorStop(0,crDark(sky,.45));
-      grad.addColorStop(.30,crRgb(sky));
-      grad.addColorStop(.70,crDark(ground,.62));
-      grad.addColorStop(.86,crDark(ground,.26));
-      grad.addColorStop(1,"#05070C");
-      g.fillStyle=grad; g.fillRect(0,0,W,H);
-      const bh=Math.round(W*hero.naturalHeight/hero.naturalWidth);
-      const by=Math.round(H*0.33);
-      g.drawImage(hero,0,by,W,bh);
-      band=[by,by+bh];
-      /* feather the band into the gradient */
-      const f=Math.round(H*0.11);
-      [[by,by+f,crRgb(sky)],[by+bh-f,by+bh,crRgb(ground)]].forEach(([a,b,col],i)=>{
-        const gg=g.createLinearGradient(0,a,0,b);
-        gg.addColorStop(i?0:1,col.replace("rgb","rgba").replace(")",",0)"));
-        gg.addColorStop(i?1:0,col);
-        g.fillStyle=gg; g.fillRect(0,a,W,b-a);
-      });
-    }else{
-      crCover(g,hero,W,H,0,0,W,H);
-    }
+/* ── shapes ──────────────────────────────────────────────────────────────── */
+function crArch(g,x,y,w,h,r){
+  g.beginPath();
+  g.moveTo(x,y+h); g.lineTo(x,y+r);
+  g.quadraticCurveTo(x,y,x+Math.min(r,w/2),y);
+  g.lineTo(x+w-Math.min(r,w/2),y);
+  g.quadraticCurveTo(x+w,y,x+w,y+r);
+  g.lineTo(x+w,y+h); g.closePath();
+}
+/* the scalloped top edge on the white panel */
+function crScallopTop(g,x,y,w,h,r){
+  const n=Math.max(4,Math.round(w/(r*2)));
+  const step=w/n;
+  g.beginPath(); g.moveTo(x,y+h); g.lineTo(x,y);
+  for(let i=0;i<n;i++){
+    const cx=x+step*(i+.5);
+    g.arc(cx,y,step/2,Math.PI,0,false);
   }
-  /* Light scrims only. The reference leans on a render that is already dark
-     at top and bottom; a heavy black wash is what made these look cheap. */
-  const topG=g.createLinearGradient(0,0,0,H*(wide?.34:.30));
-  topG.addColorStop(0,`rgba(5,8,14,${0.62*scrim})`);
-  topG.addColorStop(1,"rgba(5,8,14,0)");
-  g.fillStyle=topG; g.fillRect(0,0,W,H*(wide?.34:.30));
-  const bStart=H*(tall?.60:wide?.56:.58);
-  const botG=g.createLinearGradient(0,bStart,0,H);
-  botG.addColorStop(0,"rgba(5,8,14,0)");
-  botG.addColorStop(.45,`rgba(5,8,14,${0.46*scrim})`);
-  botG.addColorStop(.78,`rgba(5,8,14,${0.80*scrim})`);
-  botG.addColorStop(1,`rgba(5,8,14,${0.95*scrim})`);
-  g.fillStyle=botG; g.fillRect(0,bStart,W,H-bStart);
+  g.lineTo(x+w,y+h); g.closePath();
+}
+function crDiamond(g,cx,cy,r,fill){
+  g.save(); g.fillStyle=fill; g.beginPath();
+  g.moveTo(cx,cy-r); g.lineTo(cx+r*.62,cy); g.lineTo(cx,cy+r); g.lineTo(cx-r*.62,cy);
+  g.closePath(); g.fill(); g.restore();
+}
+/* a rule broken in the middle by a small ornament, as on the light layouts */
+function crOrnRule(g,cx,y,w,S,colour){
+  g.save(); g.strokeStyle=colour; g.lineWidth=Math.max(1,1.2*S); g.globalAlpha=.75;
+  const gap=18*S;
+  g.beginPath(); g.moveTo(cx-w/2,y); g.lineTo(cx-gap,y); g.stroke();
+  g.beginPath(); g.moveTo(cx+gap,y); g.lineTo(cx+w/2,y); g.stroke();
+  g.restore();
+  crDiamond(g,cx,y,7*S,colour);
+}
+function crPin(g,x,baseY,size,colour){
+  const r=size*.34, cx=x+r, cy=baseY-size*.40;
+  g.save(); g.fillStyle=colour;
+  g.beginPath(); g.arc(cx,cy,r,Math.PI,0); g.lineTo(cx,cy+r*1.85); g.closePath(); g.fill();
+  g.fillStyle="rgba(255,255,255,.92)";
+  g.beginPath(); g.arc(cx,cy,r*.38,0,Math.PI*2); g.fill();
+  g.restore();
+  return r*2.25;
+}
 
-  /* ── 2. the frame ─────────────────────────────────────────────────────── */
-  const fx=W*0.082, fw=W*0.836;
-  const fy=H*(tall?0.315:wide?0.215:0.179);
-  const fy2=H*(tall?0.775:wide?0.872:0.898);
-  if(useFrame)crFrame(g,fx,fy,fw,fy2-fy,S,accent);
-
-  /* ── 3. the lockup ────────────────────────────────────────────────────── */
-  const lockY=H*(tall?0.225:wide?0.075:0.072);
-  const logoH=Math.round((wide?58:72)*S);
-  let lx=fx;
+/* ── blocks ──────────────────────────────────────────────────────────────── */
+/* the location set against the right edge. It is drawn first and reports its
+   width, so the lockup on the left can be given only the room that is left \u2014
+   otherwise a long project name runs straight into a long location. */
+function crTopRightLoc(g,c,rightX,baseY,size,pinColour,maxW){
+  if(!c.loc)return 0;
+  g.font=F_H(700,size);
+  const s2=crFit(g,c.loc,g.font,maxW); g.font=F_H(700,s2);
+  const tw=g.measureText(c.loc).width, pw=s2*.80;
+  const x0=rightX-tw-pw;
+  crPin(g,x0,baseY+s2*.34,s2,pinColour);
+  g.fillStyle="#FFFFFF"; g.textAlign="left"; g.textBaseline="alphabetic";
+  g.fillText(c.loc,x0+pw,baseY+s2*.34);
+  return tw+pw;
+}
+function crLockup(g,c,x,y,maxW,light){
+  const S=c.S, fg=light?INK:"#FFFFFF";
+  const logoH=Math.round((c.wide?64:78)*S);
+  let lx=x;
   if(CR.logo){
     const lw=Math.round(logoH*CR.logo.naturalWidth/CR.logo.naturalHeight);
-    g.drawImage(CR.logo,lx,lockY-logoH/2,lw,logoH);
-    lx+=lw+Math.round(26*S);
-    g.save(); g.strokeStyle="rgba(255,255,255,.55)";
-    g.lineWidth=Math.max(1,Math.round(1.5*S));
-    g.beginPath(); g.moveTo(lx,lockY-logoH*0.46); g.lineTo(lx,lockY+logoH*0.46); g.stroke();
+    g.drawImage(CR.logo,lx,y-logoH/2,lw,logoH); lx+=lw+26*S;
+  }else if(c.dev){
+    g.font=F_H(800,48*S); g.fillStyle=fg; g.textAlign="left"; g.textBaseline="middle";
+    g.fillText(c.dev,lx,y); lx+=g.measureText(c.dev).width+26*S;
+  }
+  if(!c.proj)return;
+  if(lx>x){
+    g.save(); g.strokeStyle=light?"rgba(20,33,61,.45)":"rgba(255,255,255,.55)";
+    g.lineWidth=Math.max(1,1.5*S);
+    g.beginPath(); g.moveTo(lx,y-logoH*.44); g.lineTo(lx,y+logoH*.44); g.stroke();
+    g.restore(); lx+=26*S;
+  }
+  let ps=(c.wide?50:60)*S;
+  g.font=F_H(700,ps); ps=crFit(g,c.proj,g.font,Math.max(60,x+maxW-lx));
+  g.font=F_H(700,ps); g.fillStyle=fg; g.textAlign="left"; g.textBaseline="alphabetic";
+  const by=c.micro?y+ps*.16:y+ps*.35;
+  g.fillText(c.proj,lx,by);
+  if(c.micro){
+    const pw=g.measureText(c.proj).width, ms=ps*.38, tr=ms*.26;
+    g.font=F_B(500,ms); g.fillStyle=light?"rgba(20,33,61,.80)":"rgba(255,255,255,.90)";
+    const mw=[...c.micro].reduce((a,ch)=>a+g.measureText(ch).width,0)+tr*(c.micro.length-1);
+    const mcx=lx+pw/2, myy=by+ms*1.6;
+    crTrack(g,c.micro,mcx,myy,tr,"center");
+    g.save(); g.strokeStyle=light?"rgba(20,33,61,.40)":"rgba(255,255,255,.45)";
+    g.lineWidth=Math.max(1,1.2*S);
+    const ry=myy-ms*.32, rl=34*S, gp=14*S;
+    g.beginPath(); g.moveTo(mcx-mw/2-gp-rl,ry); g.lineTo(mcx-mw/2-gp,ry); g.stroke();
+    g.beginPath(); g.moveTo(mcx+mw/2+gp,ry); g.lineTo(mcx+mw/2+gp+rl,ry); g.stroke();
     g.restore();
-    lx+=Math.round(26*S);
-  }else if(val("crDev")){
-    const ds=Math.round(44*S);
-    g.font=`800 ${ds}px Archivo, Inter, sans-serif`;
-    g.fillStyle="#FFFFFF"; g.textAlign="left"; g.textBaseline="middle";
-    g.fillText(val("crDev").toUpperCase(),lx,lockY);
-    lx+=g.measureText(val("crDev").toUpperCase()).width+Math.round(24*S);
-    g.save(); g.strokeStyle="rgba(255,255,255,.55)";
-    g.lineWidth=Math.max(1,Math.round(1.5*S));
-    g.beginPath(); g.moveTo(lx,lockY-logoH*0.4); g.lineTo(lx,lockY+logoH*0.4); g.stroke();
-    g.restore();
-    lx+=Math.round(24*S);
   }
-  const proj=(val("crProj")||"").toUpperCase();
-  const micro=((val("crLoc")||"").split(",")[0]||"").trim().toUpperCase();
-  if(proj){
-    const rightLimit=W*0.60;
-    let ps=Math.round((wide?46:56)*S);
-    g.font=`700 ${ps}px Archivo, Inter, sans-serif`;
-    ps=crFit(g,proj,g.font,Math.max(60,rightLimit-lx));
-    g.font=`700 ${ps}px Archivo, Inter, sans-serif`;
-    g.fillStyle="#FFFFFF"; g.textAlign="left"; g.textBaseline="alphabetic";
-    const baseY=micro?lockY+ps*0.18:lockY+ps*0.36;
-    g.fillText(proj,lx,baseY);
-    if(micro){
-      const pw=g.measureText(proj).width;
-      const ms=Math.round(ps*0.40);
-      g.font=`500 ${ms}px Inter, sans-serif`;
-      g.fillStyle="rgba(255,255,255,.92)";
-      const track=Math.round(ms*0.26);
-      const mw=[...micro].reduce((a,ch)=>a+g.measureText(ch).width,0)+track*(micro.length-1);
-      const mcx=lx+pw/2;
-      crTrack(g,micro,mcx,baseY+ms*1.55,track,"center");
-      /* the two short rules that flank it in every sample */
-      g.save(); g.strokeStyle="rgba(255,255,255,.45)";
-      g.lineWidth=Math.max(1,Math.round(1.2*S));
-      const ry=baseY+ms*1.55-ms*0.32, rlen=Math.round(34*S), gap2=Math.round(14*S);
-      g.beginPath(); g.moveTo(mcx-mw/2-gap2-rlen,ry); g.lineTo(mcx-mw/2-gap2,ry); g.stroke();
-      g.beginPath(); g.moveTo(mcx+mw/2+gap2,ry); g.lineTo(mcx+mw/2+gap2+rlen,ry); g.stroke();
-      g.restore();
-    }
-  }
-
-  /* ── 4. RERA, top right ───────────────────────────────────────────────── */
-  const rera=val("crRera");
-  if(rera||CR.qr){
-    const qrS=Math.round((wide?82:104)*S);
-    const right=fx+fw;
-    let qx=right;
-    if(CR.qr){
-      qx=right-qrS;
-      g.fillStyle="#FFFFFF";
-      g.fillRect(qx-Math.round(5*S),lockY-qrS/2-Math.round(5*S),
-                 qrS+Math.round(10*S),qrS+Math.round(10*S));
-      g.drawImage(CR.qr,qx,lockY-qrS/2,qrS,qrS);
-      qx-=Math.round(16*S);
-    }
-    if(rera){
-      g.textAlign="right"; g.textBaseline="alphabetic";
-      const ls=Math.round(17*S), ns=Math.round(27*S), us=Math.round(14*S);
-      g.fillStyle="rgba(255,255,255,.85)"; g.font=`500 ${ls}px Inter, sans-serif`;
-      g.fillText("MahaRERA:",qx,lockY-ns*0.52);
-      g.fillStyle="#FFFFFF"; g.font=`700 ${ns}px Archivo, Inter, sans-serif`;
-      g.fillText(rera,qx,lockY+ns*0.34);
-      g.fillStyle="rgba(255,255,255,.75)"; g.font=`400 ${us}px Inter, sans-serif`;
-      g.fillText("maharera.mahaonline.gov.in",qx,lockY+ns*0.34+us*1.35);
-    }
-  }
-
-  /* ── 5. the offer, straddling the frame's top edge ────────────────────── */
-  if(val("crOffer"))crPlaque(g,W/2,fy,val("crOffer").toUpperCase(),S,accent);
-
-  /* ── 6. location, price bar, disclaimer ───────────────────────────────── */
-  const money=crMoneyParts(val("crPrice"));
-  const barH=Math.round(96*S);
-  /* the bar straddles the frame's bottom edge, the mirror of the offer
-     plaque on the top edge \u2014 that symmetry is what holds the layout */
-  const barTop=Math.round(fy2-barH/2);
-  const disc=val("crDisc");
-  if(disc){
-    const ds=Math.round((wide?15:17)*S);
-    g.font=`400 ${ds}px Inter, sans-serif`;
-    g.fillStyle="rgba(255,255,255,.80)"; g.textAlign="center"; g.textBaseline="top";
-    const d2=crFit(g,disc,g.font,fw);
-    g.font=`400 ${d2}px Inter, sans-serif`;
-    g.fillText(disc,W/2,barTop+barH+Math.round(20*S));
-  }
-  crPriceBar(g,W/2,barTop,(val("crCfg")||"").toUpperCase(),
-             money&&money.amount,money&&money.unit,money&&money.tail,S,accent);
-  const loc=(val("crLoc")||"").toUpperCase();
-  if(loc){
-    const ls=Math.round((wide?38:46)*S);
-    g.font=`700 ${ls}px Archivo, Inter, sans-serif`;
-    const l2=crFit(g,loc,g.font,fw*0.92);
-    g.font=`700 ${l2}px Archivo, Inter, sans-serif`;
-    const lw2=g.measureText(loc).width;
-    const pinW=Math.round(l2*0.78);
-    const startX=W/2-(lw2+pinW*0.9)/2;
-    g.textAlign="left"; g.textBaseline="alphabetic";
-    const ly=barTop-Math.round(40*S);
-    /* the map pin, drawn rather than typed so it never falls back to a box */
-    g.save(); g.fillStyle=accent;
-    const pr=l2*0.30, pcx=startX+pinW*0.42, pcy=ly-l2*0.34;
-    g.beginPath(); g.arc(pcx,pcy,pr,Math.PI,0); 
-    g.lineTo(pcx,pcy+pr*1.75); g.closePath(); g.fill();
-    g.fillStyle="rgba(0,0,0,.55)";
-    g.beginPath(); g.arc(pcx,pcy,pr*0.40,0,Math.PI*2); g.fill();
-    g.restore();
-    g.fillStyle="#FFFFFF";
-    g.fillText(loc,startX+pinW*0.95,ly);
-  }
-  return c;
 }
+function crReraBlock(g,c,rightX,y,light){
+  const S=c.S;
+  if(!c.rera&&!CR.qr)return;
+  let qx=rightX;
+  if(CR.qr){
+    const q=Math.round((c.wide?92:116)*S);
+    qx=rightX-q;
+    g.fillStyle="#FFFFFF";
+    g.fillRect(qx-5*S,y-q/2-5*S,q+10*S,q+10*S);
+    g.drawImage(CR.qr,qx,y-q/2,q,q);
+    qx-=18*S;
+  }
+  if(!c.rera)return;
+  const fg=light?INK:"#FFFFFF";
+  g.textAlign="right"; g.textBaseline="alphabetic";
+  const ls=19*S, ns=30*S, us=15*S;
+  g.fillStyle=light?"rgba(20,33,61,.80)":"rgba(255,255,255,.85)"; g.font=F_B(500,ls);
+  g.fillText("MahaRERA:",qx,y-ns*.52);
+  g.fillStyle=fg; g.font=F_H(700,ns); g.fillText(c.rera,qx,y+ns*.34);
+  g.fillStyle=light?"rgba(20,33,61,.65)":"rgba(255,255,255,.75)"; g.font=F_B(400,us);
+  g.fillText("maharera.mahaonline.gov.in",qx,y+ns*.34+us*1.35);
+}
+/* the location line, pin and all, centred on cx */
+function crLocLine(g,c,cx,baseY,size,pinColour,textColour,maxW){
+  if(!c.loc)return 0;
+  g.font=F_H(700,size);
+  const s2=crFit(g,c.loc,g.font,maxW*.88); g.font=F_H(700,s2);
+  const tw=g.measureText(c.loc).width, pw=s2*.80;
+  const x0=cx-(tw+pw)/2;
+  crPin(g,x0,baseY,s2,pinColour);
+  g.fillStyle=textColour; g.textAlign="left"; g.textBaseline="alphabetic";
+  g.fillText(c.loc,x0+pw,baseY);
+  return s2;
+}
+/* configuration beside the price, split by a hairline — the light layouts */
+function crCfgPriceSplit(g,c,cx,baseY,light,sub){
+  const S=c.S, m=c.money;
+  const cfgS=(c.wide?48:60)*S, subS=cfgS*.46, numS=(c.wide?66:84)*S;
+  const unitS=numS*.42, tailS=numS*.21;
+  const fg=light?INK:"#FFFFFF";
+  g.font=F_H(700,cfgS); const cfgW=c.cfg?g.measureText(c.cfg).width:0;
+  g.font=F_B(500,subS);
+  const subW=sub?[...sub].reduce((a,ch)=>a+g.measureText(ch).width,0)+subS*.22*(sub.length-1):0;
+  const leftW=Math.max(cfgW,subW);
+  g.font=F_H(800,numS);
+  const amt=(m&&m.amount)||"", numW=amt?g.measureText(amt).width:0;
+  g.font=F_H(700,unitS);
+  const unitW=(m&&m.unit)?g.measureText(m.unit).width:0;
+  const rightW=numW+(unitW?unitW+8*S:0);
+  const gap=40*S, total=leftW+(leftW&&rightW?gap*2:0)+rightW;
+  let x=cx-total/2;
+  if(leftW){
+    g.textAlign="left"; g.textBaseline="alphabetic"; g.fillStyle=fg;
+    if(sub==="PREMIUM"){
+      g.font=F_B(600,subS); g.fillStyle=light?"rgba(20,33,61,.78)":"rgba(255,255,255,.84)";
+      crTrack(g,sub,x+leftW/2,baseY-cfgS*1.02,subS*.26,"center");
+      g.font=F_H(700,cfgS); g.fillStyle=light?INK:"#FFFFFF";
+      g.fillText(c.cfg,x+(leftW-cfgW)/2,baseY);
+    }else{
+      g.font=F_H(700,cfgS); g.fillText(c.cfg,x+(leftW-cfgW)/2,baseY);
+      if(sub){ g.font=F_B(500,subS); g.fillStyle=light?"rgba(20,33,61,.82)":"rgba(255,255,255,.86)";
+        crTrack(g,sub,x+leftW/2,baseY+subS*1.5,subS*.22,"center"); }
+    }
+    x+=leftW+gap;
+  }
+  if(leftW&&rightW){
+    g.save(); g.strokeStyle=light?"rgba(20,33,61,.35)":"rgba(255,255,255,.45)";
+    g.lineWidth=Math.max(1,1.4*S);
+    g.beginPath(); g.moveTo(x,baseY-cfgS*.95); g.lineTo(x,baseY+subS*1.8); g.stroke();
+    g.restore(); x+=gap;
+  }
+  if(rightW){
+    g.textAlign="left"; g.textBaseline="alphabetic";
+    g.fillStyle=light?INK:GOLD_HI; g.font=F_H(800,numS);
+    g.fillText(amt,x,baseY);
+    const ux=x+numW+8*S;
+    if(m.unit){ g.font=F_H(700,unitS); g.fillStyle=light?INK:"#FFFFFF";
+      g.fillText(m.unit,ux,baseY-numS*.30); }
+    if(m.tail){ g.font=F_B(600,tailS);
+      g.fillStyle=light?"rgba(20,33,61,.75)":"rgba(255,255,255,.80)";
+      crTrack(g,m.tail,ux,baseY,tailS*.3,"left"); }
+  }
+  return numS;
+}
+/* configuration over price, centred — the panel layout */
+function crCfgPriceStack(g,c,cx,topY,sub){
+  const S=c.S, m=c.money;
+  const cfgS=62*S, subS=cfgS*.42, numS=86*S, unitS=numS*.44, tailS=numS*.2;
+  let y=topY+cfgS;
+  if(c.cfg){
+    g.font=F_H(700,cfgS); const s2=crFit(g,c.cfg,g.font,c.W*.52); g.font=F_H(700,s2);
+    g.fillStyle="#FFFFFF"; g.textAlign="center"; g.textBaseline="alphabetic";
+    g.fillText(c.cfg,cx,y); y+=subS*1.6;
+  }
+  if(sub){ g.font=F_B(500,subS); g.fillStyle="rgba(255,255,255,.88)";
+    crTrack(g,sub,cx,y,subS*.3,"center"); y+=subS*1.1; }
+  crOrnRule(g,cx,y+subS*.5,c.W*.30,S,c.accent); y+=subS*1.5+numS*.72;
+  if(m&&m.amount){
+    g.font=F_H(800,numS); const nw=g.measureText(m.amount).width;
+    g.font=F_H(700,unitS); const uw=m.unit?g.measureText(m.unit).width:0;
+    const tot=nw+(uw?uw+8*S:0); let x=cx-tot/2;
+    g.textAlign="left"; g.fillStyle=GOLD_HI; g.font=F_H(800,numS);
+    g.fillText(m.amount,x,y); x+=nw+8*S;
+    if(m.unit){ g.font=F_H(700,unitS); g.fillStyle="#FFFFFF"; g.fillText(m.unit,x,y-numS*.30); }
+    if(m.tail){ g.font=F_B(600,tailS); g.fillStyle="rgba(255,255,255,.82)";
+      crTrack(g,m.tail,x,y,tailS*.3,"left"); }
+  }
+  return y;
+}
+/* a gold gradient ribbon carrying the offer */
+function crRibbon(g,c,cx,cy,text){
+  if(!text)return 0;
+  const S=c.S, fs=(c.wide?34:42)*S;
+  g.font=F_H(700,fs); const s2=crFit(g,text,g.font,c.W*.70); g.font=F_H(700,s2);
+  const tw=g.measureText(text).width, padX=42*S, h=s2*1.9, w=tw+padX*2;
+  const x=cx-w/2, y=cy-h/2, cut=h*.26;
+  const grad=g.createLinearGradient(x,0,x+w,0);
+  grad.addColorStop(0,"#B8912F"); grad.addColorStop(.5,"#F0D693"); grad.addColorStop(1,"#B8912F");
+  g.save();
+  g.beginPath();
+  g.moveTo(x,y); g.lineTo(x+w,y); g.lineTo(x+w-cut,y+h/2); g.lineTo(x+w,y+h);
+  g.lineTo(x,y+h); g.lineTo(x+cut,y+h/2); g.closePath();
+  g.fillStyle=grad; g.fill();
+  g.fillStyle=INK; g.textAlign="center"; g.textBaseline="middle";
+  g.font=F_H(700,s2); g.fillText(text,cx,cy+s2*.04);
+  g.restore();
+  return h;
+}
+function crDisclaimer(g,c,cx,y,light,maxW){
+  if(!c.disc)return;
+  const ds=(c.wide?16:18)*c.S;
+  g.font=F_B(400,ds); const d2=crFit(g,c.disc,g.font,maxW); g.font=F_B(400,d2);
+  g.fillStyle=light?"rgba(20,33,61,.62)":"rgba(255,255,255,.78)";
+  g.textAlign="center"; g.textBaseline="top";
+  g.fillText(c.disc,cx,y);
+}
+function crScrims(g,c){
+  const {W,H,scrim,wide,tall}=c;
+  const t=H*(wide?.34:.30);
+  const tg=g.createLinearGradient(0,0,0,t);
+  tg.addColorStop(0,`rgba(5,8,14,${.62*scrim})`); tg.addColorStop(1,"rgba(5,8,14,0)");
+  g.fillStyle=tg; g.fillRect(0,0,W,t);
+  const b=H*(tall?.60:wide?.56:.58);
+  const bg=g.createLinearGradient(0,b,0,H);
+  bg.addColorStop(0,"rgba(5,8,14,0)");
+  bg.addColorStop(.45,`rgba(5,8,14,${.46*scrim})`);
+  bg.addColorStop(.78,`rgba(5,8,14,${.80*scrim})`);
+  bg.addColorStop(1,`rgba(5,8,14,${.95*scrim})`);
+  g.fillStyle=bg; g.fillRect(0,b,W,H-b);
+}
+/* the render, either filling the canvas or set into a gradient as a band */
+function crHero(g,c,x,y,w,h){
+  const hero=CR.hero;
+  if(!hero){ g.fillStyle="#0B1020"; g.fillRect(x,y,w,h); return; }
+  if(c.tall&&h>=c.H*.9){
+    const sky=crStrip(hero,.18,true), ground=crStrip(hero,.18,false);
+    const gr=g.createLinearGradient(0,0,0,c.H);
+    gr.addColorStop(0,crDark(sky,.45)); gr.addColorStop(.30,crRgb(sky));
+    gr.addColorStop(.70,crDark(ground,.62)); gr.addColorStop(.86,crDark(ground,.26));
+    gr.addColorStop(1,"#05070C");
+    g.fillStyle=gr; g.fillRect(0,0,c.W,c.H);
+    const bh=Math.round(c.W*hero.naturalHeight/hero.naturalWidth), by=Math.round(c.H*.33);
+    g.drawImage(hero,0,by,c.W,bh);
+    const f=Math.round(c.H*.11);
+    [[by,by+f,crRgb(sky),1],[by+bh-f,by+bh,crRgb(ground),0]].forEach(([a,b2,col,dir])=>{
+      const gg=g.createLinearGradient(0,a,0,b2);
+      gg.addColorStop(dir?1:0,col); gg.addColorStop(dir?0:1,col.replace("rgb","rgba").replace(")",",0)"));
+      g.fillStyle=gg; g.fillRect(0,a,c.W,b2-a);
+    });
+    return;
+  }
+  crCover(g,hero,c.W,c.H,x,y,w,h);
+}
+
+/* ── the six layouts ─────────────────────────────────────────────────────── */
+const CR_DRAW={
+
+/* 1. Gold frame — dark plaques on the render, hairline notched frame */
+frame(g,c){
+  const {W,H,S,wide,tall}=c;
+  crHero(g,c,0,0,W,H); crScrims(g,c);
+  const fx=W*.082, fw=W*.836;
+  const fy=H*(tall?.315:wide?.215:.179), fy2=H*(tall?.775:wide?.872:.898);
+  if(!$("#crFrame")||$("#crFrame").checked)crFrame(g,fx,fy,fw,fy2-fy,S,c.accent);
+  const lockY=H*(tall?.225:wide?.075:.072);
+  crLockup(g,c,fx,lockY,W*.52,false);
+  crReraBlock(g,c,fx+fw,lockY,false);
+  if(c.offer)crPlaque(g,W/2,fy,c.offer,S,c.accent);
+  const barH=Math.round(104*S), barTop=Math.round(fy2-barH/2);
+  crPriceBar(g,W/2,barTop,c.cfg,c.money&&c.money.amount,c.money&&c.money.unit,
+             c.money&&c.money.tail,S,c.accent);
+  crLocLine(g,c,W/2,barTop-44*S,(wide?44:54)*S,c.accent,"#FFFFFF",fw);
+  crDisclaimer(g,c,W/2,barTop+barH+20*S,false,fw);
+},
+
+/* 2. White card — render full bleed, scalloped white panel at the foot */
+card(g,c){
+  const {W,H,S,wide,tall}=c;
+  crHero(g,c,0,0,W,H); crScrims(g,c);
+  const lockY=H*(tall?.10:.072);
+  /* the logo sits in its own white chip here, as on the reference */
+  const chipH=(wide?84:100)*S, chipW=Math.min(W*.46,(CR.logo
+    ? chipH*CR.logo.naturalWidth/CR.logo.naturalHeight+56*S : W*.40));
+  g.fillStyle="#FFFFFF"; g.fillRect(W*.045,lockY-chipH/2,chipW,chipH);
+  g.save(); g.beginPath(); g.rect(W*.045,lockY-chipH/2,chipW,chipH); g.clip();
+  crLockup(g,c,W*.045+24*S,lockY,chipW-48*S,true); g.restore();
+  crReraBlock(g,c,W*.955,lockY,false);
+  const pw=W*.80, px=(W-pw)/2;
+  const ph=H*(tall?.26:wide?.42:.33);
+  const py=H*(tall?.70:wide?.54:.63);
+  const r=pw/22;
+  g.save();
+  crScallopTop(g,px,py,pw,ph,r);
+  g.fillStyle="#FFFFFF"; g.globalAlpha=.97; g.fill(); g.globalAlpha=1;
+  g.restore();
+  let y=py+r+(wide?48:62)*S;
+  y+=crLocLine(g,c,W/2,y,(wide?42:52)*S,RED,INK,pw*.9)*.5;
+  crOrnRule(g,W/2,y+18*S,pw*.42,S,RED); y+=56*S;
+  crCfgPriceSplit(g,c,W/2,y+(wide?44:56)*S,true,"PREMIUM");
+  if(c.offer){
+    const t=c.offer, fs=(wide?30:38)*S;
+    g.font=F_H(700,fs); const s2=crFit(g,t,g.font,pw*.82); g.font=F_H(700,s2);
+    const tw=g.measureText(t).width, bh=s2*1.8, bw=tw+52*S;
+    const by=py+ph-bh-(wide?18:26)*S;
+    g.fillStyle=RED; g.fillRect(W/2-bw/2,by,bw,bh);
+    g.fillStyle="#FFFFFF"; g.textAlign="center"; g.textBaseline="middle";
+    g.fillText(t,W/2,by+bh/2+s2*.04);
+  }
+  crDisclaimer(g,c,W/2,Math.min(py+ph+16*S,H-30*S),false,W*.9);
+},
+
+/* 3. Light footer — render full bleed, light band under it */
+footer(g,c){
+  const {W,H,S,wide,tall}=c;
+  const bandH=H*(tall?.17:wide?.26:.22);
+  const bandY=H-bandH;
+  crHero(g,c,0,0,W,bandY+2);
+  const tg=g.createLinearGradient(0,0,0,H*.30);
+  tg.addColorStop(0,`rgba(5,8,14,${.52*c.scrim})`); tg.addColorStop(1,"rgba(5,8,14,0)");
+  g.fillStyle=tg; g.fillRect(0,0,W,H*.30);
+  g.fillStyle=PAPER; g.fillRect(0,bandY,W,bandH);
+  const lockY=H*(tall?.10:.072);
+  const locW=crTopRightLoc(g,c,W*.95,lockY,(wide?44:56)*S,RED,W*.44);
+  crLockup(g,c,W*.05,lockY,W*.90-locW-W*.04,false);
+  if(c.offer){
+    const fs=(wide?32:40)*S;
+    g.font=F_H(700,fs); const s2=crFit(g,c.offer,g.font,W*.74); g.font=F_H(700,s2);
+    const tw=g.measureText(c.offer).width, bh=s2*1.85, bw=tw+60*S, cut=bh*.3;
+    const by=bandY-bh/2;
+    g.beginPath();
+    g.moveTo(W/2-bw/2+cut,by); g.lineTo(W/2+bw/2-cut,by);
+    g.lineTo(W/2+bw/2,by+bh); g.lineTo(W/2-bw/2,by+bh); g.closePath();
+    g.fillStyle=INK; g.fill();
+    g.fillStyle="#FFFFFF"; g.textAlign="center"; g.textBaseline="middle";
+    g.fillText(c.offer,W/2,by+bh/2+s2*.04);
+  }
+  crCfgPriceSplit(g,c,W/2,bandY+bandH*(wide?.66:.60),true,"APARTMENTS");
+  crDisclaimer(g,c,W/2,H-(wide?22:26)*S-10*S,true,W*.9);
+},
+
+/* 4. Centre panel — a deco panel set on the render */
+panel(g,c){
+  const {W,H,S,wide,tall}=c;
+  crHero(g,c,0,0,W,H);
+  const vg=g.createRadialGradient(W/2,H*.45,W*.12,W/2,H*.45,W*.72);
+  vg.addColorStop(0,`rgba(5,10,8,${.30*c.scrim})`);
+  vg.addColorStop(1,`rgba(5,10,8,${.62*c.scrim})`);
+  g.fillStyle=vg; g.fillRect(0,0,W,H);
+  const lockY=H*(tall?.09:.068);
+  crLockup(g,c,W*.05,lockY,W*.46,false);
+  crReraBlock(g,c,W*.95,lockY,false);
+  const pw=W*(wide?.48:.56), px=(W-pw)/2;
+  const ph=H*(tall?.34:wide?.56:.46), py=H*(tall?.30:wide?.24:.24);
+  /* the panel needs its own ground, or the copy sits on whatever the render
+     happens to be doing underneath it */
+  g.save();
+  g.fillStyle="rgba(8,14,12,.46)"; g.fillRect(px,py,pw,ph);
+  g.strokeStyle=c.accent; g.lineWidth=Math.max(2,2.4*S); g.globalAlpha=.95;
+  g.strokeRect(px,py,pw,ph);
+  /* the sunburst that tops the panel in the reference */
+  const rays=11, rw=pw*.34;
+  for(let i=0;i<rays;i++){
+    const t=i/(rays-1), ang=-Math.PI/2+(t-.5)*Math.PI*.78;
+    g.beginPath(); g.moveTo(px+pw/2,py);
+    g.lineTo(px+pw/2+Math.cos(ang)*rw,py+Math.sin(ang)*rw+rw*.92); g.stroke();
+  }
+  g.restore();
+  let y=py+ph*(tall?.22:.20);
+  y+=crLocLine(g,c,W/2,y,(wide?38:46)*S,c.accent,"#FFFFFF",pw*.86);
+  crCfgPriceStack(g,c,W/2,y+16*S,"RESIDENCES");
+  if(c.offer){
+    const fs=(wide?30:38)*S;
+    g.font=F_H(700,fs); const s2=crFit(g,c.offer,g.font,W*.72); g.font=F_H(700,s2);
+    const bh=s2*2.0;
+    g.fillStyle="#FFFFFF"; g.fillRect(W*.14,H-bh-(tall?H*.04:24*S),W*.72,bh);
+    g.fillStyle=INK; g.textAlign="center"; g.textBaseline="middle";
+    g.fillText(c.offer,W/2,H-bh/2-(tall?H*.04:24*S)+s2*.04);
+  }
+  crDisclaimer(g,c,W/2,H-(tall?H*.022:18*S),false,W*.9);
+},
+
+/* 5. Arch — light ground, arched render, gold ribbon */
+arch(g,c){
+  const {W,H,S,wide,tall}=c;
+  const sky=g.createLinearGradient(0,0,0,H*.55);
+  sky.addColorStop(0,"#1C4C8B"); sky.addColorStop(1,"#5E9BD6");
+  g.fillStyle=PAPER; g.fillRect(0,0,W,H);
+  const ax=W*.0, aw=W, ah=H*(tall?.42:wide?.60:.52), ay=H*(tall?.26:wide?.18:.22);
+  g.fillStyle=sky; g.fillRect(0,0,W,ay+ah*.5);
+  const lockY=H*(tall?.09:.068);
+  const locW=crTopRightLoc(g,c,W*.95,lockY,(wide?44:56)*S,RED,W*.44);
+  crLockup(g,c,W*.05,lockY,W*.90-locW-W*.04,false);
+  if(c.offer){
+    const fs=(wide?34:44)*S;
+    g.font=F_H(700,fs); const s2=crFit(g,c.offer,g.font,W*.72); g.font=F_H(700,s2);
+    const oy=ay-(wide?26:36)*S;
+    g.fillStyle="#FFFFFF"; g.textAlign="center"; g.textBaseline="alphabetic";
+    g.fillText(c.offer,W/2,oy);
+    crOrnRule(g,W/2,oy-s2*1.5,W*.42,S,"rgba(255,255,255,.7)");
+    crOrnRule(g,W/2,oy+s2*.55,W*.42,S,"rgba(255,255,255,.7)");
+  }
+  const r=aw*.16;
+  g.save(); crArch(g,ax,ay,aw,ah,r); g.clip();
+  crHero(g,c,ax,ay,aw,ah); g.restore();
+  g.save(); g.strokeStyle=c.accent; g.lineWidth=Math.max(2,3*S);
+  crArch(g,ax,ay,aw,ah,r); g.stroke(); g.restore();
+  crRibbon(g,c,W/2,ay+ah,c.offer?"":c.cfg?"":"");
+  let y=ay+ah+(wide?54:76)*S;
+  crOrnRule(g,W/2,y-28*S,W*.56,S,c.accent);
+  crCfgPriceSplit(g,c,W/2,y+(wide?40:54)*S,true,"LUXURIOUS APARTMENTS");
+  crOrnRule(g,W/2,y+(wide?74:104)*S,W*.56,S,c.accent);
+  crDisclaimer(g,c,W/2,H-(wide?24:30)*S-8*S,true,W*.9);
+},
+
+/* 6. Header stack — copy above on light, arched render below */
+header(g,c){
+  const {W,H,S,wide,tall}=c;
+  g.fillStyle=PAPER; g.fillRect(0,0,W,H);
+  const lockY=H*(tall?.07:.062);
+  crLockup(g,c,W*.05,lockY,W*.50,true);
+  crReraBlock(g,c,W*.95,lockY,true);
+  let y=H*(tall?.17:wide?.26:.22);
+  y+=crLocLine(g,c,W/2,y,(wide?44:58)*S,RED,INK,W*.86);
+  const bw=W*.78, bx=(W-bw)/2, bh=(wide?92:124)*S, by=y+(wide?16:26)*S;
+  g.save(); g.strokeStyle=c.accent; g.lineWidth=Math.max(1,1.6*S);
+  g.strokeRect(bx,by,bw,bh);
+  g.globalAlpha=.6;
+  g.beginPath(); g.moveTo(bx-W*.045,by+bh/2); g.lineTo(bx,by+bh/2); g.stroke();
+  g.beginPath(); g.moveTo(bx+bw,by+bh/2); g.lineTo(bx+bw+W*.045,by+bh/2); g.stroke();
+  g.restore();
+  crCfgPriceSplit(g,c,W/2,by+bh*.60,true,"LUXURY APARTMENTS");
+  const ay=by+bh+(wide?28:44)*S, ah=H-ay;
+  const r=W*.14;
+  g.save(); crArch(g,W*.04,ay,W*.92,ah,r); g.clip();
+  crHero(g,c,W*.04,ay,W*.92,ah); g.restore();
+  g.save(); g.strokeStyle=c.accent; g.lineWidth=Math.max(1,2*S);
+  crArch(g,W*.04,ay,W*.92,ah,r); g.stroke(); g.restore();
+  if(c.offer){
+    const fs=(wide?28:36)*S;
+    g.font=F_H(700,fs); const s2=crFit(g,c.offer,g.font,W*.64); g.font=F_H(700,s2);
+    const tw=g.measureText(c.offer).width, th=s2*1.8, tw2=tw+48*S;
+    g.fillStyle=c.accent; g.fillRect(W/2-tw2/2,ay-th/2,tw2,th);
+    g.fillStyle=INK; g.textAlign="center"; g.textBaseline="middle";
+    g.fillText(c.offer,W/2,ay+s2*.04);
+  }
+}
+};
+
+function crRenderOne(W,H){
+  const cv=document.createElement("canvas"); cv.width=W; cv.height=H;
+  const g=cv.getContext("2d");
+  g.fillStyle="#07090F"; g.fillRect(0,0,W,H);
+  const c=crCtx(W,H);
+  (CR_DRAW[crLayoutId()]||CR_DRAW.frame)(g,c);
+  return cv;
+}
+
 
 on("#crRender","click",()=>{
   if(!CR.hero)return toast("Upload the hero image first");
@@ -5607,6 +5942,17 @@ on("#crZip","click",()=>{
   dlZip(`${label}-creatives.zip`,files);
   logEvent("export","creatives zip");
 });
+
+/* the layout picker, filled from the registry so a new layout only has to be
+   added in one place */
+(function(){
+  const sel=$("#crLayout"); if(!sel)return;
+  sel.innerHTML=CR_LAYOUTS.map(([id,name])=>`<option value="${id}">${esc(name)}</option>`).join("");
+  const note=()=>{ const row=CR_LAYOUTS.find(r=>r[0]===sel.value);
+    if($("#crLayoutNote"))$("#crLayoutNote").textContent=row?row[2]:""; };
+  note(); sel.addEventListener("change",()=>{ note();
+    if(typeof CR_OUT!=="undefined"&&CR_OUT.length&&$("#crRender"))$("#crRender").click(); });
+})();
 
 drawDemoBoxes(); drawImgs();
 if($("#asBizName")&&PROJ.bizName)$("#asBizName").value=PROJ.bizName;
