@@ -777,6 +777,20 @@ function buildOps(cid, plan, c) {
       location: { geoTargetConstant: 'geoTargetConstants/' + digits(id) }
     }}});
   });
+  (S.proximity || []).forEach(function (pr) {
+    if (!pr || !pr.lat || !pr.lng) return;
+    ops.push({ campaignCriterionOperation: { create: {
+      campaign: campRn,
+      proximity: {
+        geoPoint: {
+          latitudeInMicroDegrees : Math.round(Number(pr.lat) * 1e6),
+          longitudeInMicroDegrees: Math.round(Number(pr.lng) * 1e6)
+        },
+        radius: Number(pr.radius || 5),
+        radiusUnits: pr.units || 'KILOMETERS'
+      }
+    }}});
+  });
   (S.languageIds && S.languageIds.length ? S.languageIds : ['1000']).forEach(function (id) {
     ops.push({ campaignCriterionOperation: { create: {
       campaign: campRn,
@@ -997,7 +1011,7 @@ const DG_IMAGE_SLOTS = [
 ];
 
 function buildDgOps(cid, plan, c, notes) {
-  const S = plan.settings || {};
+  var S = plan.settings || {};
   const base = 'customers/' + cid + '/';
   var tmp = 0;
   const next = function () { return --tmp; };
@@ -1024,19 +1038,71 @@ function buildDgOps(cid, plan, c, notes) {
     geoTargetTypeSetting: {
       positiveGeoTargetType: S.presence || 'PRESENCE',
       negativeGeoTargetType: 'PRESENCE'
-    }
+    },
+    /* Demand Gen defaults to upgraded targeting, which moves location and
+       language onto the ad group. Two reasons to turn it off: the account
+       sets location on the campaign for Search and Demand Gen alike, and
+       radius targeting only exists as a CAMPAIGN criterion \u2014 ProximityInfo
+       is not a field on AdGroupCriterion at all. The setting is immutable
+       after creation, so it is decided here. */
+    demandGenCampaignSettings: { upgradedTargeting: S.upgradedTargeting === true }
     /* no networkSettings: Demand Gen picks its own surfaces and the API
        rejects the Search network block outright */
   };
   applyDgBidding(camp, S, notes);
   ops.push({ campaignOperation: { create: camp } });
 
-  /* NOTHING targeting-related goes on a Demand Gen campaign. It is created
-     with upgraded_targeting true, and that setting moves location, language
-     and the demographics to the ad group. Sent at campaign level, Google
-     answers an age or income exclusion with "The Criterion is not allowed to
-     be excluded", and a location or a language with an unmapped error code.
-     All of them are attached to each ad group further down. */
+  const upgraded = S.upgradedTargeting === true;
+  /* With upgraded targeting OFF, a Demand Gen campaign takes its targeting the
+     same way a Search campaign does, which is how this account works. With it
+     ON, Google moves location and language to the ad group and refuses them
+     here: a location or language comes back as an unmapped error code, and an
+     age or income exclusion as "The Criterion is not allowed to be excluded". */
+  if (!upgraded) {
+    (S.locationIds || []).forEach(function (id) {
+      if (!digits(id)) return;
+      ops.push({ campaignCriterionOperation: { create: {
+        campaign: campRn,
+        location: { geoTargetConstant: 'geoTargetConstants/' + digits(id) }
+      }}});
+    });
+    (S.proximity || []).forEach(function (pr) {
+      if (!pr || !pr.lat || !pr.lng) return;
+      ops.push({ campaignCriterionOperation: { create: {
+        campaign: campRn,
+        proximity: {
+          geoPoint: {
+            latitudeInMicroDegrees : Math.round(Number(pr.lat) * 1e6),
+            longitudeInMicroDegrees: Math.round(Number(pr.lng) * 1e6)
+          },
+          radius: Number(pr.radius || 5),
+          radiusUnits: pr.units || 'KILOMETERS'
+        }
+      }}});
+    });
+    (S.languageIds && S.languageIds.length ? S.languageIds : ['1000']).forEach(function (id) {
+      ops.push({ campaignCriterionOperation: { create: {
+        campaign: campRn,
+        language: { languageConstant: 'languageConstants/' + digits(id) }
+      }}});
+    });
+    (S.exAge || []).forEach(function (t) {
+      ops.push({ campaignCriterionOperation: { create: {
+        campaign: campRn, negative: true, ageRange: { type: t } } } });
+    });
+    (S.exGender || []).forEach(function (t) {
+      ops.push({ campaignCriterionOperation: { create: {
+        campaign: campRn, negative: true, gender: { type: t } } } });
+    });
+    (S.exIncome || []).forEach(function (t) {
+      ops.push({ campaignCriterionOperation: { create: {
+        campaign: campRn, negative: true, incomeRange: { type: t } } } });
+    });
+  } else if ((S.proximity || []).length) {
+    notes.push('Radius targeting was not sent \u2014 it only exists as a campaign ' +
+               'criterion, and upgraded targeting puts this campaign\u2019s targeting ' +
+               'on the ad group. Turn upgraded targeting off to use a radius.');
+  }
 
   /* Said plainly rather than sent and refused: Demand Gen takes neither
      campaign negative keywords nor the manager account's negative lists. */
@@ -1098,7 +1164,10 @@ function buildDgOps(cid, plan, c, notes) {
                ' skipped because no ID was given \u2014 add them in the interface, ' +
                'or paste the segment ID so they can be attached here.');
 
+  /* With upgraded targeting off, the demographics are already campaign
+     criteria above, so the audience carries only the segments. */
   const dims = [];
+  if (!upgraded) { S = Object.assign({}, S, { exAge: [], exIncome: [], exGender: [] }); }
   const keep = function (all, excluded) {
     const ex = excluded || [];
     return all.filter(function (v) { return ex.indexOf(v) === -1; });
@@ -1156,19 +1225,21 @@ function buildDgOps(cid, plan, c, notes) {
   /* everything that hangs off an ad group, as one contiguous block: the API
      starts a new backend call wherever the operation type changes */
   groups.forEach(function (x) {
-    (S.locationIds || []).forEach(function (id) {
-      if (!digits(id)) return;
-      ops.push({ adGroupCriterionOperation: { create: {
-        adGroup: x.rn,
-        location: { geoTargetConstant: 'geoTargetConstants/' + digits(id) }
-      }}});
-    });
-    (S.languageIds && S.languageIds.length ? S.languageIds : ['1000']).forEach(function (id) {
-      ops.push({ adGroupCriterionOperation: { create: {
-        adGroup: x.rn,
-        language: { languageConstant: 'languageConstants/' + digits(id) }
-      }}});
-    });
+    if (upgraded) {
+      (S.locationIds || []).forEach(function (id) {
+        if (!digits(id)) return;
+        ops.push({ adGroupCriterionOperation: { create: {
+          adGroup: x.rn,
+          location: { geoTargetConstant: 'geoTargetConstants/' + digits(id) }
+        }}});
+      });
+      (S.languageIds && S.languageIds.length ? S.languageIds : ['1000']).forEach(function (id) {
+        ops.push({ adGroupCriterionOperation: { create: {
+          adGroup: x.rn,
+          language: { languageConstant: 'languageConstants/' + digits(id) }
+        }}});
+      });
+    }
     if (audienceRn) {
       ops.push({ adGroupCriterionOperation: { create: {
         adGroup: x.rn, status: 'ENABLED', audience: { audience: audienceRn }

@@ -222,7 +222,44 @@ code{font-family:var(--mono);background:rgba(0,0,0,.05);padding:1px 4px;border-r
 .drop-sm .drop-ic{flex:0 0 28px;height:28px;font-size:14px}
 .hdr-sel{height:30px;max-width:190px;border:1px solid var(--line);border-radius:6px;
   background:#fff;font:inherit;font-size:12.5px;color:var(--ink);padding:0 8px;cursor:pointer}
+
+/* Lightbox for the rendered creatives. They are the deliverable, so they
+   deserve looking at properly rather than as a 300px thumbnail. */
+.lb{position:fixed;inset:0;z-index:300;background:rgba(8,10,16,.92);display:none;
+  align-items:center;justify-content:center;flex-direction:column;gap:14px;padding:28px}
+.lb.on{display:flex}
+.lb img{max-width:min(92vw,1100px);max-height:76vh;object-fit:contain;
+  border-radius:8px;box-shadow:0 18px 60px rgba(0,0,0,.6);background:#11141c}
+.lb-bar{display:flex;align-items:center;gap:14px;color:#fff;font-size:13px}
+.lb-bar .mono{font-family:var(--mono);color:#AEB8CC}
+.lb-nav{position:absolute;top:50%;transform:translateY(-50%);width:46px;height:46px;
+  border-radius:50%;border:0;background:rgba(255,255,255,.14);color:#fff;font-size:22px;
+  cursor:pointer;display:flex;align-items:center;justify-content:center}
+.lb-nav:hover{background:rgba(255,255,255,.26)}
+.lb-prev{left:22px} .lb-next{right:22px}
+.lb-x{position:absolute;top:18px;right:20px;width:38px;height:38px;border-radius:8px;border:0;
+  background:rgba(255,255,255,.14);color:#fff;font-size:18px;cursor:pointer}
+.lb-dots{display:flex;gap:7px}
+.lb-dot{width:8px;height:8px;border-radius:50%;background:rgba(255,255,255,.3);cursor:pointer}
+.lb-dot.on{background:var(--accent)}
+.cr-open{cursor:zoom-in}
+
+/* The targeting map. Tiles and the library load in the browser, not here. */
+#mapWrap{height:360px;border:1px solid var(--line);border-radius:8px;overflow:hidden;background:#EAEFF4}
+#map{height:100%;width:100%}
+.map-hint{font-size:11.5px;color:var(--muted);margin-top:6px}
+.tgt-row{display:flex;align-items:center;gap:8px;padding:7px 9px;border:1px solid var(--line);
+  border-radius:7px;margin-top:6px;background:#fff;font-size:12.5px}
+.tgt-row .nm{flex:1 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.tgt-row .rad{width:62px;height:26px;border:1px solid var(--line);border-radius:5px;
+  font:inherit;font-size:12px;text-align:right;padding:0 5px}
+.tgt-row .x{border:0;background:none;color:var(--bad,#C0392B);cursor:pointer;font-size:15px;padding:0 3px}
+.tgt-kind{flex:0 0 auto;font-family:var(--mono);font-size:10.5px;padding:2px 6px;border-radius:4px;
+  background:#EEF1F5;color:var(--ink-soft)}
 </style>
+
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js" defer></script>
 </head>
 <body>
 
@@ -1066,6 +1103,34 @@ Static Square</textarea>
     </div>
 
     <div class="card">
+      <div class="card-hd"><h2>Targeting map</h2><span class="hint" id="mapStat">nothing targeted yet</span></div>
+      <div class="card-bd">
+        <div class="callout">Click the map to drop a radius. Paste pincodes below to add them as
+          their own targets. Everything here goes on the <b>campaign</b>, for Search and Demand Gen
+          alike — radius targeting only exists as a campaign criterion, so Demand Gen is created
+          with upgraded targeting off to allow it.</div>
+        <div id="mapWrap" style="margin-top:12px"><div id="map"></div></div>
+        <div class="map-hint">Circles are radius targets · pins are pincodes · drag a circle's pin to move it</div>
+        <div class="row2" style="margin-top:12px">
+          <label class="f"><span class="f-lab">Pincodes — one per line, or comma separated</span>
+            <textarea id="pinList" rows="3" spellcheck="false" inputmode="numeric" placeholder="411001&#10;411014&#10;411028"></textarea></label>
+          <label class="f"><span class="f-lab">Default radius</span>
+            <div class="ticket" style="grid-template-columns:1fr 84px">
+              <input type="number" id="radKm" value="5" min="1" max="80" step="1">
+              <select id="radUnit"><option value="KILOMETERS">km</option><option value="MILES">miles</option></select>
+            </div>
+            <span class="f-note">Used for each new circle. Change one afterwards in its row.</span></label>
+        </div>
+        <div class="btnrow">
+          <button class="btn btn-sm btn-pri" id="pinAdd">Add these pincodes</button>
+          <button class="btn btn-sm" id="mapCentre">Centre on the project</button>
+          <button class="btn btn-sm" id="mapClear">Clear all targets</button>
+        </div>
+        <div id="tgtList" style="margin-top:10px"></div>
+      </div>
+    </div>
+
+    <div class="card">
       <div class="card-hd"><h2>Location IDs</h2><span class="hint">criterion IDs the API needs</span></div>
       <div class="card-bd">
         <label class="f"><span class="f-lab">Location IDs — one per line</span>
@@ -1363,6 +1428,19 @@ Static Square</textarea>
         Every build and export is recorded against your account.</div>
     </div>
   </div>
+</div>
+
+<div class="lb" id="lb">
+  <button class="lb-x" id="lbX" title="Close">✕</button>
+  <button class="lb-nav lb-prev" id="lbPrev" title="Previous">‹</button>
+  <img id="lbImg" alt="">
+  <button class="lb-nav lb-next" id="lbNext" title="Next">›</button>
+  <div class="lb-bar">
+    <span id="lbName"></span>
+    <span class="mono" id="lbMeta"></span>
+    <a class="btn btn-sm" id="lbDl" download>Download</a>
+  </div>
+  <div class="lb-dots" id="lbDots"></div>
 </div>
 
 <script>
@@ -1685,6 +1763,10 @@ function dl(name,text){
 
 /* ═══ state ═══ */
 let CH="search", VT={...VT_DEFAULTS}, VARIANTS=[], PICK=0;
+/* Declared with the rest of the state rather than beside the map, because
+   the deploy panel reads it while drawing and the map block runs later. */
+let TARGETS=store.get("pp_targets",[])||[];   /* {kind:'radius'|'pin',lat,lng,radius,units,label,id} */
+const saveTargets=()=>store.set("pp_targets",TARGETS);
 let STRATS=store.get("pp_strats2",null);
 if(!STRATS){
   const legacy=store.get("pp_strats",null);
@@ -4876,6 +4958,18 @@ drawMeta();
    API and a developer token in a page would be a token anyone can read. The
    Apps Script holds it and does the calling, as the account that deployed
    the script, so there is no refresh token anywhere either. */
+/* The radius circles and any pincode that has found its criterion ID. The
+   account puts location on the campaign for both channels, so a Demand Gen
+   campaign is created with upgraded targeting off \u2014 which is also the only
+   way a radius can be used, since ProximityInfo is a campaign criterion and
+   does not exist on an ad group at all. */
+function mapTargets(){
+  return {
+    proximity:TARGETS.filter(t=>t.kind==="radius").map(t=>({
+      lat:t.lat,lng:t.lng,radius:t.radius,units:t.units||"KILOMETERS"})),
+    pinIds:TARGETS.filter(t=>t.kind==="pin"&&t.id).map(t=>String(t.id))
+  };
+}
 function apSettings(){
   const S={
     dailyBudget : num($("#cgBudget").value)||1000,
@@ -4890,8 +4984,15 @@ function apSettings(){
     sharedSets  : [...($("#negLists")?$("#negLists").selectedOptions:[])].map(o=>o.value).filter(Boolean),
     exAge       : demoPicked("age"),
     exGender    : demoPicked("gen"),
-    exIncome    : demoPicked("inc")
+    exIncome    : demoPicked("inc"),
+    /* This account targets on the campaign for both channels, so Demand Gen
+       is created with upgraded targeting off. That is also what makes a
+       radius possible at all. */
+    upgradedTargeting : false
   };
+  const t=mapTargets();
+  if(t.proximity.length)S.proximity=t.proximity;
+  t.pinIds.forEach(id=>{ if(S.locationIds.indexOf(id)===-1)S.locationIds.push(id); });
   return S;
 }
 function drawApSettings(){
@@ -4908,6 +5009,9 @@ function drawApSettings(){
     row("Location setting",S.presence==="PRESENCE"?"Presence only":"Presence or interest",S.presence==="PRESENCE")+
     row("EU political ads",S.euPolitical.indexOf("DOES_NOT")===0?"Declared No":"Declared Yes",S.euPolitical.indexOf("DOES_NOT")===0)+
     row("Locations",S.locationIds.length?S.locationIds.join(", "):"none set",!!S.locationIds.length)+
+    row("Radius targets",(S.proximity||[]).length
+      ?(S.proximity||[]).map(x=>`${x.radius}${x.units==="MILES"?"mi":"km"}`).join(", ")
+      :"none")+
     row("Tracking template","Ad group level")+
     row("Age excluded",S.exAge.length?S.exAge.map(x=>x.replace("AGE_RANGE_","").replace("_UP","+").replace("_","-")).join(", "):"none")+
     row("Income excluded",S.exIncome.length?`${S.exIncome.length} band${S.exIncome.length===1?"":"s"}`:"none")+
@@ -4931,12 +5035,13 @@ function drawApSettings(){
       row("Negative lists","not supported on Demand Gen",false)+
       row("Demographics",(S.exAge.length||S.exGender.length||S.exIncome.length)
         ?"as an audience on the ad group":"all, no audience needed")+
-      row("Location & language","on the ad group, not the campaign")+
+      row("Location & language","on the campaign \u2014 upgraded targeting off")+
       `<div class="f-note" style="margin-top:10px">Demand Gen hangs its images off the ad, so the
-        Creative studio renders and the logo are sent with the campaign. Its targeting all sits on the
-        <b>ad group</b>, not the campaign \u2014 location, language, and one audience carrying the
-        demographic bands that are <b>kept</b> rather than the ones excluded. Sent at campaign level
-        Google refuses every one of them. Segments without an ID are skipped rather than guessed.</div>`;
+        Creative studio renders and the logo are sent with the campaign. The campaign is created with
+        <b>upgraded targeting off</b>, which keeps location, language and the demographic exclusions on
+        the campaign the way Search has them \u2014 and is the only way a radius can be used, since
+        ProximityInfo is a campaign criterion and does not exist on an ad group. Audience segments
+        still attach to the ad group; ones without an ID are skipped rather than guessed.</div>`;
     return;
   }
   $("#apSettings").innerHTML=common+
@@ -5003,6 +5108,7 @@ function apPlan(){
     /* Demand Gen hangs its pictures off the ad, not the campaign, so the
        Creative studio renders travel with the plan. Search ignores them. */
     creatives: CH==="demandgen"?dgCreatives():null,
+
     businessName:($("#asBizName")&&$("#asBizName").value.trim())||dgAd().bn||"",
     cta:"Learn more"
   };
@@ -6323,7 +6429,8 @@ on("#crRender","click",()=>{
   });
   box.innerHTML=`<div class="row2">`+CR_OUT.map(o=>`
     <div style="margin-bottom:14px">
-      <img src="${o.url}" alt="${esc(o.name)}" style="width:100%;border:1px solid var(--line);border-radius:6px;display:block">
+      <img src="${o.url}" alt="${esc(o.name)}" data-k="${CR_OUT.indexOf(o)}" class="cr-open"
+        style="width:100%;border:1px solid var(--line);border-radius:6px;display:block">
       <div class="mini" style="margin-top:6px">${esc(o.name)} · ${o.w}×${o.h} · ${o.ratio}
         <span class="p-mute">${(o.bytes/1024).toFixed(0)} KB</span></div>
     </div>`).join("")+`</div>`;
@@ -6388,6 +6495,183 @@ if($("#asBizName")&&PROJ.bizName)$("#asBizName").value=PROJ.bizName;
   const el=$("#"+id); if(el)el.addEventListener("change",drawApSettings); });
 $$("#demoAge input,#demoInc input,#demoGen input").forEach(el=>el.addEventListener("change",drawApSettings));
 drawApSettings(); drawApPlan();
+/* ═══════════ the targeting map ═══════════
+   Radius and pincode targeting, drawn rather than typed. Both end up as
+   campaign criteria: a radius as ProximityInfo, a pincode as its own geo
+   target constant. Tiles come from OpenStreetMap and the geocoding from
+   Nominatim, both in the browser — nothing here reaches Google. */
+let MAP=null, MAP_LAYER=null;
+
+function mapReady(){ return !!(window.L&&$("#map")); }
+function mapInit(){
+  if(MAP||!mapReady())return;
+  MAP=L.map("map",{scrollWheelZoom:false}).setView([18.5204,73.8567],11);
+  L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
+    {maxZoom:18,attribution:"\u00a9 OpenStreetMap"}).addTo(MAP);
+  MAP_LAYER=L.layerGroup().addTo(MAP);
+  MAP.on("click",e=>{
+    addTarget({kind:"radius",lat:e.latlng.lat,lng:e.latlng.lng,
+      radius:Number($("#radKm").value)||5,units:$("#radUnit").value||"KILOMETERS",
+      label:`Radius ${(Number($("#radKm").value)||5)} ${$("#radUnit").value==="MILES"?"mi":"km"}`});
+  });
+  setTimeout(()=>MAP.invalidateSize(),120);
+  drawTargets();
+}
+function addTarget(t){ TARGETS.push(t); saveTargets(); drawTargets(); }
+function removeTarget(i){ TARGETS.splice(i,1); saveTargets(); drawTargets(); }
+
+function drawTargets(){
+  const st=$("#mapStat");
+  const nR=TARGETS.filter(t=>t.kind==="radius").length, nP=TARGETS.length-nR;
+  if(st)st.innerHTML=TARGETS.length
+    ? `<span class="pill p-ok">${nR} radius \u00b7 ${nP} pincode${nP===1?"":"s"}</span>`
+    : `<span class="pill p-mute">nothing targeted yet</span>`;
+  const box=$("#tgtList");
+  if(box)box.innerHTML=TARGETS.length?TARGETS.map((t,i)=>`
+    <div class="tgt-row">
+      <span class="tgt-kind">${t.kind==="radius"?"RADIUS":"PIN"}</span>
+      <span class="nm">${esc(t.label||"")}${t.id?` <code>${esc(t.id)}</code>`:
+        (t.kind==="pin"?' <span class="p-mute">no ID yet</span>':"")}</span>
+      ${t.kind==="radius"?`<input class="rad" type="number" min="1" max="80" value="${t.radius}" data-r="${i}">
+        <span class="p-mute">${t.units==="MILES"?"mi":"km"}</span>`:""}
+      <button class="x" data-x="${i}" title="Remove">\u2715</button>
+    </div>`).join(""):`<div class="empty">Click the map or add pincodes.</div>`;
+  if(!MAP||!MAP_LAYER)return;
+  MAP_LAYER.clearLayers();
+  const pts=[];
+  TARGETS.forEach((t,i)=>{
+    if(t.kind==="radius"){
+      const m=t.units==="MILES"?t.radius*1609.34:t.radius*1000;
+      L.circle([t.lat,t.lng],{radius:m,color:"#FB6A02",weight:2,fillOpacity:.12}).addTo(MAP_LAYER);
+      const mk=L.marker([t.lat,t.lng],{draggable:true}).addTo(MAP_LAYER);
+      mk.bindTooltip(t.label||"Radius");
+      mk.on("dragend",e=>{ const p2=e.target.getLatLng();
+        TARGETS[i].lat=p2.lat; TARGETS[i].lng=p2.lng; saveTargets(); drawTargets(); });
+      pts.push([t.lat,t.lng]);
+    }else{
+      L.marker([t.lat,t.lng]).addTo(MAP_LAYER).bindTooltip(t.label||"Pincode");
+      pts.push([t.lat,t.lng]);
+    }
+  });
+  if(pts.length)try{ MAP.fitBounds(L.latLngBounds(pts).pad(.35),{maxZoom:13}); }catch(e){}
+}
+on("#tgtList","click",e=>{
+  const x=e.target.closest("[data-x]"); if(x)removeTarget(+x.dataset.x);
+});
+on("#tgtList","change",e=>{
+  const r=e.target.closest("[data-r]"); if(!r)return;
+  const i=+r.dataset.r, v=Math.max(1,Math.min(80,Number(r.value)||5));
+  TARGETS[i].radius=v;
+  TARGETS[i].label=`Radius ${v} ${TARGETS[i].units==="MILES"?"mi":"km"}`;
+  saveTargets(); drawTargets();
+});
+/* Nominatim geocodes a pincode, one a second as their policy asks. */
+async function geocodePin(pin,country){
+  const u=`https://nominatim.openstreetmap.org/search?postalcode=${encodeURIComponent(pin)}`+
+          `&country=${encodeURIComponent(country||"India")}&format=json&limit=1`;
+  try{
+    const r=await fetch(u,{headers:{"Accept":"application/json"}});
+    const j=await r.json();
+    if(j&&j[0])return {lat:Number(j[0].lat),lng:Number(j[0].lon),name:j[0].display_name||pin};
+  }catch(e){}
+  return null;
+}
+on("#pinAdd","click",async()=>{
+  const raw=($("#pinList")&&$("#pinList").value)||"";
+  const pins=[...new Set(raw.split(/[\s,;]+/).map(x=>x.trim()).filter(x=>/^\d{4,8}$/.test(x)))];
+  if(!pins.length)return toast("Put some pincodes in first");
+  const have=new Set(TARGETS.filter(t=>t.kind==="pin").map(t=>t.pin));
+  const todo=pins.filter(p2=>!have.has(p2));
+  if(!todo.length)return toast("Those pincodes are already on the map");
+  const st=$("#mapStat");
+  let done=0, missed=[];
+  for(const pin of todo){
+    if(st)st.innerHTML=`<span class="pill p-mute">locating ${pin}\u2026 ${done}/${todo.length}</span>`;
+    const g=await geocodePin(pin,($("#acCity")&&$("#acCity").value)?"India":"India");
+    if(g){ TARGETS.push({kind:"pin",pin,lat:g.lat,lng:g.lng,
+      label:`${pin} \u2014 ${String(g.name).split(",").slice(0,2).join(",")}`,id:""}); done++; }
+    else missed.push(pin);
+    await new Promise(r=>setTimeout(r,1100));   /* Nominatim asks for one a second */
+  }
+  saveTargets(); drawTargets();
+  /* a pincode needs its criterion ID to be targetable, and that comes from Google */
+  const cid=$("#apCid")?$("#apCid").value.replace(/[^0-9]/g,""):"";
+  if(cid&&done){
+    const names=TARGETS.filter(t=>t.kind==="pin"&&!t.id).map(t=>t.pin);
+    if(names.length){
+      const r=await adsCall("ads-geo",{names:names.slice(0,10),countryCode:"IN"});
+      if(r&&r.suggestions){
+        r.suggestions.forEach(sg=>{
+          const t=TARGETS.find(x=>x.kind==="pin"&&!x.id&&
+            String(sg.name||"").indexOf(x.pin)>-1);
+          if(t)t.id=String(sg.id||"");
+        });
+        saveTargets(); drawTargets();
+      }
+    }
+  }
+  toast(`${done} pincode${done===1?"":"s"} added${missed.length?`, ${missed.length} not found`:""}`);
+});
+on("#mapClear","click",()=>{
+  if(TARGETS.length&&!confirm("Remove every radius and pincode target?"))return;
+  TARGETS=[]; saveTargets(); drawTargets();
+});
+on("#mapCentre","click",async()=>{
+  if(!MAP)return;
+  const where=[($("#acMicro")&&$("#acMicro").value)||"",($("#acCity")&&$("#acCity").value)||""]
+    .filter(Boolean).join(", ");
+  if(!where)return toast("Fill in the micro-market or city on tab 03 first");
+  try{
+    const r=await fetch(`https://nominatim.openstreetmap.org/search?q=${
+      encodeURIComponent(where+", India")}&format=json&limit=1`);
+    const j=await r.json();
+    if(j&&j[0]){ MAP.setView([Number(j[0].lat),Number(j[0].lon)],12); toast(`Centred on ${where}`); }
+    else toast("Could not find that place");
+  }catch(e){ toast("Could not reach the map service"); }
+});
+/* Leaflet measures the container, and a hidden panel has no size, so the map
+   is built and re-measured when its tab comes on screen. */
+(function(){
+  const bar=document.querySelector(".tabs");
+  if(bar)bar.addEventListener("click",()=>setTimeout(()=>{
+    mapInit(); if(MAP)MAP.invalidateSize(); },180));
+})();
+window.addEventListener("load",()=>setTimeout(mapInit,500));
+
+/* ═══════════ the creative viewer ═══════════ */
+let LB_AT=0;
+function lbShow(i){
+  if(!CR_OUT.length)return;
+  LB_AT=(i+CR_OUT.length)%CR_OUT.length;
+  const o=CR_OUT[LB_AT];
+  $("#lbImg").src=o.url;
+  $("#lbName").innerHTML=`<b>${esc(o.name)}</b>`;
+  $("#lbMeta").textContent=`${o.w}×${o.h} · ${o.ratio} · ${(o.bytes/1024).toFixed(0)} KB`;
+  const dl=$("#lbDl");
+  dl.href=o.url;
+  dl.download=`${slug(brief().proj||"creative")}-${o.w}x${o.h}.jpg`;
+  $("#lbDots").innerHTML=CR_OUT.map((x,k)=>
+    `<span class="lb-dot${k===LB_AT?" on":""}" data-k="${k}" title="${esc(x.name)}"></span>`).join("");
+  $("#lb").classList.add("on");
+}
+function lbClose(){ $("#lb").classList.remove("on"); $("#lbImg").src=""; }
+on("#lbX","click",lbClose);
+on("#lbPrev","click",()=>lbShow(LB_AT-1));
+on("#lbNext","click",()=>lbShow(LB_AT+1));
+on("#lbDots","click",e=>{ const d=e.target.closest(".lb-dot"); if(d)lbShow(+d.dataset.k); });
+$("#lb").addEventListener("click",e=>{ if(e.target.id==="lb")lbClose(); });
+document.addEventListener("keydown",e=>{
+  if(!$("#lb").classList.contains("on"))return;
+  if(e.key==="Escape")lbClose();
+  else if(e.key==="ArrowLeft")lbShow(LB_AT-1);
+  else if(e.key==="ArrowRight")lbShow(LB_AT+1);
+});
+/* the thumbnails open it */
+on("#crOut","click",e=>{
+  const img=e.target.closest("img[data-k]");
+  if(img)lbShow(+img.dataset.k);
+});
+
 drawProjects(); projectRestore();
 initAuth();
 /* Catch any button that lost its handler during an edit. */
