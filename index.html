@@ -210,7 +210,7 @@ code{font-family:var(--mono);background:rgba(0,0,0,.05);padding:1px 4px;border-r
     <div class="wordmark">Search Ops Toolkit <span>· Google Ads</span></div>
     <div class="spacer"></div>
     <div class="badge-env" id="varCount">0 VARIANTS</div>
-    <span class="pill p-mute" id="buildTag" title="build">b-19oct-4</span>
+    <span class="pill p-mute" id="buildTag" title="build">b-21oct-2</span>
     <div id="userChip" class="hidden" style="display:flex;align-items:center;gap:9px">
       <div class="divider-v"></div>
       <span id="userName" style="font-size:12.5px;font-weight:500"></span>
@@ -229,6 +229,7 @@ code{font-family:var(--mono);background:rgba(0,0,0,.05);padding:1px 4px;border-r
   <button class="tab" role="tab" aria-selected="false" data-panel="p-st"><span class="num">05</span>Full structure</button>
   <button class="tab" role="tab" aria-selected="false" data-panel="p-mt"><span class="num">06</span>Meta ads</button>
   <button class="tab" role="tab" aria-selected="false" data-panel="p-api"><span class="num">07</span>Deploy to Google Ads</button>
+  <button class="tab" role="tab" aria-selected="false" data-panel="p-cr"><span class="num">08</span>Creative studio</button>
 </div></nav>
 
 <main class="wrap">
@@ -1115,6 +1116,94 @@ Static Square</textarea>
 </div>
 </section>
 
+<!-- ══════ 08 CREATIVE STUDIO ══════ -->
+<section class="panel" id="p-cr">
+<div class="split">
+
+  <div class="sticky-col">
+    <div class="card">
+      <div class="card-hd"><h2>Artwork</h2><span class="hint" id="crStat">no hero image</span></div>
+      <div class="card-bd">
+        <div class="callout">The hero render is the developer's own artwork, so it is uploaded, not invented.
+          Everything over it — logo, RERA, the offer badge, the price bar — is drawn here, in all four
+          sizes Demand Gen asks for.</div>
+        <label class="f" style="margin-top:12px"><span class="f-lab">Hero image <span class="pill p-mute">required</span></span>
+          <input type="file" id="crHero" accept="image/*">
+          <span class="f-note">The project render. Use the largest you have — 1920px wide or more.</span></label>
+        <div class="row2">
+          <label class="f"><span class="f-lab">Developer logo</span>
+            <input type="file" id="crLogo" accept="image/*">
+            <span class="f-note">PNG with a transparent background works best.</span></label>
+          <label class="f"><span class="f-lab">RERA QR code</span>
+            <input type="file" id="crQr" accept="image/*"></label>
+        </div>
+        <div class="btnrow"><button class="btn btn-sm" id="crClearImgs">Clear the images</button></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-hd"><h2>What it says</h2><span class="hint">filled from the brief</span></div>
+      <div class="card-bd">
+        <div class="row2">
+          <label class="f"><span class="f-lab">Developer</span><input type="text" id="crDev"></label>
+          <label class="f"><span class="f-lab">Project</span><input type="text" id="crProj"></label>
+        </div>
+        <label class="f"><span class="f-lab">Location line</span>
+          <input type="text" id="crLoc" placeholder="MAHALUNGE, PUNE"></label>
+        <div class="row2">
+          <label class="f"><span class="f-lab">Configuration</span>
+            <input type="text" id="crCfg" placeholder="2, 3 &amp; 4 BHK"></label>
+          <label class="f"><span class="f-lab">Price</span>
+            <input type="text" id="crPrice" placeholder="₹89 LACS* ONWARDS"></label>
+        </div>
+        <label class="f"><span class="f-lab">Offer badge</span>
+          <input type="text" id="crOffer" placeholder="EOI TOKEN AMOUNT ₹1 LACS*">
+          <span class="f-note">Leave empty and the badge is left off entirely.</span></label>
+        <label class="f"><span class="f-lab">MahaRERA number</span>
+          <input type="text" id="crRera" placeholder="PM1261012602103"></label>
+        <label class="f"><span class="f-lab">Disclaimer</span>
+          <input type="text" id="crDisc" value="Images are for illustrative purposes only and may differ from actual."></label>
+        <div class="btnrow" style="margin-top:12px">
+          <button class="btn btn-sm btn-navy" id="crFromBrief">Refill from the brief</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-hd"><h2>Look</h2></div>
+      <div class="card-bd">
+        <div class="row2">
+          <label class="f"><span class="f-lab">Accent</span>
+            <input type="color" id="crAccent" value="#D4AF61" style="height:42px;padding:4px"></label>
+          <label class="f"><span class="f-lab">Scrim strength</span>
+            <input type="range" id="crScrim" min="0" max="100" value="62"></label>
+        </div>
+        <label class="chk"><input type="checkbox" id="crFrame" checked>
+          <span>Thin accent frame, as on the samples</span></label>
+      </div>
+    </div>
+  </div>
+
+  <div>
+    <div class="card">
+      <div class="card-hd"><h2>Creatives</h2><span class="hint" id="crSizes">4 sizes</span></div>
+      <div class="card-bd">
+        <div class="btnrow">
+          <button class="btn btn-pri" id="crRender">Render all four sizes</button>
+          <button class="btn btn-navy" id="crZip">Download ZIP</button>
+          <button class="btn" id="crChecks">Check against Google</button>
+        </div>
+        <div id="crOut" style="margin-top:14px"><div class="empty">Upload a hero image, then render.</div></div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-hd"><h2>Checks</h2></div>
+      <div class="card-bd" id="crChecksOut"><div class="empty">Nothing rendered yet.</div></div>
+    </div>
+  </div>
+</div>
+</section>
+
 
 
 
@@ -1382,9 +1471,13 @@ function makeZip(entries){
   const enc=new TextEncoder(), now=new Date();
   const parts=[], central=[]; let offset=0;
   entries.forEach(([name,text])=>{
-    /* Same byte-order mark the single-file download uses. Without it the
-       rupee sign arrives as â‚¹ and the character count is wrong. */
-    const nameB=enc.encode(name), data=enc.encode("\uFEFF"+text), crc=crc32(data);
+    /* Text gets the same byte-order mark the single-file download uses —
+       without it the rupee sign arrives as â‚¹ and the character count is
+       wrong. Binary (an image) is written through untouched: a BOM in front
+       of a JPEG makes it unopenable. */
+    const nameB=enc.encode(name);
+    const data=(text instanceof Uint8Array)?text:enc.encode("\uFEFF"+text);
+    const crc=crc32(data);
     const lh=new Uint8Array(30), v=new DataView(lh.buffer);
     v.setUint32(0,0x04034b50,true); v.setUint16(4,20,true); v.setUint16(6,0x0800,true);
     v.setUint16(8,0,true); v.setUint16(10,dosTime(now),true); v.setUint16(12,dosDate(now),true);
@@ -1418,7 +1511,13 @@ function dlZip(name,entries){
   setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove();},400);
 }
 
-function dl(name,text){const b=new Blob(["\uFEFF"+text],{type:"text/csv;charset=utf-8"});const a=document.createElement("a");
+function dl(name,text){
+  /* an image goes out as its own bytes \u2014 the byte-order mark that makes the
+     rupee sign survive in a CSV makes a JPEG unopenable */
+  const bin=text instanceof Uint8Array;
+  const b=bin?new Blob([text],{type:"image/jpeg"})
+             :new Blob(["\uFEFF"+text],{type:"text/csv;charset=utf-8"});
+  const a=document.createElement("a");
   a.href=URL.createObjectURL(b);a.download=name;document.body.appendChild(a);a.click();
   setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove();},400);}
 
@@ -3485,6 +3584,139 @@ const creativeFormats=()=>{
   const list=raw.split("\n").map(s=>s.trim()).filter(Boolean);
   return list.length?list:["Format A"];
 };
+/* ── the team's BPL rule ────────────────────────────────────────────────
+   Every Demand Gen headline must carry brand, project AND location inside
+   40 characters. Rather than quietly dropping one of the three when it will
+   not fit, the shortest honest form is tried in turn and what still does not
+   fit is reported, so a human decides what gives. */
+/* Brand, project and location as they should actually be said together.
+   A project name usually already carries some of the other two \u2014 "Lifespaces
+   Mahalunge" under "Mahindra Lifespaces" in Mahalunge names the developer's
+   second word and the location \u2014 so each component is reduced to the words
+   the project does not already say. Without this you get "Mahindra Lifespaces
+   Lifespaces Mahalunge Mahalunge". */
+function bplParts(b){
+  const key=x=>String(x||"").toLowerCase().replace(/[^a-z0-9]/g,"");
+  const proj=(b.proj||"").trim();
+  const said=new Set(proj.split(/\s+/).map(key).filter(Boolean));
+  const brand=(b.dev||"").trim().split(/\s+/).filter(w=>!said.has(key(w))).join(" ").trim();
+  const loc=(b.micro||b.city||"").trim();
+  const city=(b.city||"").trim();
+  return {
+    brand, proj,
+    place: loc&&!said.has(key(loc))?loc:"",
+    city:  city&&!said.has(key(city))?city:"",
+    brandShort: brand.split(/\s+/)[0]||brand
+  };
+}
+/* plain brand + project + location joins, longest first \u2014 descriptions use [0] */
+function bplForms(b){
+  const p=bplParts(b), out=[];
+  const add=(...parts)=>{
+    const t=parts.filter(Boolean).join(" ").replace(/\s+/g," ").trim();
+    if(t&&!out.some(x=>x.toLowerCase()===t.toLowerCase()))out.push(t);
+  };
+  add(p.brand,p.proj,p.place);
+  add(p.brandShort,p.proj,p.place);
+  add(p.brand,p.proj);
+  add(p.proj,p.place);
+  add(p.proj);
+  return out.sort((x,y)=>y.length-x.length);
+}
+/* true when a line names all three of brand, project and location */
+function isBPL(text,b){
+  const low=x=>String(x||"").toLowerCase();
+  const t=low(text);
+  const dev=(b.dev||"").trim(), proj=(b.proj||"").trim();
+  const loc=(b.micro||b.city||"").trim();
+  const devHit=!dev||dev.split(/\s+/).some(w=>w.length>2&&t.includes(low(w)));
+  const projHit=!proj||proj.split(/\s+/).some(w=>w.length>2&&t.includes(low(w)));
+  const locHit=!loc||t.includes(low(loc));
+  return devHit&&projHit&&locHit;
+}
+function bplHeadlines(b,limit){
+  const p=bplParts(b);
+  const j=(...parts)=>parts.filter(Boolean).join(" ")
+    .replace(/\s+/g," ").replace(/\s+([,.])/g,"$1").replace(/[\s\u2014:,]+$/,"").trim();
+  /* Variety comes from how the lockup is said, not from dropping the brand or
+     the location: at 40 characters a full lockup leaves almost no room for a
+     tail, and every headline is meant to name all three. */
+  const shapes=[
+    (B,P,L)=>j(B,P,L),
+    (B,P,L)=>j(P,L)+(B?" By "+B:""),
+    (B,P,L)=>B?B+" \u2014 "+j(P,L):"",
+    (B,P,L)=>"New: "+j(B,P,L),
+    (B,P,L)=>L?j(B,P)+" In "+L:"",
+    (B,P,L)=>L?L+": "+j(B,P):"",
+    (B,P,L)=>j(B,P,L)+" \u2014 Book Now",
+    (B,P,L)=>j(B,P,L)+" \u2014 New Launch",
+    (B,P,L)=>j(B,P,L)+" \u2014 Enquire Now",
+    (B,P,L)=>j(B,P,L)+" \u2014 Limited Homes"
+  ];
+  /* the full developer name first, its short form only if the full one
+     will not fit \u2014 trim the brand's extra words before losing a component */
+  const brands=[p.brand,p.brandShort].filter((v,i,a)=>v&&a.indexOf(v)===i);
+  if(!brands.length)brands.push("");
+  const out=[], seen=new Set();
+  const take=(t,ok)=>{
+    const k=String(t||"").toLowerCase();
+    if(!t||t.length>limit||seen.has(k))return false;
+    seen.add(k); out.push([t,ok]); return true;
+  };
+  /* first pass: only lines that name brand, project and location */
+  shapes.forEach(f=>{
+    if(out.length>=5)return;
+    for(const B of brands){
+      const t=f(B,p.proj,p.place);
+      if(t&&isBPL(t,b)&&take(t,true))return;
+    }
+  });
+  /* second pass: the limit will not carry all three, so ship the best partial
+     lines and flag them rather than silently handing Google fewer than five */
+  shapes.forEach(f=>{
+    if(out.length>=5)return;
+    for(const B of brands.concat([""])){
+      const t=f(B,p.proj,p.place||p.city);
+      if(t&&take(t,isBPL(t,b)))return;
+    }
+  });
+  bplForms(b).forEach(f=>{ if(out.length<5)take(f,isBPL(f,b)); });
+  return out.slice(0,5);
+}
+function devOnly(x){ return String(x||"").split(/\s+/)[0]||""; }
+
+/* Descriptions 1 and 2 carry brand, project, location, configuration and the
+   verified price. 3 to 5 carry USPs, the offer, connectivity and amenities —
+   never an invented one. */
+function bplDescriptions(b,limit){
+  const loc=b.micro||b.city||"";
+  const forms=bplForms(b);
+  const base=forms[0]||b.proj||"";
+  /* a long developer + project + location will not fit behind a list of USPs,
+     and a description with no project name in it is worse than a shorter one */
+  const fitBase=room=>forms.find(f=>f.length<=room)||forms[forms.length-1]||base;
+  const price=pricePhrase()||b.price||"";
+  const u=b.usps.map(tc), m=b.marks.map(tc), a=b.amen.map(tc);
+  const cand=[
+    compose([base,b.cfg,price],limit),
+    compose([`${b.cfg} at ${base}`,price,"Enquire for the price list"],limit),
+    u.length?compose([u.slice(0,2).join(" \u00b7 "),`at ${fitBase(limit-u.slice(0,2).join(" \u00b7 ").length-7)}`],limit):"",
+    m.length?compose([m.slice(0,2).join(" \u00b7 "),`${b.proj} puts you minutes away`],limit):"",
+    compose([b.offer||"",a.slice(0,2).join(" \u00b7 "),
+      fitBase(limit-(b.offer||"").length-a.slice(0,2).join(" \u00b7 ").length-5)],limit)
+  ].filter(Boolean);
+  const seen=new Set(), out=[];
+  cand.forEach(c=>{ const k=c.toLowerCase();
+    if(c&&!seen.has(k)){ seen.add(k); out.push(c); } });
+  /* top up only from real project material, never invented */
+  [...u,...a,...m].forEach(x=>{
+    if(out.length>=5)return;
+    const c=compose([x,base],limit);
+    if(c&&!seen.has(c.toLowerCase())){ seen.add(c.toLowerCase()); out.push(c); }
+  });
+  return out.slice(0,5);
+}
+
 /* Each format gets its own ad, and the copy is rotated so the two ads are
    not identical text on different pictures. */
 function dgAd(variant){
@@ -3494,27 +3726,19 @@ function dgAd(variant){
   const place=placeOf(b), where=place||b.city||b.micro||"";
   const price=pricePhrase(), cfg=b.cfg||"";
   const u=b.usps.map(tc), m=b.marks.map(tc), a=b.amen.map(tc);
-  const H=pick(rot([
-    joinParts(b.proj,b.micro), b.proj,
-    cfg&&price?`${cfg} ${price}`:"",
-    cfg&&where?`${cfg} in ${where}`:"",
-    price?`Homes ${price}`:"",
-    u[0], u[1], m[0], b.dev?joinParts(b.proj,"by",b.dev):""
-  ].filter(Boolean)),DG_H,5,used);
+  /* the BPL rule, not a free pick: every headline carries brand, project and
+     location, and the ones that could not are flagged rather than dropped */
+  const bpl=bplHeadlines(b,DG_H);
+  const H=rot(bpl.map(x=>x[0]));
+  const hOk=bpl.map(x=>x[1]);
   const LH=pick([
     compose([joinParts(b.proj,b.micro), cfg, price],DG_LH),
     compose([`${cfg} at ${b.proj}${place?", "+place:""}`, price],DG_LH),
     compose([joinParts(b.proj,b.micro), u[0], price],DG_LH)
   ].filter(Boolean),DG_LH,2,new Set());
-  const dU=new Set();
-  const D=pick(rot([
-    compose([joinParts(b.proj,b.micro), cfg, price],DG_D),
-    compose([`${cfg} at ${b.proj}${place?", "+place:""}`, price, "Book a free site visit"],DG_D),
-    compose([u[0]&&u[1]?`${u[0]} & ${u[1]}`:(u[0]||"Premium homes"), `at ${b.proj}`, "Enquire for floor plans"],DG_D),
-    compose([m[0], m[1], `${b.proj} puts you minutes away`],DG_D),
-    compose([`${b.offer||"New launch"} at ${b.proj}`, a[0], "Get the price list"],DG_D)
-  ].filter(Boolean)),DG_D,5,dU);
-  return {h:H, lh:LH, d:D, bn:fit(b.proj,DG_BN)||String(b.proj||"").slice(0,DG_BN)};
+  const D=rot(bplDescriptions(b,DG_D));
+  return {h:H, hOk, lh:LH, d:D,
+          bn:fit(b.dev||b.proj,DG_BN)||String(b.dev||b.proj||"").slice(0,DG_BN)};
 }
 /* every campaign-level setting from the reference account, so the Open
    campaign is built the same way every time and can then be duplicated */
@@ -3917,22 +4141,42 @@ function entityFiles(){
   if(isDG){
     /* Editor cannot attach images from a CSV, so the file that matters here
        is the one telling whoever uploads exactly what to prepare. */
+    /* Editor cannot attach an image from a CSV, so the checklist is what
+       whoever uploads works from. When the Creative studio has rendered the
+       artwork, the same ZIP carries it and each row names its file instead of
+       only describing what to prepare. */
     const specs=[
-      ["Landscape image","1.91:1","1200 x 628","Required","Feed and Discover"],
-      ["Square image","1:1","1200 x 1200","Required","Feed, Gmail"],
-      ["Portrait image","4:5","960 x 1200","Recommended","Shorts and mobile feed"],
-      ["Logo square","1:1","1200 x 1200","Required","All placements"],
-      ["Logo landscape","4:1","1200 x 300","Recommended","Some placements"],
-      ["Video","16:9 / 1:1 / 9:16","min 10 seconds","Optional","Adds video inventory"]
+      ["Landscape image","1.91:1","1200 x 628","Required","Feed and Discover","landscape"],
+      ["Square image","1:1","1200 x 1200","Required","Feed, Gmail","square"],
+      ["Portrait image","4:5","960 x 1200","Recommended","Shorts and mobile feed","portrait"],
+      ["Vertical image","9:16","1080 x 1920","Optional","Shorts and vertical inventory","story"],
+      ["Logo square","1:1","1200 x 1200","Required","All placements",""],
+      ["Logo landscape","4:1","1200 x 300","Recommended","Some placements",""],
+      ["Video","16:9 / 1:1 / 9:16","min 10 seconds","Optional","Adds video inventory",""]
     ];
+    const crLabel=`${slug(brief().proj||"project")}-${slug(brief().micro||brief().city||"creative")}`;
+    const crFile={};
+    (typeof CR_OUT!=="undefined"?CR_OUT:[]).forEach(o=>{
+      crFile[o.name]=`creatives/${crLabel}-${o.w}x${o.h}.jpg`;
+    });
     const crows=[];
     creativeFormats().forEach((fmt,fi)=>{
       PLAN.forEach(p=>p.groups.forEach(g=>{
-        specs.forEach(s=>crows.push([p.campaign,g.name,`Ad ${fi+1} \u2014 ${fmt}`,s[0],s[1],s[2],s[3],s[4]]));
+        specs.forEach(sp=>{
+          const f=sp[5]?crFile[sp[5]]:"";
+          crows.push([p.campaign,g.name,`Ad ${fi+1} \u2014 ${fmt}`,sp[0],sp[1],sp[2],sp[3],sp[4],
+                      f?"In this ZIP":"To prepare", f||""]);
+        });
       }));
     });
     files.push(["10-creative-checklist.csv",mk(
-      ["Campaign","Ad group","Ad name","Asset","Ratio","Size (px)","Requirement","Where it shows"],crows)]);
+      ["Campaign","Ad group","Ad name","Asset","Ratio","Size (px)","Requirement","Where it shows",
+       "Status","File in this ZIP"],crows)]);
+    /* the rendered artwork itself, once, not once per ad group */
+    (typeof CR_OUT!=="undefined"?CR_OUT:[]).forEach(o=>{
+      const bin=crBytes(o);
+      if(bin)files.push([crFile[o.name],bin]);
+    });
     const dRows=[];
     PLAN.forEach(p=>p.groups.forEach(g=>{
       DEMO_GROUPS.forEach(([grp])=>(DEMO[grp]||[]).forEach(v=>
@@ -4057,10 +4301,17 @@ on("#stAll","click",()=>{
   const files=entityFiles();
   const stamp=new Date().toISOString().slice(0,10);
   const label=slug(brief().proj||$("#inEnq").value||"campaign");
+  /* numbered files in their number order, artwork after them \u2014 the folder
+     is read top to bottom by whoever imports it */
+  const rank=n=>{ const m=/^(\d+)-/.exec(n); return m?parseInt(m[1],10):900; };
+  files.sort((a,b)=>rank(a[0])-rank(b[0])||a[0].localeCompare(b[0]));
   dlZip(`${label}-${stamp}.zip`,files);
   logEvent("export",`zip ${label}`);
   const goals=$("#cgGoals")?$("#cgGoals").value:"";
-  toast(`${files.length} files zipped. Set objective and goals in the interface: ${goals}`);
+  const art=files.filter(f=>f[1] instanceof Uint8Array).length;
+  toast(art
+    ? `${files.length-art} files and ${art} creatives zipped. Set objective and goals in the interface: ${goals}`
+    : `${files.length} files zipped. No creatives \u2014 render them on the Creative studio tab. Set objective and goals in the interface: ${goals}`);
 });
 
 /* Assets are the same for every campaign, so the file carries one name
@@ -4599,6 +4850,17 @@ async function apRun(mode){
   if(!cid)return toast("Put the customer ID in first");
   const pl=apPlan();
   if(!pl)return toast("Build the structure on tab 05 first");
+  /* The API path builds Search campaigns only \u2014 the backend sets
+     advertisingChannelType SEARCH. Sending a Demand Gen plan through it would
+     create Search campaigns wearing Demand Gen names, which is worse than
+     refusing, because it looks like it worked. */
+  if(CH==="demandgen"){
+    $("#apOut").innerHTML=apLine("bad","\u2715",
+      `<b>Demand Gen does not deploy through the API yet.</b> This tab creates Search
+       campaigns only \u2014 sending this plan would build Search campaigns under Demand Gen
+       names. Use <b>Download everything</b> on tab 05 and import the ZIP in the interface.`);
+    return toast("Demand Gen exports as a ZIP, it does not deploy from here");
+  }
   const who=acctName(cid);
   if(mode==="deploy"&&!confirm(
     `Create ${pl.campaigns.length} campaign${pl.campaigns.length===1?"":"s"} in\n\n`+
@@ -4638,6 +4900,282 @@ on("#cgLocId","input",()=>{
 });
 
 drawDemo(); fillAudPick(); showDGCard();
+/* ═══════════ 08 creative studio ═══════════
+   The hero render belongs to the developer, so it is uploaded. Everything
+   over it is drawn here on a canvas: one layout, four aspect ratios, each
+   laid out for its own shape rather than scaled from a single master. */
+const CR_SIZES=[
+  ["square",   1200,1200,"1:1"],
+  ["portrait",  960,1200,"4:5"],
+  ["landscape",1200, 628,"1.91:1"],
+  ["story",    1080,1920,"9:16"]
+];
+let CR={hero:null,logo:null,qr:null};   /* HTMLImageElement per slot */
+let CR_OUT=[];                          /* [{name,w,h,ratio,url,bytes}] \u2014 bytes is the SIZE */
+/* the actual JPEG bytes out of the data URL the canvas produced; o.bytes is
+   only the size, and writing that into a file gives a six-byte "image" */
+function crBytes(o){
+  const b64=String(o&&o.url||"").split(",")[1]||"";
+  return b64?Uint8Array.from(atob(b64),ch=>ch.charCodeAt(0)):null;
+}
+
+function crLoad(file){
+  return new Promise((res,rej)=>{
+    const fr=new FileReader();
+    fr.onerror=()=>rej(new Error("Could not read that file"));
+    fr.onload=()=>{ const im=new Image();
+      im.onload=()=>res(im);
+      im.onerror=()=>rej(new Error("That file is not an image the browser can open"));
+      im.src=fr.result; };
+    fr.readAsDataURL(file);
+  });
+}
+["hero","logo","qr"].forEach(k=>{
+  const el=$("#cr"+k.charAt(0).toUpperCase()+k.slice(1));
+  if(!el)return;
+  el.addEventListener("change",async e=>{
+    const f=e.target.files&&e.target.files[0]; if(!f)return;
+    try{ CR[k]=await crLoad(f); crStat(); if(k==="hero")toast("Hero loaded — press Render"); }
+    catch(err){ e.target.value=""; toast(String(err.message||err)); }
+  });
+});
+function crStat(){
+  const el=$("#crStat"); if(!el)return;
+  el.innerHTML=CR.hero
+    ? `<span class="pill p-ok">${CR.hero.naturalWidth}×${CR.hero.naturalHeight}</span>`
+    : `<span class="pill p-mute">no hero image</span>`;
+}
+on("#crClearImgs","click",()=>{
+  CR={hero:null,logo:null,qr:null};
+  ["crHero","crLogo","crQr"].forEach(i=>{const e=$("#"+i); if(e)e.value="";});
+  CR_OUT=[]; crStat(); $("#crOut").innerHTML=`<div class="empty">Upload a hero image, then render.</div>`;
+});
+
+/* the fields come from the brief, so nothing is typed twice */
+function crFill(){
+  const b=brief();
+  const put=(id,v)=>{ const e=$("#"+id); if(e&&!e.value.trim())e.value=v; };
+  put("crDev",b.dev); put("crProj",b.proj);
+  put("crLoc",[b.micro,b.city].filter(Boolean).join(", ").toUpperCase());
+  put("crCfg",b.cfg.toUpperCase());
+  put("crPrice",(b.price||"").toUpperCase());
+  put("crOffer",b.offer?b.offer.toUpperCase():"");
+}
+on("#crFromBrief","click",()=>{
+  ["crDev","crProj","crLoc","crCfg","crPrice","crOffer"].forEach(i=>{const e=$("#"+i); if(e)e.value="";});
+  crFill(); toast("Refilled from the brief");
+});
+
+/* ── drawing helpers ───────────────────────────────────────────────────── */
+const crF=(w,px)=>`${Math.round(px)}px Archivo, Inter, system-ui, sans-serif`;
+function crFit(g,text,font,maxW){
+  /* shrink until it fits rather than letting it run off the edge */
+  let size=parseFloat(font);
+  for(let i=0;i<40;i++){
+    g.font=font.replace(/^[\d.]+px/,size+"px");
+    if(g.measureText(text).width<=maxW)break;
+    size-=1; if(size<8)break;
+  }
+  return size;
+}
+function crCover(g,im,W,H){
+  const r=Math.max(W/im.naturalWidth,H/im.naturalHeight);
+  const w=im.naturalWidth*r, h=im.naturalHeight*r;
+  g.drawImage(im,(W-w)/2,(H-h)/2,w,h);
+}
+function crPill(g,cx,y,text,font,accent,padX,h){
+  g.font=font;
+  const tw=g.measureText(text).width;
+  const w=tw+padX*2, x=cx-w/2, r=h/2;
+  g.save();
+  g.beginPath();
+  g.moveTo(x+r,y); g.lineTo(x+w-r,y); g.quadraticCurveTo(x+w,y,x+w,y+r);
+  g.lineTo(x+w,y+h-r); g.quadraticCurveTo(x+w,y+h,x+w-r,y+h);
+  g.lineTo(x+r,y+h); g.quadraticCurveTo(x,y+h,x,y+h-r);
+  g.lineTo(x,y+r); g.quadraticCurveTo(x,y,x+r,y); g.closePath();
+  g.fillStyle="rgba(10,12,16,0.88)"; g.fill();
+  g.lineWidth=Math.max(1.5,h*0.035); g.strokeStyle=accent; g.stroke();
+  g.fillStyle="#FFFFFF"; g.textAlign="center"; g.textBaseline="middle";
+  g.fillText(text,cx,y+h/2+1);
+  g.restore();
+  return w;
+}
+
+/* ── one creative ──────────────────────────────────────────────────────── */
+function crRenderOne(W,H){
+  const c=document.createElement("canvas"); c.width=W; c.height=H;
+  const g=c.getContext("2d");
+  const accent=($("#crAccent")&&$("#crAccent").value)||"#D4AF61";
+  const scrim=(($("#crScrim")&&+$("#crScrim").value)||62)/100;
+  const val=id=>(($("#"+id)&&$("#"+id).value)||"").trim();
+  const S=Math.min(W,H)/1200;                /* one scale for every size */
+  const tall=H/W>1.2, wide=W/H>1.5;
+
+  g.fillStyle="#0A0C10"; g.fillRect(0,0,W,H);
+  if(CR.hero)crCover(g,CR.hero,W,H);
+
+  /* scrims: text sits on them, never straight on the picture */
+  let gr=g.createLinearGradient(0,0,0,H*0.34);
+  gr.addColorStop(0,`rgba(6,10,20,${0.86*scrim})`); gr.addColorStop(1,"rgba(6,10,20,0)");
+  g.fillStyle=gr; g.fillRect(0,0,W,H*0.34);
+  /* The bottom carries the most text, so it gets the strongest scrim — gold
+     on a sunlit render is otherwise unreadable. */
+  const btop=H*(tall?0.48:wide?0.38:0.42);
+  gr=g.createLinearGradient(0,H,0,btop);
+  gr.addColorStop(0,`rgba(4,7,14,${Math.min(0.97,1.05*scrim)})`);
+  gr.addColorStop(0.55,`rgba(4,7,14,${0.82*scrim})`);
+  gr.addColorStop(1,"rgba(4,7,14,0)");
+  g.fillStyle=gr; g.fillRect(0,btop,W,H-btop);
+
+  const pad=Math.round(W*0.055);
+
+  if($("#crFrame")&&$("#crFrame").checked){
+    g.strokeStyle=accent; g.globalAlpha=0.55;
+    g.lineWidth=Math.max(1.5,2*S);
+    g.strokeRect(pad*0.62,pad*0.62,W-pad*1.24,H-pad*1.24);
+    g.globalAlpha=1;
+  }
+
+  /* top: logo on the left, RERA on the right */
+  /* developer and project sit together at the top, as on the samples:
+     logo, a hairline divider, then the project name. */
+  const topY=pad;
+  const lockH=Math.round((wide?52:62)*S);
+  let lx=pad;
+  if(CR.logo){
+    const lw=CR.logo.naturalWidth/CR.logo.naturalHeight*lockH;
+    const cap=Math.min(lw,W*0.34);
+    g.drawImage(CR.logo,lx,topY,cap,lockH); lx+=cap;
+  }else if(val("crDev")){
+    g.textAlign="left"; g.textBaseline="middle"; g.fillStyle="#FFFFFF";
+    const t=val("crDev").toUpperCase();
+    const fsz=crFit(g,t,crF(W,Math.round(42*S)),W*0.34);
+    g.font=crF(W,fsz); g.fillText(t,lx,topY+lockH/2);
+    lx+=g.measureText(t).width;
+  }
+  if(val("crProj")&&lx>pad){
+    const gapL=Math.round(18*S);
+    g.strokeStyle="rgba(255,255,255,0.45)"; g.lineWidth=Math.max(1,1.5*S);
+    g.beginPath(); g.moveTo(lx+gapL,topY+lockH*0.12);
+    g.lineTo(lx+gapL,topY+lockH*0.88); g.stroke();
+    g.textAlign="left"; g.textBaseline="middle"; g.fillStyle="#FFFFFF";
+    const t=val("crProj").toUpperCase();
+    const room=W-(lx+gapL*2)-pad-((CR.qr||val("crRera"))?W*0.30:0);
+    g.font=crF(W,crFit(g,t,crF(W,Math.round(40*S)),Math.max(60,room)));
+    g.fillText(t,lx+gapL*2,topY+lockH/2);
+  }
+  if(CR.qr||val("crRera")){
+    const qs=Math.round(92*S);
+    let x=W-pad;
+    if(CR.qr){ x-=qs; g.drawImage(CR.qr,x,topY,qs,qs); x-=Math.round(14*S); }
+    if(val("crRera")){
+      g.textAlign="right"; g.textBaseline="top"; g.fillStyle="#FFFFFF";
+      g.font=crF(W,Math.round(17*S));
+      g.fillText("MahaRERA:",x,topY+Math.round(10*S));
+      g.font=crF(W,Math.round(23*S));
+      g.fillText(val("crRera"),x,topY+Math.round(32*S));
+      g.font=crF(W,Math.round(14*S));
+      g.globalAlpha=0.8; g.fillText("maharera.mahaonline.gov.in",x,topY+Math.round(60*S)); g.globalAlpha=1;
+    }
+  }
+
+  /* offer badge under the top block */
+  if(val("crOffer")){
+    const bh=Math.round((wide?52:62)*S);
+    crPill(g,W/2,Math.round(H*(tall?0.21:wide?0.20:0.185)),val("crOffer"),
+           crF(W,Math.round((wide?30:36)*S)),accent,Math.round(34*S),bh);
+  }
+
+  /* bottom block: location, then the config / price bar */
+  let y=H-pad-Math.round((wide?16:24)*S);
+  if(val("crDisc")){
+    g.textAlign="center"; g.textBaseline="bottom";
+    g.fillStyle="rgba(255,255,255,0.78)"; g.font=crF(W,Math.round(15*S));
+    g.fillText(val("crDisc"),W/2,y); y-=Math.round(26*S);
+  }
+  const cfg=val("crCfg"), price=val("crPrice");
+  if(cfg||price){
+    const bh=Math.round((wide?64:78)*S);
+    y-=bh;
+    const fs=Math.round((wide?34:42)*S);
+    g.font=crF(W,fs);
+    const parts=[cfg,price].filter(Boolean);
+    const label=parts.join("   |   ");
+    crPill(g,W/2,y,label,crF(W,crFit(g,label,crF(W,fs),W-pad*3)),accent,Math.round(30*S),bh);
+    y-=Math.round(22*S);
+  }
+  if(val("crLoc")){
+    y-=Math.round(16*S);
+    g.textAlign="center"; g.textBaseline="bottom"; g.fillStyle="#FFFFFF";
+    const fs=Math.round((wide?32:38)*S);
+    const txt="◉  "+val("crLoc");
+    g.font=crF(W,crFit(g,txt,crF(W,fs),W-pad*2));
+    g.fillText(txt,W/2,y);
+  }
+  return c;
+}
+
+on("#crRender","click",()=>{
+  if(!CR.hero)return toast("Upload the hero image first");
+  crFill();
+  CR_OUT=[];
+  const box=$("#crOut"); box.innerHTML="";
+  CR_SIZES.forEach(([name,w,h,ratio])=>{
+    const c=crRenderOne(w,h);
+    const url=c.toDataURL("image/jpeg",0.92);
+    const bytes=Math.round((url.length-url.indexOf(",")-1)*3/4);
+    CR_OUT.push({name,w,h,ratio,url,bytes});
+  });
+  box.innerHTML=`<div class="row2">`+CR_OUT.map(o=>`
+    <div style="margin-bottom:14px">
+      <img src="${o.url}" alt="${esc(o.name)}" style="width:100%;border:1px solid var(--line);border-radius:6px;display:block">
+      <div class="mini" style="margin-top:6px">${esc(o.name)} · ${o.w}×${o.h} · ${o.ratio}
+        <span class="p-mute">${(o.bytes/1024).toFixed(0)} KB</span></div>
+    </div>`).join("")+`</div>`;
+  $("#crSizes").innerHTML=`<span class="pill p-ok">${CR_OUT.length} rendered</span>`;
+  crChecks();
+  logEvent("creative",`${CR_OUT.length} sizes`);
+});
+
+/* Google's own limits for Demand Gen image assets */
+function crChecks(){
+  const out=$("#crChecksOut"); if(!out)return;
+  if(!CR_OUT.length){ out.innerHTML=`<div class="empty">Nothing rendered yet.</div>`; return; }
+  const line=(l,ic,h)=>`<div class="check c-${l}"><span class="ic">${ic}</span><span>${h}</span></div>`;
+  const c=[];
+  const hw=CR.hero?CR.hero.naturalWidth:0, hh=CR.hero?CR.hero.naturalHeight:0;
+  if(hw<1200||hh<1200)
+    c.push(line("warn","!",`<b>Hero is ${hw}×${hh}.</b> Below 1200 on a side the square and story
+      crops get soft. Use a larger render if you have one.`));
+  else c.push(line("ok","✓",`<b>Hero is ${hw}×${hh}.</b> Large enough for every crop.`));
+  CR_OUT.forEach(o=>{
+    const mb=o.bytes/1048576;
+    if(mb>5) c.push(line("bad","✕",`<b>${o.name} is ${mb.toFixed(1)} MB.</b> Google's limit is 5 MB.`));
+  });
+  c.push(line("ok","✓","All four Demand Gen sizes rendered: 1200×1200, 960×1200, 1200×628, 1080×1920."));
+  if(!CR.logo) c.push(line("warn","!","<b>No developer logo.</b> The developer name is drawn as text instead."));
+  if(!CR.qr&&!($("#crRera")&&$("#crRera").value.trim()))
+    c.push(line("warn","!","<b>No RERA number or QR.</b> Required on Indian real estate creative."));
+  const price=($("#crPrice")&&$("#crPrice").value)||"";
+  if(price&&!/\*/.test(price))
+    c.push(line("warn","!","<b>Price has no asterisk.</b> House style is <code>₹89 LACS*</code>."));
+  out.innerHTML=c.join("");
+}
+on("#crChecks","click",crChecks);
+
+on("#crZip","click",()=>{
+  if(!CR_OUT.length)return toast("Render first");
+  const b=brief();
+  const label=slug(b.proj||"project");
+  const files=CR_OUT.map(o=>[`${label}-${o.w}x${o.h}.jpg`,crBytes(o)])
+    .filter(f=>f[1]);
+  files.push(["creative-spec.csv",
+    "Size,Pixels,Ratio,Where it runs\n"+
+    CR_SIZES.map(([n,w,h,r])=>`${n},${w}x${h},${r},Demand Gen`).join("\n")]);
+  dlZip(`${label}-creatives.zip`,files);
+  logEvent("export","creatives zip");
+});
+
 drawDemoBoxes(); drawImgs();
 if($("#asBizName")&&PROJ.bizName)$("#asBizName").value=PROJ.bizName;
 ["negExtra","negLists","negExactInPhrase"].forEach(id=>{
