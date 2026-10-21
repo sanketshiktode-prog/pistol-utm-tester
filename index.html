@@ -66,7 +66,10 @@ select[multiple] option{padding:5px 7px;border-radius:3px}
 input:focus,select:focus,textarea:focus{border-color:var(--orange);box-shadow:0 0 0 3px rgba(251,106,2,.13)}
 textarea{resize:vertical;line-height:1.55;font-size:12px}
 .f-note{font-size:11.5px;color:var(--ink-soft);margin-top:5px}
+/* A grid item defaults to min-width:auto, so a long filename inside an upload
+   box stretched its column and pushed the next one clean out of the card. */
 .row2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.row2>*{min-width:0}
 .ticket{display:grid;grid-template-columns:1fr 74px 22px 1fr 74px;gap:8px;align-items:center}
 .ticket .dash{text-align:center;color:var(--ink-soft);font-family:var(--mono)}
 .seg{display:flex;border:1px solid var(--line);border-radius:4px;overflow:hidden}
@@ -202,7 +205,7 @@ code{font-family:var(--mono);background:rgba(0,0,0,.05);padding:1px 4px;border-r
 /* Upload controls. The browser's own file input shows an unstyleable button
    and a filename that overflows its box; this is a target you can also drop
    a file onto, and it shows a thumbnail once there is one. */
-.drop{position:relative;display:flex;align-items:center;gap:12px;width:100%;
+.drop{position:relative;display:flex;align-items:center;gap:12px;width:100%;min-width:0;max-width:100%;box-sizing:border-box;
   padding:14px 16px;border:1.5px dashed var(--line);border-radius:8px;
   background:#fff;cursor:pointer;transition:border-color .15s,background .15s;overflow:hidden}
 .drop:hover,.drop.over{border-color:var(--accent);background:#FFF8F2}
@@ -210,13 +213,15 @@ code{font-family:var(--mono);background:rgba(0,0,0,.05);padding:1px 4px;border-r
 .drop-ic{flex:0 0 34px;height:34px;border-radius:7px;background:var(--navy);color:#fff;
   display:flex;align-items:center;justify-content:center;font-size:17px;font-weight:700}
 .drop.has .drop-ic{background:var(--ok,#1A7F45)}
-.drop-txt{min-width:0;display:flex;flex-direction:column;line-height:1.25}
+.drop-txt{flex:1 1 auto;min-width:0;display:flex;flex-direction:column;line-height:1.25;overflow:hidden}
 .drop-txt b{font-size:13.5px;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .drop-sub{font-size:11.5px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .drop-thumb{flex:0 0 auto;width:40px;height:40px;border-radius:6px;object-fit:cover;
   border:1px solid var(--line);background:#F2F3F5}
 .drop-sm{padding:11px 13px}
 .drop-sm .drop-ic{flex:0 0 28px;height:28px;font-size:14px}
+.hdr-sel{height:30px;max-width:190px;border:1px solid var(--line);border-radius:6px;
+  background:#fff;font:inherit;font-size:12.5px;color:var(--ink);padding:0 8px;cursor:pointer}
 </style>
 </head>
 <body>
@@ -234,6 +239,8 @@ code{font-family:var(--mono);background:rgba(0,0,0,.05);padding:1px 4px;border-r
       <div class="divider-v"></div>
       <span id="userName" style="font-size:12.5px;font-weight:500"></span>
       <span id="userRole" class="pill p-mute"></span>
+      <select id="projPick" class="hdr-sel" title="Saved projects"></select>
+      <button class="btn btn-sm" id="projSave">Save</button>
       <button class="btn btn-sm" id="newProject">New project</button>
       <button class="btn btn-sm" id="signOut">Sign out</button>
     </div>
@@ -869,16 +876,25 @@ Static Square</textarea>
           <input type="text" id="asBizName" maxlength="25" placeholder="PropertyPistol" spellcheck="false">
           <span class="f-note">The advertiser people see, not the project.</span></label>
         <div class="row2">
-          <label class="f"><span class="f-lab">Logo <span class="pill p-mute">1:1</span></span>
-            <input type="file" id="imgLogo" accept="image/*">
-            <span class="f-note">Cropped square, 1200×1200. Minimum source 128×128.</span></label>
-          <label class="f"><span class="f-lab">Square image <span class="pill p-mute">1:1</span></span>
-            <input type="file" id="imgSquare" accept="image/*">
-            <span class="f-note">Cropped square, 1200×1200. Minimum source 300×300.</span></label>
+          <div class="f"><span class="f-lab">Logo <span class="pill p-mute">1:1</span></span>
+            <label class="drop drop-sm" for="imgLogo" id="dropImgLogo">
+              <input type="file" id="imgLogo" accept="image/*">
+              <span class="drop-ic">↑</span>
+              <span class="drop-txt"><b>Choose a logo</b><span class="drop-sub">cropped to 1200×1200</span></span>
+            </label></div>
+          <div class="f"><span class="f-lab">Square image <span class="pill p-mute">1:1</span></span>
+            <label class="drop drop-sm" for="imgSquare" id="dropImgSquare">
+              <input type="file" id="imgSquare" accept="image/*">
+              <span class="drop-ic">↑</span>
+              <span class="drop-txt"><b>Choose a square image</b><span class="drop-sub">cropped to 1200×1200</span></span>
+            </label></div>
         </div>
-        <label class="f"><span class="f-lab">Landscape image <span class="pill p-mute">1.91:1</span></span>
-          <input type="file" id="imgLandscape" accept="image/*">
-          <span class="f-note">Cropped to 1200×628. Minimum source 600×314. Optional, but it wins extra space.</span></label>
+        <div class="f"><span class="f-lab">Landscape image <span class="pill p-mute">1.91:1</span></span>
+          <label class="drop drop-sm" for="imgLandscape" id="dropImgLandscape">
+            <input type="file" id="imgLandscape" accept="image/*">
+            <span class="drop-ic">↑</span>
+            <span class="drop-txt"><b>Choose a landscape image</b><span class="drop-sub">cropped to 1200×628 · optional, wins extra space</span></span>
+          </label></div>
         <div id="imgPreview" class="row2" style="margin-top:12px"></div>
         <div class="btnrow" style="margin-top:12px">
           <button class="btn btn-sm" id="imgClear">Clear the images</button>
@@ -1395,6 +1411,89 @@ const sess={get(k,d){try{const v=sessionStorage.getItem(k);return v?JSON.parse(v
             set(k,v){try{sessionStorage.setItem(k,JSON.stringify(v));}catch(e){}}};
 function clearProject(){
   PROJECT_KEYS.forEach(k=>{try{sessionStorage.removeItem(k);localStorage.removeItem(k);}catch(e){}});
+}
+
+/* ═══════════ saved projects ═══════════
+   Everything a project is made of lives across a handful of storage keys and
+   a set of fields. A save copies all of it under a name; opening one puts it
+   back and reloads, so every panel redraws from the restored state rather
+   than being patched up in place.
+
+   The uploaded images are deliberately NOT saved. A hero render is several
+   megabytes and localStorage holds about five in total, so one project would
+   fill it and every later save would fail silently. They are re-chosen. */
+const PROJ_STORE="pp_projects";
+const SAVE_FIELDS=["inLp","inEnq","acUrl","acProj","acDev","acMicro","acCity","acCfg","acPrice",
+  "acOffer","acUsps","acAmen","acMarks","acPriceMode","acAllIn","acP1","acP2","acLoc",
+  "tkA","tkB","locMain","locAlt","cgLoc","cgLocId","cgBudget","cgCpc","cgStatus","cgBid",
+  "cgPresence","cgEuPol","cgGoals","apCid","apLocIds","negExtra","negLists",
+  "asBizName","csKw","csUrl","csYt","csApp","audSources","crDev","crProj","crLoc","crCfg",
+  "crPrice","crOffer","crRera","crDisc","crAccent","crScrim","crLayout","kwRaw","kwCamp","kwAdg"];
+const projects=()=>store.get(PROJ_STORE,{})||{};
+function projectSnapshot(){
+  const f={};
+  SAVE_FIELDS.forEach(id=>{ const el=$("#"+id); if(el)f[id]=el.value; });
+  const multi={};
+  ["inStrat","inMatch","audPick"].forEach(id=>{
+    const el=$("#"+id);
+    if(el&&el.multiple)multi[id]=[...el.selectedOptions].map(o=>o.value);
+  });
+  const checks={};
+  $$("input[type=checkbox][id]").forEach(el=>{ checks[el.id]=el.checked; });
+  const keys={};
+  PROJECT_KEYS.forEach(k=>{
+    const v=sessionStorage.getItem(k)||localStorage.getItem(k);
+    if(v!==null)keys[k]=v;
+  });
+  return {saved:Date.now(), channel:CH, fields:f, multi, checks, keys};
+}
+function projectApply(p){
+  if(!p)return;
+  PROJECT_KEYS.forEach(k=>{try{sessionStorage.removeItem(k);localStorage.removeItem(k);}catch(e){}});
+  Object.keys(p.keys||{}).forEach(k=>{try{sessionStorage.setItem(k,p.keys[k]);}catch(e){}});
+  try{sessionStorage.setItem("pp_restore",JSON.stringify(p));}catch(e){}
+  location.reload();
+}
+/* applied after the page has built itself, so nothing overwrites it */
+function projectRestore(){
+  let p=null;
+  try{ const raw=sessionStorage.getItem("pp_restore");
+       if(raw){ p=JSON.parse(raw); sessionStorage.removeItem("pp_restore"); } }catch(e){}
+  if(!p)return;
+  if(p.channel&&p.channel!==CH){
+    const b=$(`#segChannel button[data-ch="${p.channel}"]`); if(b)b.click();
+  }
+  Object.keys(p.fields||{}).forEach(id=>{
+    const el=$("#"+id); if(!el)return;
+    el.value=p.fields[id];
+    el.dispatchEvent(new Event("input",{bubbles:true}));
+    el.dispatchEvent(new Event("change",{bubbles:true}));
+  });
+  Object.keys(p.multi||{}).forEach(id=>{
+    const el=$("#"+id); if(!el)return;
+    [...el.options].forEach(o=>o.selected=p.multi[id].indexOf(o.value)>-1);
+    el.dispatchEvent(new Event("change",{bubbles:true}));
+  });
+  Object.keys(p.checks||{}).forEach(id=>{
+    const el=$("#"+id); if(!el||el.type!=="checkbox")return;
+    if(el.checked!==p.checks[id]){ el.checked=p.checks[id];
+      el.dispatchEvent(new Event("change",{bubbles:true})); }
+  });
+  /* PLAN is derived, not stored. Rebuilding it from the restored brief also
+     merges the ad copy and keyword edits that came back in pp_adgroups, so
+     the project opens with the structure it was saved with. */
+  if(($("#acProj")&&$("#acProj").value.trim())||($("#inEnq")&&$("#inEnq").value.trim())){
+    const b=$("#stBuild"); if(b)setTimeout(()=>b.click(),60);
+  }
+  toast("Project opened \u2014 the images are not saved, choose them again");
+}
+function drawProjects(){
+  const sel=$("#projPick"); if(!sel)return;
+  const all=projects();
+  const names=Object.keys(all).sort((a,b2)=>(all[b2].saved||0)-(all[a].saved||0));
+  sel.innerHTML=`<option value="">\u2014 saved projects \u2014</option>`+
+    names.map(n=>`<option value="${esc(n)}">${esc(n)}</option>`).join("")+
+    (names.length?`<option value="__del">Delete a saved project\u2026</option>`:"");
 }
 const csvq=v=>`"${String(v??"").replace(/"/g,'""')}"`;
 
@@ -2860,6 +2959,39 @@ function initAuth(){
 on("#newProject","click",()=>{
   if(!confirm("Clear the brief, ad groups, keywords and assets and start a new project?\n\nYour strategy list, Gemini key and campaign settings are kept."))return;
   clearProject(); logEvent("new-project",""); location.reload();
+});
+on("#projSave","click",()=>{
+  const guess=($("#acProj")&&$("#acProj").value.trim())||($("#inEnq")&&$("#inEnq").value.trim())||"";
+  const name=(prompt("Save this project as:",guess)||"").trim();
+  if(!name)return;
+  const all=projects();
+  if(all[name]&&!confirm(`"${name}" already exists. Replace it?`))return;
+  all[name]=projectSnapshot();
+  store.set(PROJ_STORE,all);
+  if(store.get(PROJ_STORE,{})[name]===undefined)
+    return toast("Could not save \u2014 browser storage is full. Delete an old project and retry.");
+  drawProjects(); $("#projPick").value=name;
+  toast(`Saved as "${name}"`);
+  logEvent("project-save",name);
+});
+on("#projPick","change",()=>{
+  const sel=$("#projPick"), v=sel.value;
+  if(!v)return;
+  if(v==="__del"){
+    const all=projects();
+    const name=(prompt("Delete which project?\n\n"+Object.keys(all).join("\n"))||"").trim();
+    sel.value="";
+    if(!name||!all[name])return;
+    if(!confirm(`Delete "${name}"? This cannot be undone.`))return;
+    delete all[name]; store.set(PROJ_STORE,all); drawProjects();
+    return toast(`Deleted "${name}"`);
+  }
+  const p=projects()[v];
+  if(!p){ sel.value=""; return toast("That project is no longer saved"); }
+  if(!confirm(`Open "${v}"?\n\nAnything unsaved in the current project is lost.`)){
+    sel.value=""; return; }
+  logEvent("project-open",v);
+  projectApply(p);
 });
 on("#signOut","click",()=>{
   clearProject();
@@ -5082,22 +5214,59 @@ function drawImgs(){
         <span class="p-mute">from ${esc(IMGS[k].src)}</span></div></div>`).join("")
     :`<div class="empty" style="padding:14px">No images yet.</div>`;
 }
+/* Shows what was picked on the control itself: name, size, thumbnail. Shared
+   by both tabs so they cannot drift apart. */
+function dropFilled(zoneId,name,sub,thumbSrc){
+  const z=$("#"+zoneId); if(!z)return;
+  z.classList.add("has");
+  const t=z.querySelector(".drop-txt");
+  if(t)t.innerHTML=`<b>${esc(name)}</b><span class="drop-sub">${esc(sub)}</span>`;
+  if(thumbSrc){
+    let th=z.querySelector(".drop-thumb");
+    if(!th){ th=document.createElement("img"); th.className="drop-thumb"; z.appendChild(th); }
+    th.src=thumbSrc;
+  }
+}
+function dropReset(zoneId,head,sub){
+  const z=$("#"+zoneId); if(!z)return;
+  z.classList.remove("has");
+  const t=z.querySelector(".drop-txt");
+  if(t)t.innerHTML=`<b>${head}</b><span class="drop-sub">${sub}</span>`;
+  const th=z.querySelector(".drop-thumb"); if(th)th.remove();
+}
+const kbSize=n=>n<1024?n+" B":n<1048576?(n/1024).toFixed(0)+" KB":(n/1048576).toFixed(1)+" MB";
+function dropWire(zoneId,take){
+  const z=$("#"+zoneId); if(!z)return;
+  ["dragenter","dragover"].forEach(ev=>z.addEventListener(ev,e=>{
+    e.preventDefault(); z.classList.add("over"); }));
+  ["dragleave","drop"].forEach(ev=>z.addEventListener(ev,e=>{
+    e.preventDefault(); z.classList.remove("over"); }));
+  z.addEventListener("drop",e=>take(e.dataTransfer&&e.dataTransfer.files&&e.dataTransfer.files[0]));
+}
 Object.keys(IMG_SPEC).forEach(k=>{
-  const el=$("#img"+k.charAt(0).toUpperCase()+k.slice(1));
+  const cap=k.charAt(0).toUpperCase()+k.slice(1);
+  const el=$("#img"+cap), zone="dropImg"+cap;
   if(!el)return;
-  el.addEventListener("change",async e=>{
-    const f=e.target.files&&e.target.files[0]; if(!f)return;
+  const take=async f=>{
+    if(!f)return;
     try{
       IMGS[k]=await cropTo(f,IMG_SPEC[k]);
       saveImgs(); drawImgs();
-      toast(`${IMG_SPEC[k].label} cropped to ${IMG_SPEC[k].w}\u00d7${IMG_SPEC[k].h}`);
-    }catch(err){ e.target.value=""; toast(String(err.message||err)); }
-  });
+      dropFilled(zone,f.name,
+        IMG_SPEC[k].w+"\u00d7"+IMG_SPEC[k].h+" \u00b7 "+kbSize(f.size),IMGS[k].preview);
+      toast(IMG_SPEC[k].label+" cropped to "+IMG_SPEC[k].w+"\u00d7"+IMG_SPEC[k].h);
+    }catch(err){ el.value=""; toast(String(err.message||err)); }
+  };
+  el.addEventListener("change",e=>take(e.target.files&&e.target.files[0]));
+  dropWire(zone,take);
 });
 on("#imgClear","click",()=>{
   IMGS={}; saveImgs(); drawImgs();
   Object.keys(IMG_SPEC).forEach(k=>{
-    const el=$("#img"+k.charAt(0).toUpperCase()+k.slice(1)); if(el)el.value="";});
+    const cap=k.charAt(0).toUpperCase()+k.slice(1);
+    const el=$("#img"+cap); if(el)el.value="";
+    dropReset("dropImg"+cap,"Choose "+IMG_SPEC[k].label.toLowerCase(),
+      "cropped to "+IMG_SPEC[k].w+"\u00d7"+IMG_SPEC[k].h);});
   toast("Images cleared");
 });
 on("#asBizName","input",()=>{ PROJ.bizName=$("#asBizName").value; sess.set("pp_proj",PROJ); });
@@ -5320,33 +5489,19 @@ function crLoad(file){
 }
 ["hero","logo","qr"].forEach(k=>{
   const cap=k.charAt(0).toUpperCase()+k.slice(1);
-  const el=$("#cr"+cap), zone=$("#drop"+cap);
+  const el=$("#cr"+cap);
   if(!el)return;
-  const kb=n=>n<1024?n+" B":n<1048576?(n/1024).toFixed(0)+" KB":(n/1048576).toFixed(1)+" MB";
   const take=async f=>{
     if(!f)return;
     try{
       CR[k]=await crLoad(f); crStat();
-      if(zone){
-        zone.classList.add("has");
-        const t=zone.querySelector(".drop-txt");
-        if(t)t.innerHTML=`<b>${esc(f.name)}</b><span class="drop-sub">${
-          CR[k].naturalWidth}×${CR[k].naturalHeight} · ${kb(f.size)}</span>`;
-        let th=zone.querySelector(".drop-thumb");
-        if(!th){ th=document.createElement("img"); th.className="drop-thumb"; zone.appendChild(th); }
-        th.src=CR[k].src;
-      }
-      if(k==="hero")toast("Hero loaded — press Render");
+      dropFilled("drop"+cap,f.name,
+        CR[k].naturalWidth+"\u00d7"+CR[k].naturalHeight+" \u00b7 "+kbSize(f.size),CR[k].src);
+      if(k==="hero")toast("Hero loaded \u2014 press Render");
     }catch(err){ el.value=""; toast(String(err.message||err)); }
   };
   el.addEventListener("change",e=>take(e.target.files&&e.target.files[0]));
-  if(zone){
-    ["dragenter","dragover"].forEach(ev=>zone.addEventListener(ev,e=>{
-      e.preventDefault(); zone.classList.add("over"); }));
-    ["dragleave","drop"].forEach(ev=>zone.addEventListener(ev,e=>{
-      e.preventDefault(); zone.classList.remove("over"); }));
-    zone.addEventListener("drop",e=>take(e.dataTransfer&&e.dataTransfer.files&&e.dataTransfer.files[0]));
-  }
+  dropWire("drop"+cap,take);
 });
 function crStat(){
   const el=$("#crStat"); if(!el)return;
@@ -5356,16 +5511,10 @@ function crStat(){
 }
 on("#crClearImgs","click",()=>{
   CR={hero:null,logo:null,qr:null};
-  ["crHero","crLogo","crQr"].forEach(i=>{const e=$("#"+i); if(e)e.value="";});
-  [["dropHero","Choose the project render","or drop it here — 1920px wide or more"],
+  ["crHero","crLogo","crQr"].forEach(i2=>{const e=$("#"+i2); if(e)e.value="";});
+  [["dropHero","Choose the project render","or drop it here \u2014 1920px wide or more"],
    ["dropLogo","Choose a logo","PNG, transparent"],
-   ["dropQr","Choose a QR","PNG or JPG"]].forEach(([id,a,b2])=>{
-    const z=$("#"+id); if(!z)return;
-    z.classList.remove("has");
-    const t=z.querySelector(".drop-txt");
-    if(t)t.innerHTML=`<b>${a}</b><span class="drop-sub">${b2}</span>`;
-    const th=z.querySelector(".drop-thumb"); if(th)th.remove();
-  });
+   ["dropQr","Choose a QR","PNG or JPG"]].forEach(a=>dropReset(a[0],a[1],a[2]));
   CR_OUT=[]; crStat(); $("#crOut").innerHTML=`<div class="empty">Upload a hero image, then render.</div>`;
 });
 
@@ -5695,11 +5844,15 @@ function crLockup(g,c,x,y,maxW,light){
    can be capped to what is left \u2014 otherwise the project name is squeezed to
    nothing against a long RERA number */
 function crReraBlock(g,c,rightX,y,light){
-  const S=c.S;
+  /* The RERA mark is a legal notice and should read the same on every size.
+     Scaling it with c.S made it a different physical size in each ratio \u2014
+     tiny on landscape, large on square. It is sized off the width instead,
+     so it is the same fraction of the creative everywhere. */
+  const S=c.W/1200;
   if(!c.rera&&!CR.qr)return 0;
   let qx=rightX;
   if(CR.qr){
-    const q=Math.round((c.wide?92:116)*S);
+    const q=Math.round(104*S);
     qx=rightX-q;
     g.fillStyle="#FFFFFF";
     g.fillRect(qx-5*S,y-q/2-5*S,q+10*S,q+10*S);
@@ -5709,7 +5862,7 @@ function crReraBlock(g,c,rightX,y,light){
   if(!c.rera)return rightX-qx;
   const fg=light?INK:"#FFFFFF";
   g.textAlign="right"; g.textBaseline="alphabetic";
-  const ls=19*S, ns=30*S, us=15*S;
+  const ls=18*S, ns=29*S, us=14*S;
   g.fillStyle=light?"rgba(20,33,61,.80)":"rgba(255,255,255,.85)"; g.font=F_B(500,ls);
   g.fillText("MahaRERA:",qx,y-ns*.52);
   g.fillStyle=fg; g.font=F_H(700,ns); g.fillText(c.rera,qx,y+ns*.34);
@@ -6235,6 +6388,7 @@ if($("#asBizName")&&PROJ.bizName)$("#asBizName").value=PROJ.bizName;
   const el=$("#"+id); if(el)el.addEventListener("change",drawApSettings); });
 $$("#demoAge input,#demoInc input,#demoGen input").forEach(el=>el.addEventListener("change",drawApSettings));
 drawApSettings(); drawApPlan();
+drawProjects(); projectRestore();
 initAuth();
 /* Catch any button that lost its handler during an edit. */
 (function(){
