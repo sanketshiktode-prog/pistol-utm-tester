@@ -65,60 +65,11 @@
    property, so an existing setup keeps working untouched.
    ========================================================================= */
 
-function cfg_(key, fallback) {
-  try {
-    const v = PropertiesService.getScriptProperties().getProperty(key);
-    return (v && String(v).trim()) || fallback;
-  } catch (e) { return fallback; }
-}
-
-/* Run this from the editor to see what is set. Secrets are masked. */
-function showSettings() {
-  const mask = function (v) {
-    return !v ? 'NOT SET' : v.length < 9 ? 'set' : v.slice(0, 4) + '...' + v.slice(-3);
-  };
-  Logger.log('ADS_DEV_TOKEN : ' + mask(ADS.devToken));
-  Logger.log('ADS_LOGIN_CID : ' + (ADS.loginCid || 'NOT SET'));
-  Logger.log('GEMINI_KEY    : ' + mask(GEMINI_KEY));
-  Logger.log('CLIENT_ID     : ' + mask(CLIENT_ID));
-  Logger.log(ADS.devToken && ADS.loginCid
-    ? 'Ready. Run adsSelfTest() next.'
-    : 'Add the missing ones under Project Settings -> Script Properties.');
-}
-
-const CLIENT_ID  = cfg_('CLIENT_ID',  '779938081992-vecfdvvm61lalugpo3sa64bvqlhjfjqq.apps.googleusercontent.com');
-const GEMINI_KEY = cfg_('GEMINI_KEY', '');
-const DOMAIN     = cfg_('DOMAIN',     'propertypistol.com');
-const ADMIN      = cfg_('ADMIN',      'sanket.shiktode@propertypistol.com');
-const SHEET      = 'Log';
-
-const ADS = {
-  version   : 'v26',
-  devToken  : cfg_('ADS_DEV_TOKEN', ''),
-  loginCid  : cfg_('ADS_LOGIN_CID', ''),   // the MANAGER above the client, never the client
-  host      : 'https://googleads.googleapis.com',
-
-  /* ── who is allowed to do this ──────────────────────────────────────────
-     The toolkit is served from a public GitHub Pages site, so the /exec URL
-     in its source is public too. Signing in with any propertypistol.com
-     account is the right gate for building CSV files. It is the wrong gate
-     for creating campaigns in live ad accounts as the script owner, which is
-     what this file does. So deploying has its own, shorter list.
-
-     Leave allowEmails empty and nobody can deploy at all. */
-  allowEmails : [
-    'hemant.bajaj@propertypistol.com',
-    'sanket.shiktode@propertypistol.com'
-  ],
-
-  /* Accounts this script is allowed to touch, 10 digits each. Empty means
-     "test accounts only" — a live account has to be named here on purpose,
-     so a stray or guessed customer ID cannot be pointed at real money. */
-  allowCustomerIds : [],
-
-  /* A runaway loop is the realistic accident, not an attacker. */
-  maxDeploysPerDay : 40
-};
+/* Configuration — cfg_, CLIENT_ID, GEMINI_KEY, DOMAIN, ADMIN, SHEET and ADS —
+   is NOT declared here. It lives in the Code.gs loader in the Apps Script
+   project, which is where the developer token and the Gemini key belong: this
+   file is public. Declaring them again would also collide, because this file
+   is evaluated inside that project's scope. */
 
 /* ===================== nothing below needs editing ===================== */
 
