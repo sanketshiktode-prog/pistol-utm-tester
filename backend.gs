@@ -566,31 +566,35 @@ function adsSegments(body, v) {
   });
 
   if (ops.length) {
-    /* partialFailure, so one bad line no longer takes the other twenty with
-       it. Without it a single rejected name meant nothing at all was created
-       and the press had to be repeated after guessing which line was wrong. */
-    const r = adsCall('customers/' + cid + '/customAudiences:mutate',
-                      { operations: ops, partialFailure: true });
-    if (r.error) return { error: r.error, created: out };
-    const why = {};
-    const pf = r.body && r.body.partialFailureError;
-    if (pf) (((pf.details || [])[0] || {}).errors || pf.errors || []).forEach(function (e) {
-      var at = -1;
-      ((e.location || {}).fieldPathElements || []).forEach(function (f) {
-        if (f.fieldName === 'operations' && f.index !== undefined) at = Number(f.index);
+    /* CustomAudienceService.MutateCustomAudiences has no partialFailure field
+       — that one belongs to GoogleAdsService.Mutate. Sending it comes back
+       "Unknown name partialFailure: Cannot find field" and nothing is created.
+       So the batch is tried whole, and only if it fails is each operation sent
+       on its own: one call on the happy path, and on a failure every line gets
+       its own verdict instead of one wall of text with no line named. */
+    const ep = 'customers/' + cid + '/customAudiences:mutate';
+    const r = adsCall(ep, { operations: ops });
+    if (!r.error) {
+      (r.body.results || []).forEach(function (res, i) {
+        const id = String(res.resourceName || '').split('/').pop();
+        if (!id || id === 'null') { out.push({ name: pending[i], error: 'Google refused this one.' }); return; }
+        out.push({ name: pending[i], id: id, made: true });
       });
-      if (at >= 0) why[at] = e.message || 'Google refused this one.';
-    });
-    (r.body.results || []).forEach(function (res, i) {
-      if (why[i] !== undefined) { out.push({ name: pending[i], error: why[i] }); return; }
-      const id = String(res.resourceName || '').split('/').pop();
-      /* a refused operation comes back as an empty result in the same slot */
-      if (!id || id === 'null') { out.push({ name: pending[i], error: 'Google refused this one.' }); return; }
-      out.push({ name: pending[i], id: id, made: true });
-    });
-    /* anything Google did not answer for at all */
-    for (var k = (r.body.results || []).length; k < pending.length; k++)
-      out.push({ name: pending[k], error: why[k] || 'No answer from Google for this one.' });
+    } else {
+      for (var i = 0; i < ops.length; i++) {
+        const one = adsCall(ep, { operations: [ops[i]] });
+        /* "operations[0] > " is noise when the call carried one operation */
+        if (one.error) {
+          out.push({ name: pending[i],
+                     error: String(one.error).replace(/^operations\[0\]\s*>\s*/, '') });
+          continue;
+        }
+        const res = (one.body.results || [])[0] || {};
+        const id = String(res.resourceName || '').split('/').pop();
+        if (!id || id === 'null') out.push({ name: pending[i], error: 'Google refused this one.' });
+        else out.push({ name: pending[i], id: id, made: true });
+      }
+    }
   }
 
   try {
