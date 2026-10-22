@@ -316,7 +316,7 @@ code{font-family:var(--mono);background:rgba(0,0,0,.05);padding:1px 4px;border-r
     <div class="wordmark">Search Ops Toolkit <span>· Google Ads</span></div>
     <div class="spacer"></div>
     <div class="badge-env" id="varCount">0 VARIANTS</div>
-    <span class="pill p-mute" id="buildTag" title="build">b-22oct-4</span>
+    <span class="pill p-mute" id="buildTag" title="build">b-22oct-5</span>
     <div id="userChip" class="hidden" style="display:flex;align-items:center;gap:9px">
       <div class="divider-v"></div>
       <span id="userName" style="font-size:12.5px;font-weight:500"></span>
@@ -1464,6 +1464,9 @@ Static Square</textarea>
           <input type="range" id="crScrim" min="0" max="100" value="62">
           <span class="f-note">How hard the render is darkened under the type. More scrim buys
             readability and costs some of the picture.</span></label>
+        <label class="chk"><input type="checkbox" id="crLogoName" checked>
+          <span>The uploaded logo already carries the developer and project name —
+            don't print them again beside it</span></label>
         <label class="chk"><input type="checkbox" id="crFrame" checked>
           <span>Thin accent frame, as on the samples</span></label>
       </div>
@@ -6420,18 +6423,18 @@ const crDark=(a,k)=>`rgb(${Math.round(a[0]*k)},${Math.round(a[1]*k)},${Math.roun
 
 /* Header stack first, because it is the house default \u2014 the picker takes
    the first entry when nothing has been chosen. */
-/* id, name, note, and whether the foot of the canvas is light \u2014 which is all
-   the disclaimer needs to know to pick its colour */
+/* id, name, note, whether the FOOT of the canvas is light (the disclaimer
+   needs it) and whether the TOP is (the RERA mark needs it) */
 const CR_LAYOUTS=[
-  ["header","Header stack", "Copy above on light, arched render below \u2014 the default",false],
-  ["frame", "Gold frame",   "Dark plaques on the render inside a hairline notched frame",false],
-  ["card",  "White card",   "Render full bleed, scalloped white panel at the foot",false],
-  ["footer","Light footer", "Render full bleed, light band carrying configuration and price",true],
-  ["panel", "Centre panel", "Deco panel centred on the render",false],
-  ["arch",  "Arch",         "Light ground, arched render, ornament rules",true],
-  ["band",  "Dark band",    "Render full bleed, deep band at the foot with the price in accent",false],
-  ["strip", "Feature strip","Three claims in a row above a light band \u2014 the deck's workhorse",true],
-  ["split", "Split panel",  "Render one side, information panel the other",true]
+  ["header","Header stack", "Copy above on light, arched render below \u2014 the default",false,true],
+  ["frame", "Gold frame",   "Dark plaques on the render inside a hairline notched frame",false,false],
+  ["card",  "White card",   "Render full bleed, scalloped white panel at the foot",false,false],
+  ["footer","Light footer", "Render full bleed, light band carrying configuration and price",true,false],
+  ["panel", "Centre panel", "Deco panel centred on the render",false,false],
+  ["arch",  "Arch",         "Light ground, arched render, ornament rules",true,false],
+  ["band",  "Dark band",    "Render full bleed, deep band at the foot with the price in accent",false,false],
+  ["strip", "Feature strip","Three claims in a row above a light band \u2014 the deck's workhorse",true,false],
+  ["split", "Split panel",  "Render one side, information panel the other",true,true]
 ];
 var INK="#14213D", PAPER="#F6F4EF", RED="#E2231A";
 
@@ -6478,6 +6481,13 @@ function crPalette(){
   return row?row[3]:CR_PALETTES[0][3];
 }
 
+/* Whether the uploaded logo already says the developer and the project. It
+   nearly always does, so when a logo is up this defaults to yes and the typed
+   names are kept for the ad copy rather than printed twice on the picture. */
+function crLogoCarriesName(){
+  const el=$("#crLogoName");
+  return el?el.checked:!!CR.logo;
+}
 function crLayoutId(){
   const el=$("#crLayout");
   return (el&&el.value)||"header";
@@ -6611,11 +6621,24 @@ function crTopRightLoc(g,c,rightX,baseY,size,pinColour,maxW){
 }
 function crLockup(g,c,x,y,maxW,light){
   const S=c.S, fg=light?INK:"#FFFFFF";
-  const logoH=Math.round((c.wide?64:78)*S);
+  /* The logo was too small to read at a glance and, on a layout whose header
+     sits on a pale sky, a gold-on-transparent logo all but vanished. It is
+     drawn larger, at full opacity, and over a soft shadow when the header is
+     dark — the shadow is what buys contrast, not any reduction in the logo. */
+  const logoH=Math.round((c.wide?80:98)*S);
   let lx=x;
   if(CR.logo){
     const lw=Math.round(logoH*CR.logo.naturalWidth/CR.logo.naturalHeight);
-    g.drawImage(CR.logo,lx,y-logoH/2,lw,logoH); lx+=lw+26*S;
+    g.save();
+    g.globalAlpha=1;
+    if(!light){ g.shadowColor="rgba(0,0,0,.55)"; g.shadowBlur=Math.max(3,10*S); }
+    g.drawImage(CR.logo,lx,y-logoH/2,lw,logoH);
+    g.restore();
+    lx+=lw+26*S;
+    /* The logo almost always carries the developer and the project already.
+       Printing the typed names beside it said everything twice and is what
+       made the headers look cluttered. */
+    if(crLogoCarriesName())return;
   }else if(c.dev){
     g.font=F_H(800,48*S); g.fillStyle=fg; g.textAlign="left"; g.textBaseline="middle";
     g.fillText(c.dev,lx,y); lx+=g.measureText(c.dev).width+26*S;
@@ -6748,27 +6771,39 @@ function crCfgPriceWidth(g,c,sub,k){
 }
 
 /* configuration over price, centred — the panel layout */
-function crCfgPriceStack(g,c,cx,topY,sub){
+/* configuration above the price. `light` draws it on a pale panel, `maxW`
+   caps it to the column it has to live in. */
+function crCfgPriceStack(g,c,cx,topY,sub,light,maxW){
   const S=c.S, m=c.money;
-  const cfgS=62*S, subS=cfgS*.42, numS=86*S, unitS=numS*.44, tailS=numS*.2;
+  const box=maxW||c.W*.52;
+  const fg=light?INK:"#FFFFFF";
+  const dim=light?"rgba(20,33,61,":"rgba(255,255,255,";
+  const cfgS=(c.wide?48:62)*S, subS=cfgS*.42;
+  const numS=(c.wide?66:86)*S, unitS=numS*.44, tailS=numS*.2;
   let y=topY+cfgS;
   if(c.cfg){
-    g.font=F_H(700,cfgS); const s2=crFit(g,c.cfg,g.font,c.W*.52); g.font=F_H(700,s2);
-    g.fillStyle="#FFFFFF"; g.textAlign="center"; g.textBaseline="alphabetic";
+    g.font=F_H(700,cfgS); const s2=crFit(g,c.cfg,g.font,box); g.font=F_H(700,s2);
+    g.fillStyle=fg; g.textAlign="center"; g.textBaseline="alphabetic";
     g.fillText(c.cfg,cx,y); y+=subS*1.6;
   }
-  if(sub){ g.font=F_B(500,subS); g.fillStyle="rgba(255,255,255,.88)";
+  if(sub){ g.font=F_B(500,subS); g.fillStyle=dim+".86)";
     crTrack(g,sub,cx,y,subS*.3,"center"); y+=subS*1.1; }
-  crOrnRule(g,cx,y+subS*.5,c.W*.30,S,c.accent); y+=subS*1.5+numS*.72;
+  crOrnRule(g,cx,y+subS*.5,Math.min(box*.72,c.W*.30),S,c.accent); y+=subS*1.5+numS*.72;
   if(m&&m.amount){
     g.font=F_H(800,numS); const nw=g.measureText(m.amount).width;
     g.font=F_H(700,unitS); const uw=m.unit?g.measureText(m.unit).width:0;
-    const tot=nw+(uw?uw+8*S:0); let x=cx-tot/2;
-    g.textAlign="left"; g.fillStyle=c.accent||GOLD_HI; g.font=F_H(800,numS);
-    g.fillText(m.amount,x,y); x+=nw+8*S;
-    if(m.unit){ g.font=F_H(700,unitS); g.fillStyle="#FFFFFF"; g.fillText(m.unit,x,y-numS*.30); }
-    if(m.tail){ g.font=F_B(600,tailS); g.fillStyle="rgba(255,255,255,.82)";
-      crTrack(g,m.tail,x,y,tailS*.3,"left"); }
+    const tot=nw+(uw?uw+8*S:0);
+    /* shrink the whole price block rather than let it run out of the panel */
+    const k=tot>box?box/tot:1;
+    const nS=numS*k, uS=unitS*k, tS=tailS*k;
+    g.font=F_H(800,nS); const nw2=g.measureText(m.amount).width;
+    g.font=F_H(700,uS); const uw2=m.unit?g.measureText(m.unit).width:0;
+    let x=cx-(nw2+(uw2?uw2+8*S:0))/2;
+    g.textAlign="left"; g.fillStyle=light?(c.accent||INK):(c.accent||GOLD_HI); g.font=F_H(800,nS);
+    g.fillText(m.amount,x,y); x+=nw2+8*S;
+    if(m.unit){ g.font=F_H(700,uS); g.fillStyle=fg; g.fillText(m.unit,x,y-nS*.30); }
+    if(m.tail){ g.font=F_B(600,tS); g.fillStyle=dim+".80)";
+      crTrack(g,m.tail,x,y,tS*.3,"left"); }
   }
   return y;
 }
@@ -6805,31 +6840,73 @@ function crScrims(g,c){
   bg.addColorStop(1,`rgba(5,8,14,${.95*scrim})`);
   g.fillStyle=bg; g.fillRect(0,b,W,H-b);
 }
-/* the render, either filling the canvas or set into a gradient as a band */
+/* How far a cover-crop may zoom past a plain fit before it starts cutting the
+   building in half. Past this the picture is fitted whole instead. */
+const CR_MAX_ZOOM=1.40;
+let CR_CAN_BLUR=null;
+function crBlurOk(){
+  if(CR_CAN_BLUR===null){
+    try{ const t=document.createElement("canvas").getContext("2d");
+      t.filter="blur(4px)"; CR_CAN_BLUR=(t.filter!=="none"); }
+    catch(e){ CR_CAN_BLUR=false; }
+  }
+  return CR_CAN_BLUR;
+}
+/* the render, fitted into its box */
 function crHero(g,c,x,y,w,h,bleed){
   const hero=CR.hero;
   if(!hero){ g.fillStyle="#0B1020"; g.fillRect(x,y,w,h); return; }
-  /* The band-and-gradient treatment paints the WHOLE canvas, so it is only
-     ever right for a full-bleed layout. Called from inside a clipped arch it
-     washed the entire creative in a gradient sampled from the trees. */
-  if(bleed&&c.tall&&h>=c.H*.9){
-    const sky=crStrip(hero,.18,true), ground=crStrip(hero,.18,false);
-    const gr=g.createLinearGradient(0,0,0,c.H);
-    gr.addColorStop(0,crDark(sky,.45)); gr.addColorStop(.30,crRgb(sky));
-    gr.addColorStop(.70,crDark(ground,.62)); gr.addColorStop(.86,crDark(ground,.26));
-    gr.addColorStop(1,"#05070C");
-    g.fillStyle=gr; g.fillRect(0,0,c.W,c.H);
-    const bh=Math.round(c.W*hero.naturalHeight/hero.naturalWidth), by=Math.round(c.H*.33);
-    g.drawImage(hero,0,by,c.W,bh);
-    const f=Math.round(c.H*.11);
-    [[by,by+f,crRgb(sky),1],[by+bh-f,by+bh,crRgb(ground),0]].forEach(([a,b2,col,dir])=>{
-      const gg=g.createLinearGradient(0,a,0,b2);
-      gg.addColorStop(dir?1:0,col); gg.addColorStop(dir?0:1,col.replace("rgb","rgba").replace(")",",0)"));
-      g.fillStyle=gg; g.fillRect(0,a,c.W,b2-a);
-    });
-    return;
+  const iw=hero.naturalWidth, ih=hero.naturalHeight;
+  if(!iw||!ih){ g.fillStyle="#0B1020"; g.fillRect(x,y,w,h); return; }
+  const cover=Math.max(w/iw,h/ih), contain=Math.min(w/iw,h/ih);
+  /* A developer's render is wide; a story is very tall. Forcing one into the
+     other either crops most of the building away, or — as this used to —
+     paints flat sky-and-ground gradient bands above and below a squeezed
+     strip, which is what put visible horizontal seams across the elevation
+     and left the picture marooned in the middle of the canvas. Neither is
+     acceptable. Past a point the picture is fitted whole and the space around
+     it is filled with a blurred, darkened copy of the same picture: no seam,
+     nothing cropped, and the colour comes from the render itself. */
+  /* Only a FULL-BLEED box gets this treatment. A column or an arch is a
+     deliberate crop of the picture — cropping the sides of a wide render to
+     fill a tall column is exactly right there, and blurring it would waste
+     half the column on a smear. */
+  if(!bleed||cover/contain<=CR_MAX_ZOOM){ crCover(g,hero,c.W,c.H,x,y,w,h); return; }
+  g.save();
+  g.beginPath(); g.rect(x,y,w,h); g.clip();
+  if(crBlurOk()){
+    g.filter=`blur(${Math.round(Math.max(w,h)*0.045)}px) brightness(0.70) saturate(0.85)`;
+    /* over-draw, or the blur's own soft edge shows at the rim */
+    const o=Math.max(w,h)*0.12;
+    crCover(g,hero,c.W,c.H,x-o,y-o,w+o*2,h+o*2);
+    g.filter="none";
+  }else{
+    crCover(g,hero,c.W,c.H,x,y,w,h);
+    g.fillStyle="rgba(5,8,14,.45)"; g.fillRect(x,y,w,h);
   }
-  crCover(g,hero,c.W,c.H,x,y,w,h);
+  const k=contain, dw=iw*k, dh=ih*k;
+  /* a tower reads better with more room under it than over it */
+  const dx=x+(w-dw)/2, dy=y+(h-dh)*(c.tall?0.40:0.50);
+  /* A hard edge where the sharp picture meets the blurred backdrop reads as
+     two photographs stacked. The sharp copy is faded out over its last few
+     per cent instead, so the two become one picture. */
+  const feather=Math.round(Math.min(dh*0.10,Math.max(w,h)*0.07));
+  if(feather>4){
+    const t=document.createElement("canvas");
+    t.width=Math.max(1,Math.round(dw)); t.height=Math.max(1,Math.round(dh));
+    const tg=t.getContext("2d");
+    tg.drawImage(hero,0,0,t.width,t.height);
+    tg.globalCompositeOperation="destination-in";
+    const mask=tg.createLinearGradient(0,0,0,t.height);
+    const f=feather/dh;
+    mask.addColorStop(0,"rgba(0,0,0,0)");
+    mask.addColorStop(f,"rgba(0,0,0,1)");
+    mask.addColorStop(1-f,"rgba(0,0,0,1)");
+    mask.addColorStop(1,"rgba(0,0,0,0)");
+    tg.fillStyle=mask; tg.fillRect(0,0,t.width,t.height);
+    g.drawImage(t,dx,dy,dw,dh);
+  }else g.drawImage(hero,dx,dy,dw,dh);
+  g.restore();
 }
 
 /* ── the six layouts ─────────────────────────────────────────────────────── */
@@ -6896,8 +6973,11 @@ footer(g,c){
   g.fillStyle=tg; g.fillRect(0,0,W,H*.30);
   g.fillStyle=PAPER; g.fillRect(0,bandY,W,bandH);
   const lockY=H*(tall?.10:.072);
-  const locW=crTopRightLoc(g,c,W*.95-crReraW(W),lockY,(wide?44:56)*S,RED,W*.30);
-  crLockup(g,c,W*.05,lockY,W*.90-locW-crReraW(W)-W*.04,false);
+  /* The location used to sit in the top right and was landing on both the
+     logo and the RERA mark. The header row now holds two things only: the
+     logo on the left, the legal mark on the right. The location goes down
+     with the rest of the copy, where every reference creative puts it. */
+  crLockup(g,c,W*.05,lockY,W*.90-crReraW(W),false);
   if(c.offer){
     const fs=(wide?32:40)*S;
     g.font=F_H(700,fs); const s2=crFit(g,c.offer,g.font,W*.74); g.font=F_H(700,s2);
@@ -6910,7 +6990,8 @@ footer(g,c){
     g.fillStyle="#FFFFFF"; g.textAlign="center"; g.textBaseline="middle";
     g.fillText(c.offer,W/2,by+bh/2+s2*.04);
   }
-  crCfgPriceSplit(g,c,W/2,bandY+(bandH-crFootH(c))*(wide?.72:.66),true,"APARTMENTS",W*.86);
+  crLocLine(g,c,W/2,bandY+(wide?28:36)*S,(wide?34:44)*S,RED,INK,W*.84);
+  crCfgPriceSplit(g,c,W/2,bandY+(bandH-crFootH(c))*(wide?.78:.74),true,"APARTMENTS",W*.86);
 },
 
 /* 4. Centre panel — a deco panel set on the render */
@@ -6958,11 +7039,14 @@ arch(g,c){
   const sky=g.createLinearGradient(0,0,0,H*.55);
   sky.addColorStop(0,"#1C4C8B"); sky.addColorStop(1,"#5E9BD6");
   g.fillStyle=PAPER; g.fillRect(0,0,W,H);
-  const ax=W*.0, aw=W, ah=H*(tall?.42:wide?.60:.52), ay=H*(tall?.26:wide?.18:.22);
+  const ax=W*.0, aw=W, ah=H*(tall?.52:wide?.60:.52), ay=H*(tall?.20:wide?.18:.22);
   g.fillStyle=sky; g.fillRect(0,0,W,ay+ah*.5);
   const lockY=H*(tall?.09:.068);
-  const locW=crTopRightLoc(g,c,W*.95-crReraW(W),lockY,(wide?44:56)*S,RED,W*.30);
-  crLockup(g,c,W*.05,lockY,W*.90-locW-crReraW(W)-W*.04,false);
+  /* The location used to sit in the top right and was landing on both the
+     logo and the RERA mark. The header row now holds two things only: the
+     logo on the left, the legal mark on the right. The location goes down
+     with the rest of the copy, where every reference creative puts it. */
+  crLockup(g,c,W*.05,lockY,W*.90-crReraW(W),false);
   if(c.offer){
     const fs=(wide?34:44)*S;
     g.font=F_H(700,fs); const s2=crFit(g,c.offer,g.font,W*.72); g.font=F_H(700,s2);
@@ -6979,9 +7063,10 @@ arch(g,c){
   crArch(g,ax,ay,aw,ah,r); g.stroke(); g.restore();
   crRibbon(g,c,W/2,ay+ah,c.offer?"":c.cfg?"":"");
   let y=ay+ah+(wide?54:76)*S;
-  crOrnRule(g,W/2,y-28*S,W*.56,S,c.accent);
-  crCfgPriceSplit(g,c,W/2,y+(wide?40:54)*S,true,"LUXURIOUS APARTMENTS",W*.80);
-  crOrnRule(g,W/2,y+(wide?74:104)*S,W*.56,S,c.accent);
+  y+=crLocLine(g,c,W/2,y-(wide?20:28)*S,(wide?36:46)*S,RED,INK,W*.84)*.55;
+  crOrnRule(g,W/2,y-20*S,W*.56,S,c.accent);
+  crCfgPriceSplit(g,c,W/2,y+(wide?44:60)*S,true,"LUXURIOUS APARTMENTS",W*.80);
+  crOrnRule(g,W/2,y+(wide?78:110)*S,W*.56,S,c.accent);
 },
 
 /* 6. Header stack — copy above on light, arched render below */
@@ -7131,13 +7216,20 @@ split(g,c){
   g.fillStyle=PAPER; g.fillRect(0,0,W,H);
   const r=Math.round(W*.045);
   var ix,iy,iw,ih, px,py,pw,ph;
-  if(tall){ ix=0; iy=0; iw=W; ih=H*.52; px=W*.07; py=H*.56; pw=W*.86; ph=H*.36; }
-  else{
-    /* the panel is directly under the RERA corner, so it starts below it
-       rather than fighting it for the same inch */
-    ix=0; iy=0; iw=W*.56; ih=H;
-    px=W*.60; pw=W*.355;
-    py=Math.max(H*.12,W*.135); ph=H-py-crFootH(c)-H*.06;
+  if(tall){
+    /* The 9:16 used to give the picture half the canvas and the panel a
+       third, which left a quarter of a very tall creative blank. The picture
+       takes more of it and the panel takes all of what is left. */
+    ix=0; iy=0; iw=W; ih=H*.58;
+    px=W*.06; pw=W*.88;
+    py=ih+H*.025; ph=H-py-crFootH(c)-H*.02;
+  }else{
+    /* the panel sits under the RERA corner, so it starts below it rather
+       than fighting it for the same inch. It is also wider than it was —
+       a third of the canvas was not enough for a stacked price. */
+    ix=0; iy=0; iw=W*.52; ih=H;
+    px=W*.56; pw=W*.40;
+    py=Math.max(H*.12,W*.135); ph=H-py-crFootH(c)-H*.05;
   }
   g.save();
   g.beginPath();
@@ -7148,36 +7240,55 @@ split(g,c){
         g.quadraticCurveTo(ix+iw,iy+ih,ix+iw-r,iy+ih);
         g.lineTo(ix,iy+ih); g.closePath(); }
   g.clip(); crHero(g,c,ix,iy,iw,ih); g.restore();
-  /* on a wide or square canvas the panel sits directly under the RERA corner,
-     so the lockup is capped out of it exactly as everywhere else */
-  const lockY=tall?H*.60:py;
-  crLockup(g,c,px,lockY,pw,true);
-  c.footBox={cx:tall?W/2:px+pw/2,w:(tall?W*.90:pw*.98),light:true};
-  let y=(tall?H*.66:py+H*.17);
-  y+=crLocLine(g,c,px+pw/2,y,(wide?34:44)*S,RED,INK,pw*.94)*.5;
-  crOrnRule(g,px+pw/2,y+16*S,pw*.56,S,c.accent);
-  crCfgPriceSplit(g,c,px+pw/2,y+(wide?62:84)*S,true,"APARTMENTS",pw*.94);
+  const cx=px+pw/2;
+  c.footBox={cx:tall?W/2:cx,w:(tall?W*.90:pw*.98),light:true};
+
+  /* everything in the panel, measured first so it can be spread down the
+     panel instead of bunched at the top with a hole underneath */
   const feats=(c.feats||[]).filter(Boolean).slice(0,3);
+  const offerH=c.offer?(wide?26:34)*S*1.85:0;
+  const featH=feats.length?feats.length*(wide?17:22)*S*1.9:0;
+  const lockH=(wide?80:98)*S;
+  const locH=c.loc?(wide?34:46)*S*1.5:0;
+  const priceH=(wide?150:200)*S;          /* configuration stacked over price */
+  const need=lockH+locH+priceH+featH+offerH;
+  const slack=Math.max(0,ph-need);
+  const gap=slack/5;
+
+  let y=py+lockH*.5+gap*.5;
+  crLockup(g,c,px,y,pw,true);
+  y+=lockH*.5+gap;
+
+  if(c.loc){ y+=crLocLine(g,c,cx,y+locH*.6,(wide?34:46)*S,RED,INK,pw*.96)*.2+locH*.6; }
+  crOrnRule(g,cx,y+gap*.3,pw*.52,S,c.accent);
+  y+=gap*.6;
+
+  /* configuration above the price, not beside it — a panel this narrow
+     squeezed both to nothing when they shared a line */
+  y=crCfgPriceStack(g,c,cx,y,"APARTMENTS",true,pw*.96);
+  y+=gap;
+
   if(feats.length){
-    const fs=(wide?17:21)*S;
-    let fy=y+(wide?150:168)*S;
+    const fs=(wide?17:22)*S;
     feats.forEach(t=>{
-      const s2=crFit(g,t,F_B(500,fs),pw*.88);
+      const s2=crFit(g,t,F_B(500,fs),pw*.90);
       g.font=F_B(500,s2);
-      g.fillStyle="rgba(20,33,61,.74)"; g.textAlign="center"; g.textBaseline="middle";
-      g.fillText(t,px+pw/2,fy);
-      fy+=s2*1.75;
+      g.fillStyle="rgba(20,33,61,.72)"; g.textAlign="center"; g.textBaseline="middle";
+      g.fillText(t,cx,y+s2*.9);
+      y+=s2*1.9;
     });
+    y+=gap*.6;
   }
   if(c.offer){
     const fs=(wide?26:34)*S;
     g.font=F_H(700,fs); const s2=crFit(g,c.offer,g.font,pw*.92); g.font=F_H(700,s2);
     const tw=g.measureText(c.offer).width, bh=s2*1.85, bw=Math.min(pw,tw+48*S);
-    const by=py+ph-bh;
-    g.fillStyle=c.accent; g.fillRect(px+pw/2-bw/2,by,bw,bh);
+    const by=Math.min(y,py+ph-bh);
+    g.fillStyle=c.accent; g.fillRect(cx-bw/2,by,bw,bh);
     g.fillStyle=INK; g.textAlign="center"; g.textBaseline="middle";
-    g.fillText(c.offer,px+pw/2,by+bh/2+s2*.04);
+    g.fillText(c.offer,cx,by+bh/2+s2*.04);
   }
+
 }
 };
 
@@ -7206,7 +7317,7 @@ split(g,c){
    The sizing is off W, not c.S, so the legal mark is the same fraction of
    every creative rather than tiny on one ratio and large on another. */
 function crReraW(W){ return Math.round(W*0.30); }
-function crReraTop(g,c,W){
+function crReraTop(g,c,W,light){
   if(!c.rera&&!CR.qr)return;
   const S=W/1200, padX=W*.045, top=Math.round(W*.030);
   g.save();
@@ -7220,24 +7331,26 @@ function crReraTop(g,c,W){
     right-=q+pad*2+12*S;
   }
   if(c.rera){
-    const ls=13*S, ns=23*S, us=12*S;
-    /* a light chip behind the mark, so it reads over a bright sky as well as
-       over a dark one without the layout having to say which it is */
+    /* No white plate. It read as a sticker pasted on the creative and it was
+       the first thing called out. The mark is set straight onto the picture
+       and carries a soft shadow of the opposite tone instead, which keeps it
+       legible over a bright sky and over a dark one without boxing it in.
+       The QR above keeps its white quiet zone — that one is not decoration,
+       a scanner needs it. */
+    const ls=14*S, ns=26*S, us=13*S;
     const num=String(c.rera);
-    g.font=F_H(700,ns); const wNum=g.measureText(num).width;
-    g.font=F_B(500,ls); const wLab=g.measureText("MahaRERA").width;
-    g.font=F_B(400,us); const wUrl=g.measureText("maharera.mahaonline.gov.in").width;
-    const bw=Math.max(wNum,wLab,wUrl)+22*S, bh=ls+ns+us+26*S;
-    g.fillStyle="rgba(255,255,255,.92)";
-    g.fillRect(right-bw,top-6*S,bw,bh);
-    const x=right-11*S;
+    const x=right-(CR.qr?0:0);
     let y=top+3*S;
-    g.fillStyle="rgba(20,33,61,.62)"; g.font=F_B(500,ls);
+    g.shadowColor=light?"rgba(255,255,255,.85)":"rgba(0,0,0,.55)";
+    g.shadowBlur=Math.max(2,6*S);
+    const dim=light?"rgba(20,33,61,":"rgba(255,255,255,";
+    g.fillStyle=dim+".66)"; g.font=F_B(500,ls);
     g.fillText("MahaRERA",x,y); y+=ls*1.25;
-    g.fillStyle="#14213D"; g.font=F_H(700,ns);
+    g.fillStyle=light?"#14213D":"#FFFFFF"; g.font=F_H(700,ns);
     g.fillText(num,x,y); y+=ns*1.18;
-    g.fillStyle="rgba(20,33,61,.58)"; g.font=F_B(400,us);
+    g.fillStyle=dim+".72)"; g.font=F_B(400,us);
     g.fillText("maharera.mahaonline.gov.in",x,y);
+    g.shadowBlur=0;
   }
   g.restore();
 }
@@ -7276,8 +7389,8 @@ function crRenderOne(W,H){
   (CR_DRAW[id]||CR_DRAW.frame)(g,c);
   /* both of these belong to every layout equally, so neither is a layout's
      job: the legal mark top right, the disclaimer at the foot */
-  crReraTop(g,c,W);
   const row=CR_LAYOUTS.find(r=>r[0]===id);
+  crReraTop(g,c,W,!!(row&&row[4]));
   crDiscFoot(g,c,W,H,!!(row&&row[3]));
   return cv;
 }

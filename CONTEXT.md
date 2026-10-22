@@ -114,7 +114,19 @@ nothing anywhere reports it.
   `min(W,H)` — sizing for height left 1.91:1 type at about half size.
 - `crFit` reads the **px value** out of the font string. Parsing the weight as
   the size silently wrecked every fitted line once.
-- The layout is handed `H - crBandH(W)`; the legal band owns the rest.
+- `crHero` never paints flat sky-and-ground gradient bands. That treatment put
+  visible horizontal seams across the elevation and left the picture marooned
+  in the middle of a 9:16. A full-bleed box past `CR_MAX_ZOOM` is filled with a
+  blurred, darkened copy of the same picture with the sharp copy feathered into
+  it; a column or an arch (`bleed` false) still cover-crops, because cropping
+  the sides of a wide render to fill a tall column is exactly right there.
+- The RERA mark has no plate behind it — it is set straight onto the picture
+  with a shadow of the opposite tone. The QR keeps its white quiet zone; a
+  scanner needs that one.
+- An uploaded logo almost always carries the developer and the project, so the
+  typed names are not printed beside it unless the toggle is turned off.
+- The header row holds the logo and the legal mark. Nothing else goes there —
+  the location belongs with the copy.
 - Several heroes upload at once. Each is adapted to all four sizes and becomes
   its own Demand Gen ad. The logo is uploaded once and shared.
 - Sets live in memory only — four JPEGs are megabytes and localStorage is
