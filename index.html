@@ -256,6 +256,28 @@ code{font-family:var(--mono);background:rgba(0,0,0,.05);padding:1px 4px;border-r
 .tgt-row .x{border:0;background:none;color:var(--bad,#C0392B);cursor:pointer;font-size:15px;padding:0 3px}
 .tgt-kind{flex:0 0 auto;font-family:var(--mono);font-size:10.5px;padding:2px 6px;border-radius:4px;
   background:#EEF1F5;color:var(--ink-soft)}
+/* the Demand Gen copy review: label, field, count, flag */
+.dgc-row{display:grid;grid-template-columns:34px 1fr 54px 48px;gap:8px;align-items:center;margin-bottom:5px}
+.dgc-lab{font-family:var(--mono);font-size:10.5px;color:var(--muted)}
+.dgc-in{width:100%;border:1px solid var(--line);border-radius:6px;padding:7px 9px;
+  font:inherit;font-size:12.5px;resize:vertical;min-height:34px;line-height:1.35}
+.dgc-in.over{border-color:var(--bad,#C0392B);background:#FDF3F2}
+.dgc-n{font-family:var(--mono);font-size:10.5px;color:var(--muted);text-align:right}
+.dgc-n.bad{color:var(--bad,#C0392B);font-weight:700}
+.dgc-f{font-size:10px}
+.tgt-kind.k-city{background:#E6EBF4;color:#14213D}
+.tgt-kind.k-pin{background:#E2EEF7;color:#17618F}
+.tgt-kind.k-rad{background:#FDEBDC;color:#9A4200}
+.tgt-row .cid{font-family:var(--mono);font-size:10.5px;color:var(--muted);flex:0 0 auto}
+.tgt-row .cid.miss{color:var(--bad,#C0392B)}
+.tgt-row input[type=checkbox]{flex:0 0 auto;margin:0}
+/* the three ways in, one at a time, so the card is not a wall of fields */
+.locbar{display:flex;gap:4px;margin:12px 0 10px;border-bottom:1px solid var(--line)}
+.locbar-b{border:0;background:none;font:inherit;font-size:12.5px;cursor:pointer;
+  padding:7px 11px;color:var(--muted);border-bottom:2px solid transparent;margin-bottom:-1px}
+.locbar-b.on{color:var(--ink);font-weight:600;border-bottom-color:var(--orange,#FB6A02)}
+.locpane{display:none}
+.locpane.on{display:block}
 </style>
 
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
@@ -271,7 +293,7 @@ code{font-family:var(--mono);background:rgba(0,0,0,.05);padding:1px 4px;border-r
     <div class="wordmark">Search Ops Toolkit <span>· Google Ads</span></div>
     <div class="spacer"></div>
     <div class="badge-env" id="varCount">0 VARIANTS</div>
-    <span class="pill p-mute" id="buildTag" title="build">b-22oct-1</span>
+    <span class="pill p-mute" id="buildTag" title="build">b-22oct-2</span>
     <div id="userChip" class="hidden" style="display:flex;align-items:center;gap:9px">
       <div class="divider-v"></div>
       <span id="userName" style="font-size:12.5px;font-weight:500"></span>
@@ -516,23 +538,33 @@ Static Square</textarea>
           <span class="f-lab">Custom segments to build — one line becomes one segment</span>
           <span class="f-note" style="margin-bottom:8px">Google builds a custom segment from one kind of
             signal at a time, so each line below is created as its own segment. Mixing a URL and a keyword
-            into one segment makes it match neither well.</span>
+            into one segment makes it match neither well.<br>
+            <b>Two strategies share a kind</b> — yb and yc both run on channels, ub and uc on URLs,
+            kb/kc/kg on terms. Start a line with a strategy and a pipe to give that line to one of
+            them only: <code>yb | https://youtube.com/@channel</code>. Several at once with commas:
+            <code>kb,kc | 3 bhk pune</code>. A line with no strategy goes to every strategy of that kind.</span>
         </div>
         <div class="row2">
           <label class="f"><span class="f-lab">Search terms — one keyword per line</span>
-            <textarea id="csKw" rows="4" placeholder="flats in koregaon park&#10;3 bhk pune riverfront&#10;luxury apartments pune"></textarea>
-            <span class="f-note">People who searched any of these terms</span></label>
+            <textarea id="csKw" rows="4" placeholder="flats in koregaon park&#10;kb | 3 bhk pune riverfront&#10;kc,kg | luxury apartments pune"></textarea>
+            <span class="f-note">People who searched any of these terms · used by kb, kc, kg</span></label>
           <label class="f"><span class="f-lab">Website URLs — one URL per line</span>
-            <textarea id="csUrl" rows="4" placeholder="https://www.competitor-project.com&#10;https://www.99acres.com/pune&#10;https://housing.com/pune"></textarea>
-            <span class="f-note">People who browse sites like these</span></label>
+            <textarea id="csUrl" rows="4" placeholder="https://www.competitor-project.com&#10;ub | https://www.99acres.com/pune&#10;uc | https://housing.com/pune"></textarea>
+            <span class="f-note">People who browse sites like these · used by ub, uc, news-portal, property-portal-url</span></label>
         </div>
         <div class="row2">
           <label class="f"><span class="f-lab">YouTube channels — one URL per line</span>
-            <textarea id="csYt" rows="4" placeholder="https://www.youtube.com/@channelname&#10;https://www.youtube.com/@builderchannel"></textarea>
-            <span class="f-note">People who watch these channels</span></label>
+            <textarea id="csYt" rows="4" placeholder="yb | https://www.youtube.com/@channelname&#10;yc | https://www.youtube.com/@builderchannel"></textarea>
+            <span class="f-note">People who watch these channels · used by yb, yc</span></label>
           <label class="f"><span class="f-lab">Apps — one package ID per line</span>
             <textarea id="csApp" rows="4" placeholder="com.til.magicbricks&#10;com.nnacres.app&#10;in.housing.app"></textarea>
-            <span class="f-note">People who use these apps</span></label>
+            <span class="f-note">People who use these apps · used by news-app, property-portal-app</span></label>
+        </div>
+        <div class="f">
+          <span class="f-lab">What each strategy will actually get</span>
+          <div id="csMap"></div>
+          <span class="f-note">Read straight off the lines above. A strategy with nothing listed targets
+            no segment at all, which on Demand Gen means it reaches everyone in the location.</span>
         </div>
         <div class="f">
           <div class="btnrow" style="margin-bottom:8px">
@@ -758,7 +790,29 @@ Static Square</textarea>
       </div>
     </div>
 
-    <div class="card">
+    <div class="card hidden" id="cardDGCopy">
+      <div class="card-hd"><h2>Demand Gen ad copy</h2><span class="hint" id="dgcStat">—</span></div>
+      <div class="card-bd">
+        <div class="callout">This is what actually gets deployed on Demand Gen — five headlines under 40,
+          one long headline under 90, five descriptions under 90 and the business name. No pinning:
+          Google rotates them. Every headline has to carry <b>brand, project and location</b>;
+          one that could not is flagged rather than quietly dropped.</div>
+        <div class="f" style="margin-top:12px">
+          <span class="f-lab">Variant
+            <button class="mini-act" type="button" id="dgcReset">reset this one to generated</button></span>
+          <select id="dgcPick"></select>
+          <span class="f-note">One per strategy — each ad group gets its own rotation of the same lines,
+            so the four campaigns do not read identically.</span>
+        </div>
+        <div id="dgcBody" style="margin-top:12px"></div>
+        <div class="btnrow" style="margin-top:12px">
+          <button class="btn btn-sm" id="dgcCopy">Copy this ad</button>
+          <button class="btn btn-sm" id="dgcResetAll">Reset every variant</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="card" id="cardSearchH">
       <div class="card-hd"><h2>Headlines</h2><span class="hint" id="hStat">0 / 15 · max 30</span></div>
       <div class="card-bd">
         <div class="achd"><span>SR</span><span>Headline</span><span>Length</span><span>Pin</span><span></span></div>
@@ -1103,44 +1157,81 @@ Static Square</textarea>
     </div>
 
     <div class="card">
-      <div class="card-hd"><h2>Targeting map</h2><span class="hint" id="mapStat">nothing targeted yet</span></div>
+      <div class="card-hd"><h2>Locations</h2><span class="hint" id="mapStat">nothing targeted yet</span></div>
       <div class="card-bd">
-        <div class="callout">Click the map to drop a radius. Paste pincodes below to add them as
-          their own targets. Everything here goes on the <b>campaign</b>, for Search and Demand Gen
-          alike — radius targeting only exists as a campaign criterion, so Demand Gen is created
-          with upgraded targeting off to allow it.</div>
-        <div id="mapWrap" style="margin-top:12px"><div id="map"></div></div>
-        <div class="map-hint">Circles are radius targets · pins are pincodes · drag a circle's pin to move it</div>
-        <div class="row2" style="margin-top:12px">
-          <label class="f"><span class="f-lab">Pincodes — one per line, or comma separated</span>
-            <textarea id="pinList" rows="3" spellcheck="false" inputmode="numeric" placeholder="411001&#10;411014&#10;411028"></textarea></label>
-          <label class="f"><span class="f-lab">Default radius</span>
-            <div class="ticket" style="grid-template-columns:1fr 84px">
-              <input type="number" id="radKm" value="5" min="1" max="80" step="1">
-              <select id="radUnit"><option value="KILOMETERS">km</option><option value="MILES">miles</option></select>
-            </div>
-            <span class="f-note">Used for each new circle. Change one afterwards in its row.</span></label>
+        <div class="callout">Three ways to target, one list. A <b>city or locality</b> and a <b>pincode</b>
+          both need Google's criterion ID, which is looked up for you. A <b>radius</b> needs no ID —
+          it is a point and a distance. Everything here goes on the <b>campaign</b>, Search and
+          Demand Gen alike.</div>
+
+        <div class="locbar" role="tablist">
+          <button class="locbar-b on" data-loc="city">City / locality</button>
+          <button class="locbar-b" data-loc="pin">Pincodes</button>
+          <button class="locbar-b" data-loc="rad">Radius</button>
         </div>
-        <div class="btnrow">
-          <button class="btn btn-sm btn-pri" id="pinAdd">Add these pincodes</button>
+
+        <div class="locpane on" data-pane="city">
+          <label class="f"><span class="f-lab">Search a place</span>
+            <div class="ticket" style="grid-template-columns:1fr 150px">
+              <input type="text" id="geoQ" spellcheck="false" placeholder="Mundhwa, or Pune, or Maharashtra">
+              <select id="geoCc">
+                <option value="IN">India</option><option value="AE">UAE</option>
+              </select>
+            </div>
+            <span class="f-note">Google is asked for matching places and returns the criterion ID with each
+              one. City beats region unless you really want the whole state.</span></label>
+          <div class="btnrow">
+            <button class="btn btn-sm btn-pri" id="geoGo">Search</button>
+            <button class="btn btn-sm" id="apGeo">Use the project's location</button>
+          </div>
+          <div id="apGeoOut" style="margin-top:12px"></div>
+        </div>
+
+        <div class="locpane" data-pane="pin">
+          <label class="f"><span class="f-lab">Pincodes — one per line, or comma separated</span>
+            <textarea id="pinList" rows="4" spellcheck="false" inputmode="numeric" placeholder="411001&#10;411014&#10;411028"></textarea>
+            <span class="f-note">Each one is placed on the map and then looked up with Google for its
+              criterion ID. A pincode with no ID cannot be targeted, and the list below says which
+              ones are still missing one.</span></label>
+          <div class="btnrow">
+            <button class="btn btn-sm btn-pri" id="pinAdd">Add these pincodes</button>
+            <button class="btn btn-sm" id="pinRetry">Look up the missing IDs again</button>
+          </div>
+        </div>
+
+        <div class="locpane" data-pane="rad">
+          <div class="f-note" style="margin-bottom:10px">Click anywhere on the map to drop a circle.
+            Drag its pin to move it. Change one circle's radius in its own row, or set them all at once below.</div>
+          <div class="row2">
+            <label class="f"><span class="f-lab">Radius for a new circle</span>
+              <div class="ticket" style="grid-template-columns:1fr 84px">
+                <input type="number" id="radKm" value="5" min="1" max="80" step="1">
+                <select id="radUnit"><option value="KILOMETERS">km</option><option value="MILES">miles</option></select>
+              </div></label>
+            <label class="f"><span class="f-lab">Apply to every circle</span>
+              <button class="btn btn-sm" id="radAll" style="margin-top:2px">Set all circles to this radius</button>
+              <span class="f-note">The bulk change. Individual rows can still be edited afterwards.</span></label>
+          </div>
+        </div>
+
+        <div id="mapWrap" style="margin-top:12px"><div id="map"></div></div>
+        <div class="map-hint">Orange circles are radius targets · blue pins are pincodes · navy pins are cities</div>
+
+        <div class="btnrow" style="margin-top:10px">
           <button class="btn btn-sm" id="mapCentre">Centre on the project</button>
-          <button class="btn btn-sm" id="mapClear">Clear all targets</button>
+          <button class="btn btn-sm" id="tgtAll">Select all</button>
+          <button class="btn btn-sm" id="tgtDelSel">Remove selected</button>
+          <button class="btn btn-sm" id="mapClear">Clear everything</button>
         </div>
         <div id="tgtList" style="margin-top:10px"></div>
-      </div>
-    </div>
 
-    <div class="card">
-      <div class="card-hd"><h2>Location IDs</h2><span class="hint">criterion IDs the API needs</span></div>
-      <div class="card-bd">
-        <label class="f"><span class="f-lab">Location IDs — one per line</span>
-          <textarea id="apLocIds" rows="3" spellcheck="false" inputmode="numeric" placeholder="1007785"></textarea>
-          <span class="f-note">Filled from the Location ID on tab 01 if you set one. These are the same numbers
-            Editor shows in its Locations view.</span></label>
-        <div class="btnrow">
-          <button class="btn btn-sm" id="apGeo">Look up the ID for the target location</button>
-        </div>
-        <div id="apGeoOut" style="margin-top:12px"></div>
+        <details style="margin-top:14px">
+          <summary class="f-lab" style="cursor:pointer">Paste criterion IDs by hand</summary>
+          <label class="f" style="margin-top:8px"><span class="f-lab">Location IDs — one per line</span>
+            <textarea id="apLocIds" rows="3" spellcheck="false" inputmode="numeric" placeholder="1007785"></textarea>
+            <span class="f-note">For an ID you already have. These are added to whatever the list above
+              holds — the same numbers Editor shows in its Locations view.</span></label>
+        </details>
       </div>
     </div>
 
@@ -1202,8 +1293,15 @@ Static Square</textarea>
           <button class="btn btn-navy" id="apDeploy">Deploy</button>
           <button class="btn btn-sm" id="apPayload">Copy the request</button>
         </div>
+        <div class="btnrow" style="margin-top:8px">
+          <button class="btn btn-sm" id="apBothVal">Validate Search + Demand Gen</button>
+          <button class="btn btn-sm btn-navy" id="apBothDep">Deploy Search + Demand Gen</button>
+        </div>
         <div class="f-note" style="margin-top:10px">Validate first, every time. It costs nothing and it catches
-          the character limits, the missing pins and the bad location IDs before anything exists in the account.</div>
+          the character limits, the missing pins and the bad location IDs before anything exists in the account.<br>
+          The two buttons on the second row build <b>both</b> channels for this project and send them one
+          after the other, into the same account, with the same locations and the same brief. Each channel
+          keeps its own strategies and its own naming — Search stays exactly as it is.</div>
       </div>
     </div>
 
@@ -1340,6 +1438,23 @@ Static Square</textarea>
         <div id="crOut" style="margin-top:14px"><div class="empty">Upload a hero image, then render.</div></div>
       </div>
     </div>
+
+    <div class="card">
+      <div class="card-hd"><h2>Ad set</h2><span class="hint" id="setStat">no creatives kept</span></div>
+      <div class="card-bd">
+        <div class="callout">Keep what you have rendered, change the hero image, render again, keep that
+          too. <b>Each kept set becomes its own ad</b>, with the same copy and the same ad groups — which
+          is how two renders of one project get tested against each other.</div>
+        <div class="ticket" style="grid-template-columns:1fr 150px;margin-top:12px">
+          <input type="text" id="setName" placeholder="Name this one — Elevation, Clubhouse, Aerial">
+          <button class="btn btn-sm btn-pri" id="setKeep">Keep these four</button>
+        </div>
+        <div id="setList" style="margin-top:10px"></div>
+        <div class="f-note" style="margin-top:8px">Kept sets live for this browser session only — they are
+          too large for saved projects, so render and keep them again next time.</div>
+      </div>
+    </div>
+
     <div class="card">
       <div class="card-hd"><h2>Checks</h2></div>
       <div class="card-bd" id="crChecksOut"><div class="empty">Nothing rendered yet.</div></div>
@@ -1881,11 +1996,22 @@ on("#inStage","change",()=>{
     : "Brand-Project-Location runs on the project name.";
   [...$("#inStrat").options].forEach(o=>{ if(blockedStrat(o.value))o.selected=false; });
   drawStratBoxes(); build();});
+/* Which strategies are picked, remembered per channel. Without this, moving
+   to Demand Gen and back lost the Search picks — and deploying both channels
+   in one run needs each channel's own list to still be there. */
+let STRAT_SEL=store.get("pp_stratsel",{search:[],demandgen:[]})||{search:[],demandgen:[]};
+function rememberStrats(){
+  STRAT_SEL[CH]=[...$("#inStrat").selectedOptions].map(o=>o.value);
+  store.set("pp_stratsel",STRAT_SEL);
+}
 function fillStrategies(){
-  const sel=$("#inStrat"), keep=new Set([...sel.selectedOptions].map(o=>o.value));
+  const sel=$("#inStrat");
+  const keep=new Set((STRAT_SEL[CH]&&STRAT_SEL[CH].length)
+    ? STRAT_SEL[CH] : [...sel.selectedOptions].map(o=>o.value));
   sel.innerHTML=STRATS[CH].map(([n,s])=>`<option value="${esc(s)}">${esc(n)} — ${esc(s)}</option>`).join("");
   [...sel.options].forEach(o=>{if(keep.has(o.value)&&!blockedStrat(o.value))o.selected=true;});
   if(![...sel.selectedOptions].length){const f=[...sel.options].find(o=>!blockedStrat(o.value)); if(f)f.selected=true;}
+  rememberStrats();
   drawStratBoxes();
   $("#wrapMatch").classList.toggle("hidden",CH!=="search");
   $("#mgLabel").textContent=CH==="search"?"Search":"Demand Gen";
@@ -1896,7 +2022,7 @@ $("#vtGrid").innerHTML=Object.keys(VT_DEFAULTS).map(k=>
 $$("[data-vt]").forEach(i=>i.addEventListener("input",()=>{VT[i.dataset.vt]=i.value;build();}));
 on("#segChannel","click",e=>{const b=e.target.closest("button[data-ch]");if(!b)return;
   CH=b.dataset.ch;$$("#segChannel button").forEach(x=>x.setAttribute("aria-pressed",String(x===b)));
-  fillStrategies();build();showDGCard();
+  fillStrategies();build();showDGCard();dgcShow();drawCsMap();
   const sc=$("#stChannel"); if(sc){sc.textContent=CHANNEL[CH].full;
     sc.className="pill "+(CH==="demandgen"?"p-ok":"p-live");}
   /* the deploy tab describes a different campaign type now */
@@ -1974,6 +2100,11 @@ function build(){
 
   renderCP(); renderAnat(); renderChecks();
   if(typeof fillVariantPickers==="function")fillVariantPickers();
+  /* the Demand Gen copy is per variant, so its picker follows the variants */
+  if(typeof dgcShow==="function"&&CH==="demandgen"){ dgcFill(); dgcDraw(); }
+  /* build() also runs once while the script is still being evaluated, before
+     the audience helpers exist, so this one is allowed to be too early */
+  try{ drawCsMap(); }catch(e){}
 }
 on("#tblVar","click",e=>{
   if(e.target.closest("[data-copytext]"))return;
@@ -2071,6 +2202,7 @@ document.addEventListener("click",e=>{
   const t=e.target.closest("[data-copytext]"); if(t)copy(t.dataset.copytext);});
 ["inLp","inEnq","inStrat","inMatch"].forEach(id=>{
   $("#"+id).addEventListener("input",build); $("#"+id).addEventListener("change",build);});
+on("#inStrat","change",rememberStrats);
 
 /* ═══ strategy manager ═══ */
 function openModal(){
@@ -3911,19 +4043,67 @@ function csLabel(v){
    exactly rather than by prefix \u2014 "invest" begins with "in" but is not the
    Inmarket strategy. A segment with no ID yet is still listed, so the deploy
    reports it as skipped instead of quietly targeting everyone. */
+/* Which kind of signal each strategy runs on. Several strategies share a
+   kind — yb and yc both run on channels — so the kind alone cannot decide
+   which lines a strategy gets. A line tagged with a strategy goes to that
+   one only; an untagged line goes to every strategy of its kind. */
+const STRAT_KIND={
+  yb:"YouTube channels", yc:"YouTube channels",
+  ub:"Website URLs", uc:"Website URLs",
+  "news-portal":"Website URLs", "property-portal-url":"Website URLs",
+  kb:"Search terms", kc:"Search terms", kg:"Search terms",
+  "news-app":"Apps", "property-portal-app":"Apps"
+};
+const STRAT_LIB=["in","luxury","invest","avid"];
 function audiencesFor(strat){
   const code=String(strat||"").toLowerCase();
   const picked=pickedAudiences().map(a=>({name:a[0],type:a[1],id:a[2]||""}));
-  const seg=kind=>customSegments().filter(r=>r[1]===kind)
+  if(code==="op")return [];
+  if(STRAT_LIB.indexOf(code)>-1)return picked;
+  const kind=STRAT_KIND[code];
+  if(!kind)return picked;
+  return customSegments()
+    .filter(r=>r[1]===kind&&(!r[6].length||r[6].indexOf(code)>-1))
     .map(r=>({name:r[0],type:"Custom segment",id:r[5]||""}));
-  if(code==="op")                                        return [];
-  if(["in","luxury","invest","avid"].indexOf(code)>-1)   return picked;
-  if(["yb","yc"].indexOf(code)>-1)                       return seg("YouTube channels");
-  if(["ub","uc","news-portal","property-portal-url"].indexOf(code)>-1)
-                                                         return seg("Website URLs");
-  if(["kb","kc","kg"].indexOf(code)>-1)                  return seg("Search terms");
-  if(["news-app","property-portal-app"].indexOf(code)>-1) return seg("Apps");
-  return picked;
+}
+/* the live answer to "which strategy gets what", read off the same lines */
+function drawCsMap(){
+  const box=$("#csMap"); if(!box)return;
+  const codes=(STRATS.demandgen||[]).map(r=>String(r[1]||r[0]||"").toLowerCase()).filter(Boolean);
+  const seen=[]; codes.forEach(c=>{ if(seen.indexOf(c)===-1)seen.push(c); });
+  if(!seen.length)return box.innerHTML=`<div class="empty">No Demand Gen strategies set up yet.</div>`;
+  box.innerHTML=seen.map(c=>{
+    const a=audiencesFor(c);
+    const lib=STRAT_LIB.indexOf(c)>-1, none=c==="op";
+    const what=none?`<span class="p-mute">no segment — the open campaign</span>`
+      :lib?`<span class="p-mute">library segments</span> · ${a.length} picked`
+      :`<span class="p-mute">${esc(STRAT_KIND[c]||"library")}</span> · ${a.length} line${a.length===1?"":"s"}`;
+    const miss=a.filter(x=>!x.id).length;
+    return `<div class="tgt-row">
+      <span class="tgt-kind ${none?"":lib?"k-city":"k-pin"}">${esc(c.toUpperCase())}</span>
+      <span class="nm">${what}${a.length?` — ${esc(a.map(x=>x.name).join(", "))}`:""}</span>
+      ${miss?`<span class="cid miss">${miss} without an ID</span>`:""}
+    </div>`;
+  }).join("");
+}
+/* One line of a custom segment field. Two optional markers:
+   "yb | thing"   hands the line to those strategies only
+   "thing ::1234" carries back the ID of a segment already created
+   The pipe is only read as a tag when what precedes it is a strategy this
+   account actually has, so a URL containing a pipe survives unharmed. */
+function csParse(v){
+  const bits=String(v).split("::");
+  var input=bits[0].trim();
+  const id=(bits[1]||"").replace(/[^0-9]/g,"");
+  var strats=[];
+  const bar=input.indexOf("|");
+  if(bar>0){
+    const want=input.slice(0,bar).trim().toLowerCase().split(/[,\s]+/).filter(Boolean);
+    if(want.length&&want.every(w=>!!STRAT_KIND[w]||STRAT_LIB.indexOf(w)>-1)){
+      strats=want; input=input.slice(bar+1).trim();
+    }
+  }
+  return {input,id,strats};
 }
 function customSegments(){
   const b=brief(), rows=[];
@@ -3941,13 +4121,12 @@ function customSegments(){
     lines(el.value).forEach(v=>{
       /* "the input  ::1234567" lets a segment that has been created carry its
          ID back in, so the deploy attaches it instead of reporting it skipped */
-      const bits=String(v).split("::");
-      const input=bits[0].trim(), id=(bits[1]||"").replace(/[^0-9]/g,"");
+      const {input,id,strats}=csParse(v);
       if(!input)return;
       rows.push([`${stem}-${slug(kind.split(" ")[0])}-${slug(csLabel(input))}`.slice(0,80),
                  kind, input, field,
                  "Google Ads → Tools → Audience manager → Custom segments → New custom segment",
-                 id]);
+                 id, strats]);
     });
   });
   return rows;
@@ -4200,11 +4379,120 @@ function dgAd(variant){
     compose([joinParts(b.proj,b.micro), cfg, price],DG_LH),
     compose([`${cfg} at ${b.proj}${place?", "+place:""}`, price],DG_LH),
     compose([joinParts(b.proj,b.micro), u[0], price],DG_LH)
-  ].filter(Boolean),DG_LH,2,new Set());
+  /* pick() returns an ARRAY. Asking it for two and then using the result as
+     the long headline turned it into a string with a comma in the middle and
+     twice the length — "…Starting At 89L*.,2, 3 & 4 BHK at…", 126 characters
+     against a limit of 90. One is wanted here, and one is what is taken. */
+  ].filter(Boolean),DG_LH,1,new Set())[0]||"";
   const D=rot(bplDescriptions(b,DG_D));
   return {h:H, hOk, lh:LH, d:D,
           bn:fit(b.dev||b.proj,DG_BN)||String(b.dev||b.proj||"").slice(0,DG_BN)};
 }
+/* ── Demand Gen copy, reviewed before it goes ────────────────────────────
+   Search copy has a whole tab; Demand Gen copy was generated straight into
+   the deploy and never shown. DGC holds whatever has been edited by hand,
+   keyed by variant, and anything untouched falls through to the generator. */
+let DGC=store.get("pp_dgcopy",{})||{};
+const saveDGC=()=>store.set("pp_dgcopy",DGC);
+function dgAdFinal(i){
+  const gen=dgAd(i), ov=DGC[i]||{};
+  return {
+    h : (ov.h&&ov.h.length?ov.h:gen.h).slice(0,5),
+    hOk: ov.h&&ov.h.length?ov.h.map(t=>bplCarries(t)):gen.hOk,
+    lh: ov.lh!==undefined?ov.lh:gen.lh,
+    d : (ov.d&&ov.d.length?ov.d:gen.d).slice(0,5),
+    bn: ov.bn!==undefined&&ov.bn!==""?ov.bn:gen.bn,
+    edited: !!(ov.h||ov.d||ov.lh!==undefined||ov.bn)
+  };
+}
+/* a hand-written headline is held to the same rule as a generated one */
+function bplCarries(t){
+  const b=brief(), p=bplParts(b), s=String(t||"").toLowerCase();
+  const has=x=>!x||s.indexOf(String(x).toLowerCase())>-1;
+  return has(p.proj)&&(has(p.brand)||has(p.brandShort))&&(has(p.place)||has(p.city));
+}
+function dgcVariants(){
+  return VARIANTS.length?VARIANTS.map((v,i)=>({i,name:v.names.adgroup||v.names.campaign||`Variant ${i+1}`}))
+    :[{i:0,name:"Variant 1"}];
+}
+let DGC_AT=0;
+function dgcFill(){
+  const sel=$("#dgcPick"); if(!sel)return;
+  const vs=dgcVariants();
+  if(DGC_AT>=vs.length)DGC_AT=0;
+  sel.innerHTML=vs.map(v=>`<option value="${v.i}">${esc(v.name)}</option>`).join("");
+  sel.value=String(DGC_AT);
+}
+function dgcDraw(){
+  const box=$("#dgcBody"); if(!box)return;
+  const a=dgAdFinal(DGC_AT);
+  const st=$("#dgcStat");
+  const over=a.h.filter(t=>t.length>DG_H).length+a.d.filter(t=>t.length>DG_D).length+
+             (a.lh.length>DG_LH?1:0)+(a.bn.length>DG_BN?1:0);
+  const flagged=a.hOk.filter(x=>!x).length;
+  if(st)st.innerHTML=`<span class="pill ${over?"p-bad":flagged?"p-warn":"p-ok"}">${
+    over?`${over} over the limit`:flagged?`${flagged} headline${flagged===1?"":"s"} missing B·P·L`:"all good"
+  }${a.edited?" · edited":""}</span>`;
+  const field=(label,val,lim,key,idx,flag)=>{
+    const n=String(val||"").length;
+    return `<div class="dgc-row">
+      <span class="dgc-lab">${esc(label)}</span>
+      <textarea class="dgc-in${n>lim?" over":""}" rows="1" data-k="${key}"${
+        idx===undefined?"":` data-i="${idx}"`}>${esc(val||"")}</textarea>
+      <span class="dgc-n ${n>lim?"bad":""}">${n}/${lim}</span>
+      <span class="dgc-f">${flag===false?`<span class="pill p-warn" title="This headline does not carry brand, project and location">B·P·L</span>`:""}</span>
+    </div>`;
+  };
+  box.innerHTML=
+    `<div class="f-lab" style="margin-bottom:6px">Headlines · max ${DG_H}</div>`+
+    a.h.map((t,i)=>field(`H${i+1}`,t,DG_H,"h",i,a.hOk[i])).join("")+
+    `<div class="f-lab" style="margin:12px 0 6px">Long headline · max ${DG_LH}</div>`+
+    field("LH",a.lh,DG_LH,"lh")+
+    `<div class="f-lab" style="margin:12px 0 6px">Descriptions · max ${DG_D}</div>`+
+    a.d.map((t,i)=>field(`D${i+1}`,t,DG_D,"d",i)).join("")+
+    `<div class="f-lab" style="margin:12px 0 6px">Business name · max ${DG_BN}</div>`+
+    field("BN",a.bn,DG_BN,"bn");
+}
+function dgcShow(){
+  const c=$("#cardDGCopy"), s=$("#cardSearchH");
+  if(c)c.classList.toggle("hidden",CH!=="demandgen");
+  if(CH==="demandgen"){ dgcFill(); dgcDraw(); }
+}
+on("#dgcPick","change",e=>{ DGC_AT=+e.target.value||0; dgcDraw(); });
+on("#dgcBody","input",e=>{
+  const el=e.target.closest("[data-k]"); if(!el)return;
+  const k=el.dataset.k, i=el.dataset.i===undefined?null:+el.dataset.i;
+  const cur=DGC[DGC_AT]||(DGC[DGC_AT]={});
+  if(k==="h"||k==="d"){
+    if(!cur[k])cur[k]=dgAdFinal(DGC_AT)[k].slice();
+    cur[k][i]=el.value;
+  }else cur[k]=el.value;
+  saveDGC();
+  /* the counts and the B·P·L flag have to move with the typing, but redrawing
+     the whole block would take the caret with it */
+  const n=el.value.length, lim=k==="h"?DG_H:k==="d"?DG_D:k==="lh"?DG_LH:DG_BN;
+  const row=el.closest(".dgc-row");
+  row.querySelector(".dgc-n").textContent=`${n}/${lim}`;
+  row.querySelector(".dgc-n").className="dgc-n "+(n>lim?"bad":"");
+  el.classList.toggle("over",n>lim);
+  if(k==="h")row.querySelector(".dgc-f").innerHTML=bplCarries(el.value)?"":
+    `<span class="pill p-warn" title="This headline does not carry brand, project and location">B·P·L</span>`;
+  drawApPlan();
+});
+on("#dgcReset","click",()=>{ delete DGC[DGC_AT]; saveDGC(); dgcDraw(); drawApPlan();
+  toast("Back to the generated copy"); });
+on("#dgcResetAll","click",()=>{
+  if(!Object.keys(DGC).length)return toast("Nothing has been edited");
+  if(!confirm("Throw away every hand-edited Demand Gen line?"))return;
+  DGC={}; saveDGC(); dgcDraw(); drawApPlan(); toast("Every variant reset");
+});
+on("#dgcCopy","click",()=>{
+  const a=dgAdFinal(DGC_AT);
+  copy([`Headlines`,...a.h,``,`Long headline`,a.lh,``,`Descriptions`,...a.d,``,
+        `Business name`,a.bn].join("\n"));
+  toast("Ad copied");
+});
+
 /* every campaign-level setting from the reference account, so the Open
    campaign is built the same way every time and can then be duplicated */
 function dgSettings(){
@@ -4238,7 +4526,7 @@ function dgSettings(){
     ["Default max CPC / Max CPM / Target CPV","0.01"],
     ["Call to action text","Learn more"],
     ["Language (ad level)","English (United Kingdom)"],
-    ["Business name",dgAd().bn],
+    ["Business name",dgAdFinal(0).bn],
     ["Audience",pickedAudiences().map(a=>a[0]).join("; ")||"None selected"],
     ["Images and logo","Attach by hand \u2014 see sheet 10 for the exact sizes"],
     ["Creative formats",creativeFormats().join(", ")]
@@ -4571,7 +4859,7 @@ function entityFiles(){
     for(let i=0;i<D_CAP;i++)r.push(g.ad.d[i]&&g.ad.d[i][0]?g.ad.d[i][0]:"",g.ad.d[i]&&g.ad.d[i][0]?(g.ad.d[i][1]||""):"");
     ads.push(r);}));
   if(isDG){
-    const ad=dgAd(0);
+    const ad=dgAdFinal(0);
     const hdr=["Campaign","Ad group","Ad name","Business name"];
     for(let i=1;i<=5;i++)hdr.push(`Headline ${i}`);
     hdr.push("Long headline");
@@ -4580,10 +4868,12 @@ function entityFiles(){
     const fmts=creativeFormats(), rows=[];
     PLAN.forEach(p=>p.groups.forEach(g=>{
       fmts.forEach((fmt,fi)=>{
-        const a2=dgAd(fi);
+        /* the same copy the deploy sends, hand edits included \u2014 the export
+           and the API must not disagree about what the ad says */
+        const a2=dgAdFinal(fi);
         const r=[p.campaign,g.name,`Ad ${fi+1} \u2014 ${fmt}`,a2.bn];
         for(let i=0;i<5;i++)r.push(a2.h[i]||"");
-        r.push(a2.lh[0]||"");
+        r.push(a2.lh||"");
         for(let i=0;i<5;i++)r.push(a2.d[i]||"");
         r.push(lp,"Learn more","Enabled"); rows.push(r);
       });
@@ -4967,7 +5257,10 @@ function mapTargets(){
   return {
     proximity:TARGETS.filter(t=>t.kind==="radius").map(t=>({
       lat:t.lat,lng:t.lng,radius:t.radius,units:t.units||"KILOMETERS"})),
-    pinIds:TARGETS.filter(t=>t.kind==="pin"&&t.id).map(t=>String(t.id))
+    /* a city and a pincode are the same thing to the API: a geo target
+       constant. Only the way they were found here differs. */
+    pinIds:TARGETS.filter(t=>t.kind!=="radius"&&t.id).map(t=>String(t.id)),
+    missing:TARGETS.filter(t=>t.kind!=="radius"&&!t.id).length
   };
 }
 function apSettings(){
@@ -4993,6 +5286,8 @@ function apSettings(){
   const t=mapTargets();
   if(t.proximity.length)S.proximity=t.proximity;
   t.pinIds.forEach(id=>{ if(S.locationIds.indexOf(id)===-1)S.locationIds.push(id); });
+  S.radiusCount=t.proximity.length;
+  S.noIdCount=t.missing;
   return S;
 }
 function drawApSettings(){
@@ -5008,7 +5303,9 @@ function drawApSettings(){
       !(dg&&/manual/i.test(S.bidStrategy)))+
     row("Location setting",S.presence==="PRESENCE"?"Presence only":"Presence or interest",S.presence==="PRESENCE")+
     row("EU political ads",S.euPolitical.indexOf("DOES_NOT")===0?"Declared No":"Declared Yes",S.euPolitical.indexOf("DOES_NOT")===0)+
-    row("Locations",S.locationIds.length?S.locationIds.join(", "):"none set",!!S.locationIds.length)+
+    row("Locations",S.locationIds.length?S.locationIds.join(", "):"none set",
+      !!(S.locationIds.length||(S.proximity||[]).length))+
+    (S.noIdCount?row("Without a criterion ID",`${S.noIdCount} not targeted`,false):"")+
     row("Radius targets",(S.proximity||[]).length
       ?(S.proximity||[]).map(x=>`${x.radius}${x.units==="MILES"?"mi":"km"}`).join(", ")
       :"none")+
@@ -5027,6 +5324,8 @@ function drawApSettings(){
     $("#apSettings").innerHTML=common+
       row("Surfaces","All Demand Gen placements")+
       row("Creative sizes",cre?`${cre} rendered`:"none \u2014 render on tab 08",!!cre)+
+      (()=>{const n=typeof CR_SETS!=="undefined"?CR_SETS.length:0;
+        return row("Ads per ad group",n?`${n} \u2014 one per kept set`:"1 \u2014 what is on screen",true);})()+
       row("Logo image",hasLogo?"uploaded":"missing \u2014 required",hasLogo)+
       row("Business name",bn||"not set",!!bn)+
       row("Audience segments",auds.length?`${auds.length} picked, ${withId} with an ID`:"none",
@@ -5088,10 +5387,10 @@ function apPlan(){
            The build fills g.ad with the Search copy, so the Demand Gen copy is
            taken from the same generator the export uses. */
         headlines:CH==="demandgen"
-          ? dgAd(gi).h.filter(Boolean).map(t=>[t,""])
+          ? dgAdFinal(gi).h.filter(Boolean).map(t=>[t,""])
           : (ADG[g.name]?ADG[g.name].h:g.ad.h).filter(r=>r&&r[0]&&r[0].trim()),
         descriptions:CH==="demandgen"
-          ? dgAd(gi).d.filter(Boolean).map(t=>[t,""])
+          ? dgAdFinal(gi).d.filter(Boolean).map(t=>[t,""])
           : (ADG[g.name]?ADG[g.name].d:g.ad.d).filter(r=>r&&r[0]&&r[0].trim())
       }))
     })),
@@ -5108,32 +5407,44 @@ function apPlan(){
     /* Demand Gen hangs its pictures off the ad, not the campaign, so the
        Creative studio renders travel with the plan. Search ignores them. */
     creatives: CH==="demandgen"?dgCreatives():null,
+    creativeSets: CH==="demandgen"?dgCreativeSets():null,
 
-    businessName:($("#asBizName")&&$("#asBizName").value.trim())||dgAd().bn||"",
+    businessName:($("#asBizName")&&$("#asBizName").value.trim())||dgAdFinal(0).bn||"",
     cta:"Learn more"
   };
 }
-/* the four rendered sizes plus the uploaded developer logo, as raw base64 */
+/* the logo is an uploaded image, not a render, so it is drawn to a square
+   canvas first \u2014 Google wants a 1:1 logo and refuses an odd ratio */
+function dgLogo(){
+  if(typeof CR==="undefined"||!CR.logo)return null;
+  try{
+    const c=document.createElement("canvas"); c.width=c.height=1200;
+    const g=c.getContext("2d");
+    g.fillStyle="#FFFFFF"; g.fillRect(0,0,1200,1200);
+    const im=CR.logo, r=Math.min(1080/im.naturalWidth,1080/im.naturalHeight);
+    const w=im.naturalWidth*r, h=im.naturalHeight*r;
+    g.drawImage(im,(1200-w)/2,(1200-h)/2,w,h);
+    return {data:c.toDataURL("image/jpeg",0.92).split(",")[1]};
+  }catch(e){ return null; }
+}
+/* the four rendered sizes plus the logo, as raw base64 */
 function dgCreatives(){
   const out={};
   (typeof CR_OUT!=="undefined"?CR_OUT:[]).forEach(o=>{
     const b64=String(o.url||"").split(",")[1];
     if(b64)out[o.name]={data:b64};
   });
-  /* the logo is an uploaded image, not a render, so it is drawn to a square
-     canvas first \u2014 Google wants a 1:1 logo and refuses an odd ratio */
-  if(typeof CR!=="undefined"&&CR.logo){
-    try{
-      const c=document.createElement("canvas"); c.width=c.height=1200;
-      const g=c.getContext("2d");
-      g.fillStyle="#FFFFFF"; g.fillRect(0,0,1200,1200);
-      const im=CR.logo, r=Math.min(1080/im.naturalWidth,1080/im.naturalHeight);
-      const w=im.naturalWidth*r, h=im.naturalHeight*r;
-      g.drawImage(im,(1200-w)/2,(1200-h)/2,w,h);
-      out.logo={data:c.toDataURL("image/jpeg",0.92).split(",")[1]};
-    }catch(e){}
-  }
+  const lg=dgLogo(); if(lg)out.logo=lg;
   return out;
+}
+/* Every kept set, each of which becomes its own ad. Nothing kept and
+   something on screen means he rendered and went straight to deploy, so what
+   is on screen is used as the single set rather than refusing. */
+function dgCreativeSets(){
+  if(typeof CR_SETS!=="undefined"&&CR_SETS.length)
+    return CR_SETS.map(s=>({name:s.name,images:s.images}));
+  const one=dgCreatives();
+  return Object.keys(one).length?[{name:"Creative",images:one}]:[];
 }
 function drawApPlan(){
   const pl=apPlan();
@@ -5189,8 +5500,15 @@ function drawApPlan(){
       <b>Business name set but no logo.</b> Google shows the two together or not at all, so neither will appear.</span></div>`:"")+
     (!bizN&&pl.assets.logo?`<div class="check c-warn" style="margin-top:10px"><span class="ic">!</span><span>
       <b>Logo set but no business name.</b> Google needs both before either shows.</span></div>`:""))+
-    (pl.settings.locationIds.length?"":`<div class="check c-warn" style="margin-top:10px"><span class="ic">!</span><span>
-      <b>No location ID set.</b> Without one the campaign targets everywhere. Look one up on the left.</span></div>`)+
+    /* a radius is a location too — warning about "no location" while circles
+       sit on the map was simply wrong */
+    (pl.settings.locationIds.length||(pl.settings.proximity||[]).length?"":
+      `<div class="check c-warn" style="margin-top:10px"><span class="ic">!</span><span>
+      <b>Nothing targeted.</b> Without a city, a pincode or a radius the campaign runs everywhere.
+      Set it under Locations on the left.</span></div>`)+
+    (pl.settings.noIdCount?`<div class="check c-warn" style="margin-top:10px"><span class="ic">!</span><span>
+      <b>${pl.settings.noIdCount} location${pl.settings.noIdCount===1?"":"s"} without a criterion ID.</b>
+      Those are not being targeted. Press <b>Look up the missing IDs again</b> under Locations.</span></div>`:"")+
     (thin.length?`<div class="check c-bad" style="margin-top:10px"><span class="ic">\u2715</span><span>
       <b>Google will reject these ad groups</b> \u2014 it needs ${minH} headline${minH===1?"":"s"} and
       ${minD} description${minD===1?"":"s"}:<br>${thin.map(esc).join("<br>")}</span></div>`:"");
@@ -5440,26 +5758,51 @@ on("#apAcct","change",()=>{
 });
 on("#apCid","input",()=>{ const sel=$("#apAcct");
   if(sel&&sel.value&&sel.value!==$("#apCid").value.replace(/[^0-9]/g,""))sel.value=""; });
-on("#apGeo","click",async()=>{
+/* One search, used by the box and by the "use the project's location" button.
+   Google returns the criterion ID with each match; the map pin is a separate
+   lookup through Nominatim, because Google does not hand back coordinates. */
+async function geoSearch(name,cc){
+  const out=$("#apGeoOut");
+  if(!name)return toast("Type a place first");
+  out.innerHTML=apLine("warn","\u2026",`Looking up <b>${esc(name)}</b>\u2026`);
+  const r=await adsCall("ads-geo",{names:[name],countryCode:cc||"IN"});
+  if(r.error)return out.innerHTML=apLine("bad","\u2715",esc(r.error));
+  const list=(r.suggestions||[]).filter(x=>x.id).slice(0,10);
+  if(!list.length)return out.innerHTML=apLine("warn","!",
+    "Google returned nothing for that name. Try a shorter one, or paste the ID by hand below.");
+  out.innerHTML=`<div class="f-note" style="margin-bottom:8px">Pick what matches. A city targets the
+    city; a province targets the whole state.</div>`+
+    list.map(x=>{
+      const on=TARGETS.some(t=>String(t.id)===String(x.id));
+      return `<div class="apg"><span>${esc(x.canonical||x.name)}
+        <span class="pill p-mute">${esc(x.type||"")}</span> <code>${esc(x.id)}</code></span>
+      <button class="btn btn-sm${on?"":" btn-pri"}" data-geo="${esc(x.id)}"
+        data-nm="${esc(x.canonical||x.name)}"${on?" disabled":""}>${on?"already added":"Add"}</button></div>`;
+    }).join("");
+}
+on("#geoGo","click",()=>geoSearch(($("#geoQ").value||"").trim(),$("#geoCc").value));
+on("#geoQ","keydown",e=>{ if(e.key==="Enter"){e.preventDefault();$("#geoGo").click();} });
+on("#apGeo","click",()=>{
   const name=($("#cgLoc")&&$("#cgLoc").value.trim())||PROJ.city||"";
   if(!name)return toast("Set the target location on tab 01 first");
   const cc=/united arab emirates|dubai|abu dhabi|sharjah|ajman/i.test(name)?"AE":"IN";
   const first=name.split(",")[0].trim();
-  $("#apGeoOut").innerHTML=apLine("warn","\u2026",`Looking up <b>${esc(first)}</b>\u2026`);
-  const r=await adsCall("ads-geo",{names:[first],countryCode:cc});
-  if(r.error)return $("#apGeoOut").innerHTML=apLine("bad","\u2715",esc(r.error));
-  const list=(r.suggestions||[]).filter(x=>x.id).slice(0,8);
-  if(!list.length)return $("#apGeoOut").innerHTML=apLine("warn","!","Google returned nothing for that name. Paste the ID by hand.");
-  $("#apGeoOut").innerHTML=`<div class="f-note" style="margin-bottom:8px">Pick the one that matches. City beats region.</div>`+
-    list.map(x=>`<div class="apg"><span>${esc(x.canonical||x.name)} <span class="pill p-mute">${esc(x.type||"")}</span></span>
-      <button class="btn btn-sm" data-geo="${esc(x.id)}">use ${esc(x.id)}</button></div>`).join("");
+  $("#geoQ").value=first; $("#geoCc").value=cc;
+  geoSearch(first,cc);
 });
-on("#apGeoOut","click",e=>{
-  const id=e.target.dataset.geo; if(!id)return;
-  const ta=$("#apLocIds"), have=lines(ta.value);
-  if(!have.includes(id))have.push(id);
-  ta.value=have.join("\n"); drawApSettings(); drawApPlan();
-  toast(`Location ${id} added`);
+on("#apGeoOut","click",async e=>{
+  const b=e.target.closest("[data-geo]"); if(!b)return;
+  const id=b.dataset.geo, nm=b.dataset.nm||id;
+  if(TARGETS.some(t=>String(t.id)===String(id)))return toast("Already on the list");
+  TARGETS.push({kind:"geo",id:String(id),label:nm,lat:0,lng:0});
+  saveTargets(); drawTargets(); drawApSettings(); drawApPlan();
+  b.disabled=true; b.className="btn btn-sm"; b.textContent="already added";
+  toast(`${nm} added`);
+  /* a pin on the map so he can see where it is \u2014 the ID is already in hand,
+     so a failed geocode costs nothing but the marker */
+  const g=await geocodePlace(nm+", "+($("#geoCc").value==="AE"?"UAE":"India"));
+  const t=TARGETS.find(x=>String(x.id)===String(id));
+  if(g&&t){ t.lat=g.lat; t.lng=g.lng; saveTargets(); drawTargets(); }
 });
 async function apRun(mode){
   const cid=$("#apCid").value.replace(/[^0-9]/g,"");
@@ -5492,7 +5835,19 @@ async function apRun(mode){
   $("#apOut").innerHTML=apLine("warn","\u2026",mode==="deploy"?"Deploying\u2026 this can take a minute.":"Validating against Google\u2026");
   const r=await adsCall("ads-deploy",{customerId:cid,mode,plan:pl});
   if(r.error)return $("#apOut").innerHTML=apLine("bad","\u2715",`<b>Failed.</b> ${esc(r.error)}`);
-  const rows=(r.campaigns||[]).map(c=>{
+  const rows=apResultRows(r);
+  const head=r.failed
+    ? apLine("bad","\u2715",`<b>${r.failed} of ${(r.campaigns||[]).length} failed.</b> Nothing partial was created \u2014 each campaign is all or nothing.`)
+    : apLine("ok","\u2713",r.mode==="deploy"
+        ? `<b>Deployed to ${esc(who||r.customerId)}</b>${who?` <code>${esc(r.customerId)}</code>`:""}. Open the account and check before enabling.`
+        : `<b>Everything validated.</b> Google accepted every field and created nothing. Press Deploy when ready.`);
+  $("#apOut").innerHTML=head+rows.join("");
+  logEvent(mode==="deploy"?"ads-deploy":"ads-validate",`${cid} ${(r.campaigns||[]).length} campaigns`);
+}
+/* one campaign per row, with whatever the campaign type refused said out loud
+   rather than dropped quietly between the plan and what Google actually got */
+function apResultRows(r){
+  return (r.campaigns||[]).map(c=>{
     if(c.error) return apLine("bad","\u2715",`<b>${esc(c.campaign)}</b><br>${explainErr(c.error)}`);
     const main=apLine("ok","\u2713",`<b>${esc(c.campaign)}</b> \u2014 ${c.operations} operations ${r.mode==="deploy"?"created":"checked, nothing created"}`)
       /* things the campaign type could not take, said out loud rather than
@@ -5504,13 +5859,6 @@ async function apRun(mode){
       : apLine("warn","!",`<b>The campaign is fine.</b> Business name and logo were refused, and nothing
           else was affected.<br>${explainErr(c.brand.error)}`));
   });
-  const head=r.failed
-    ? apLine("bad","\u2715",`<b>${r.failed} of ${(r.campaigns||[]).length} failed.</b> Nothing partial was created \u2014 each campaign is all or nothing.`)
-    : apLine("ok","\u2713",r.mode==="deploy"
-        ? `<b>Deployed to ${esc(who||r.customerId)}</b>${who?` <code>${esc(r.customerId)}</code>`:""}. Open the account and check before enabling.`
-        : `<b>Everything validated.</b> Google accepted every field and created nothing. Press Deploy when ready.`);
-  $("#apOut").innerHTML=head+rows.join("");
-  logEvent(mode==="deploy"?"ads-deploy":"ads-validate",`${cid} ${(r.campaigns||[]).length} campaigns`);
 }
 /* Creating the segments is what makes them attachable: a segment with no ID
    can only be reported as skipped at deploy time. */
@@ -5533,13 +5881,12 @@ on("#csBuild","click",async()=>{
   CS_KINDS.forEach(([id,kind])=>{
     const el=$("#"+id); if(!el)return;
     const out=lines(el.value).map(v=>{
-      const bits=String(v).split("::");
-      const input=bits[0].trim();
-      if(!input)return v;
-      if((bits[1]||"").trim())return v;                 /* already has one */
-      const row=rows.find(x=>x[1]===kind&&x[2]===input);
+      const p=csParse(v);
+      if(!p.input||p.id)return v;                       /* empty, or already has one */
+      const row=rows.find(x=>x[1]===kind&&x[2]===p.input);
       const nid=row&&byName[row[0]];
-      if(nid){ wrote++; return `${input} ::${nid}`; }
+      /* the strategy tag is kept on the line, the ID appended after it */
+      if(nid){ wrote++; return `${v.split("::")[0].trim()} ::${nid}`; }
       return v;
     });
     el.value=out.join("\n");
@@ -5552,6 +5899,79 @@ on("#csBuild","click",async()=>{
 });
 on("#apValidate","click",()=>apRun("validate"));
 on("#apDeploy","click",()=>apRun("deploy"));
+
+/* ── both channels in one run ──────────────────────────────────────────────
+   A project is launched on Search and on Demand Gen together, and doing that
+   meant switching the channel by hand, rebuilding, and deploying twice. The
+   plan is built for each channel in turn here instead. The channel drives the
+   whole page — names, strategies, copy, assets — so it is switched, the
+   structure rebuilt, the plan snapshotted, and the page put back exactly as
+   it was found. Each channel's strategy picks are remembered separately, so
+   nothing is guessed on the way through. */
+function planForChannel(ch){
+  const was=CH;
+  try{
+    CH=ch; fillStrategies();
+    if(!(STRAT_SEL[ch]||[]).length)return {error:`No strategies picked for ${CHANNEL[ch].full}. Pick them on tab 01 with that channel selected.`};
+    doBuild(false);
+    if(!PLAN.length)return {error:`Nothing to build for ${CHANNEL[ch].full}.`};
+    const pl=apPlan();
+    if(!pl)return {error:`${CHANNEL[ch].full} produced no plan.`};
+    return {plan:pl};
+  }catch(e){ return {error:`${CHANNEL[ch].full}: ${e.message}`}; }
+  finally{
+    CH=was; fillStrategies(); doBuild(false);
+    showDGCard(); dgcShow(); drawApSettings(); drawApPlan();
+  }
+}
+async function apRunBoth(mode){
+  const cid=$("#apCid").value.replace(/[^0-9]/g,"");
+  if(!cid)return toast("Put the customer ID in first");
+  $("#apOut").innerHTML=apLine("warn","…","Building both channels…");
+  const made=[];
+  for(const ch of ["search","demandgen"]){
+    const r=planForChannel(ch);
+    if(r.error)return $("#apOut").innerHTML=apLine("bad","✕",esc(r.error));
+    made.push({ch,plan:r.plan});
+  }
+  /* the Demand Gen builder has to exist in the script before anything is sent */
+  const chk=await adsCall("ads-check",{customerId:cid});
+  const chans=(chk&&chk.capabilities&&chk.capabilities.channels)||[];
+  if(chans.indexOf("demandgen")===-1)
+    return $("#apOut").innerHTML=apLine("bad","✕",
+      `<b>The Apps Script is an older version.</b> It cannot build Demand Gen, and sending this
+       would create Search campaigns under Demand Gen names. Run <code>reloadBackend()</code> in
+       the script editor, then try again.`);
+  const total=made.reduce((a,x)=>a+x.plan.campaigns.length,0);
+  const who=acctName(cid);
+  if(mode==="deploy"&&!confirm(
+    `Create ${total} campaigns in\n\n    ${who?who+"\n    ":""}${cid}\n\n`+
+    made.map(x=>`    ${CHANNEL[x.ch].full}: ${x.plan.campaigns.length}`).join("\n")+`\n\n`+
+    `They are created ${made[0].plan.settings.status==="ENABLED"?"ENABLED and will start serving":"paused"}.\n`+
+    `Check the account name before you press OK.`))return;
+  /* run one after the other, never together: the second run must not start
+     while the first could still be half way through creating campaigns */
+  let html="", failed=0, ran=0;
+  for(const x of made){
+    $("#apOut").innerHTML=html+apLine("warn","…",
+      `${mode==="deploy"?"Deploying":"Validating"} ${CHANNEL[x.ch].full}…`);
+    const r=await adsCall("ads-deploy",{customerId:cid,mode,plan:x.plan});
+    html+=`<div class="f-lab" style="margin:14px 0 6px">${esc(CHANNEL[x.ch].full)}</div>`;
+    if(r.error){ failed++; html+=apLine("bad","✕",`<b>Failed.</b> ${esc(r.error)}`); continue; }
+    failed+=r.failed||0; ran+=(r.campaigns||[]).length;
+    html+=apResultRows(r).join("");
+    $("#apOut").innerHTML=html;
+  }
+  $("#apOut").innerHTML=(failed
+    ? apLine("bad","✕",`<b>${failed} campaign${failed===1?"":"s"} failed.</b> Each campaign is all
+        or nothing, so a failed one created nothing at all. The rest are in the account.`)
+    : apLine("ok","✓",mode==="deploy"
+        ? `<b>Both channels deployed to ${esc(who||cid)}</b> — ${ran} campaigns. Open the account and check before enabling.`
+        : `<b>Both channels validated.</b> Google accepted every field and created nothing.`))+html;
+  logEvent(mode==="deploy"?"ads-deploy":"ads-validate",`${cid} both channels, ${ran} campaigns`);
+}
+on("#apBothVal","click",()=>apRunBoth("validate"));
+on("#apBothDep","click",()=>apRunBoth("deploy"));
 on("#apPayload","click",()=>{
   const pl=apPlan(); if(!pl)return toast("Build the structure first");
   copy(JSON.stringify(pl,null,2)); toast("Request copied");
@@ -5562,7 +5982,9 @@ on("#cgLocId","input",()=>{
   if(!lines(ta.value).length){ ta.value=v; drawApSettings(); drawApPlan(); }
 });
 
-drawDemo(); fillAudPick(); showDGCard();
+drawDemo(); fillAudPick(); showDGCard(); dgcShow(); drawCsMap();
+CS_KINDS.forEach(([id])=>{ const el=$("#"+id); if(el)el.addEventListener("input",drawCsMap); });
+on("#audPick","change",drawCsMap);
 /* ═══════════ 08 creative studio ═══════════
    The hero render belongs to the developer, so it is uploaded. Everything
    over it is drawn here on a canvas: one layout, four aspect ratios, each
@@ -5946,39 +6368,6 @@ function crLockup(g,c,x,y,maxW,light){
     g.restore();
   }
 }
-/* like the location, this is drawn first and reports its width so the lockup
-   can be capped to what is left \u2014 otherwise the project name is squeezed to
-   nothing against a long RERA number */
-function crReraBlock(g,c,rightX,y,light){
-  /* The RERA mark is a legal notice and should read the same on every size.
-     Scaling it with c.S made it a different physical size in each ratio \u2014
-     tiny on landscape, large on square. It is sized off the width instead,
-     so it is the same fraction of the creative everywhere. */
-  const S=c.W/1200;
-  if(!c.rera&&!CR.qr)return 0;
-  let qx=rightX;
-  if(CR.qr){
-    const q=Math.round(104*S);
-    qx=rightX-q;
-    g.fillStyle="#FFFFFF";
-    g.fillRect(qx-5*S,y-q/2-5*S,q+10*S,q+10*S);
-    g.drawImage(CR.qr,qx,y-q/2,q,q);
-    qx-=18*S;
-  }
-  if(!c.rera)return rightX-qx;
-  const fg=light?INK:"#FFFFFF";
-  g.textAlign="right"; g.textBaseline="alphabetic";
-  const ls=18*S, ns=29*S, us=14*S;
-  g.fillStyle=light?"rgba(20,33,61,.80)":"rgba(255,255,255,.85)"; g.font=F_B(500,ls);
-  g.fillText("MahaRERA:",qx,y-ns*.52);
-  g.fillStyle=fg; g.font=F_H(700,ns); g.fillText(c.rera,qx,y+ns*.34);
-  g.fillStyle=light?"rgba(20,33,61,.65)":"rgba(255,255,255,.75)"; g.font=F_B(400,us);
-  g.fillText("maharera.mahaonline.gov.in",qx,y+ns*.34+us*1.35);
-  g.font=F_H(700,ns);
-  const textW=Math.max(g.measureText(c.rera).width,(()=>{g.font=F_B(400,us);
-    return g.measureText("maharera.mahaonline.gov.in").width;})());
-  return rightX-qx+textW;
-}
 /* the location line, pin and all, centred on cx */
 function crLocLine(g,c,cx,baseY,size,pinColour,textColour,maxW){
   if(!c.loc)return 0;
@@ -6122,14 +6511,6 @@ function crRibbon(g,c,cx,cy,text){
   g.restore();
   return h;
 }
-function crDisclaimer(g,c,cx,y,light,maxW){
-  if(!c.disc)return;
-  const ds=(c.wide?16:18)*c.S;
-  g.font=F_B(400,ds); const d2=crFit(g,c.disc,g.font,maxW); g.font=F_B(400,d2);
-  g.fillStyle=light?"rgba(20,33,61,.62)":"rgba(255,255,255,.78)";
-  g.textAlign="center"; g.textBaseline="top";
-  g.fillText(c.disc,cx,y);
-}
 function crScrims(g,c){
   const {W,H,scrim,wide,tall}=c;
   const t=H*(wide?.34:.30);
@@ -6182,14 +6563,12 @@ frame(g,c){
   const fy=H*(tall?.315:wide?.215:.179), fy2=H*(tall?.775:wide?.872:.898);
   if(!$("#crFrame")||$("#crFrame").checked)crFrame(g,fx,fy,fw,fy2-fy,S,c.accent);
   const lockY=H*(tall?.225:wide?.075:.072);
-  const rw=crReraBlock(g,c,fx+fw,lockY,false);
-  crLockup(g,c,fx,lockY,fw-rw-W*.04,false);
+  crLockup(g,c,fx,lockY,fw,false);
   if(c.offer)crPlaque(g,W/2,fy,c.offer,S,c.accent);
   const barH=Math.round(104*S), barTop=Math.round(fy2-barH/2);
   crPriceBar(g,W/2,barTop,c.cfg,c.money&&c.money.amount,c.money&&c.money.unit,
              c.money&&c.money.tail,S,c.accent);
   crLocLine(g,c,W/2,barTop-44*S,(wide?44:54)*S,c.accent,"#FFFFFF",fw);
-  crDisclaimer(g,c,W/2,barTop+barH+20*S,false,fw);
 },
 
 /* 2. White card — render full bleed, scalloped white panel at the foot */
@@ -6203,7 +6582,6 @@ card(g,c){
   g.fillStyle="#FFFFFF"; g.fillRect(W*.045,lockY-chipH/2,chipW,chipH);
   g.save(); g.beginPath(); g.rect(W*.045,lockY-chipH/2,chipW,chipH); g.clip();
   crLockup(g,c,W*.045+24*S,lockY,chipW-48*S,true); g.restore();
-  crReraBlock(g,c,W*.955,lockY,false);   /* the chip already caps the lockup */
   const pw=W*.80, px=(W-pw)/2;
   const ph=H*(tall?.26:wide?.42:.33);
   const py=H*(tall?.70:wide?.54:.63);
@@ -6225,7 +6603,6 @@ card(g,c){
     g.fillStyle="#FFFFFF"; g.textAlign="center"; g.textBaseline="middle";
     g.fillText(t,W/2,by+bh/2+s2*.04);
   }
-  crDisclaimer(g,c,W/2,Math.min(py+ph+16*S,H-30*S),false,W*.9);
 },
 
 /* 3. Light footer — render full bleed, light band under it */
@@ -6254,7 +6631,6 @@ footer(g,c){
     g.fillText(c.offer,W/2,by+bh/2+s2*.04);
   }
   crCfgPriceSplit(g,c,W/2,bandY+bandH*(wide?.66:.60),true,"APARTMENTS",W*.86);
-  crDisclaimer(g,c,W/2,H-(wide?22:26)*S-10*S,true,W*.9);
 },
 
 /* 4. Centre panel — a deco panel set on the render */
@@ -6266,8 +6642,7 @@ panel(g,c){
   vg.addColorStop(1,`rgba(5,10,8,${.62*c.scrim})`);
   g.fillStyle=vg; g.fillRect(0,0,W,H);
   const lockY=H*(tall?.09:.068);
-  const rw=crReraBlock(g,c,W*.95,lockY,false);
-  crLockup(g,c,W*.05,lockY,W*.90-rw-W*.04,false);
+  crLockup(g,c,W*.05,lockY,W*.90,false);
   const pw=W*(wide?.48:.56), px=(W-pw)/2;
   const ph=H*(tall?.34:wide?.56:.46), py=H*(tall?.30:wide?.24:.24);
   /* the panel needs its own ground, or the copy sits on whatever the render
@@ -6295,7 +6670,6 @@ panel(g,c){
     g.fillStyle=INK; g.textAlign="center"; g.textBaseline="middle";
     g.fillText(c.offer,W/2,H-bh/2-(tall?H*.04:24*S)+s2*.04);
   }
-  crDisclaimer(g,c,W/2,H-(tall?H*.022:18*S),false,W*.9);
 },
 
 /* 5. Arch — light ground, arched render, gold ribbon */
@@ -6328,7 +6702,6 @@ arch(g,c){
   crOrnRule(g,W/2,y-28*S,W*.56,S,c.accent);
   crCfgPriceSplit(g,c,W/2,y+(wide?40:54)*S,true,"LUXURIOUS APARTMENTS",W*.80);
   crOrnRule(g,W/2,y+(wide?74:104)*S,W*.56,S,c.accent);
-  crDisclaimer(g,c,W/2,H-(wide?24:30)*S-8*S,true,W*.9);
 },
 
 /* 6. Header stack — copy above on light, arched render below */
@@ -6341,16 +6714,7 @@ header(g,c){
   const TS=tall?S*1.35:S;
   const ct=tall?Object.assign({},c,{S:TS}):c;
   const lockY=H*(tall?.085:.062);
-  if(tall){
-    /* 1080 across cannot hold a developer, a project and a RERA number on one
-       line without shrinking all three. On a tall canvas the RERA block drops
-       to its own line and the lockup gets the full width. */
-    crLockup(g,ct,W*.05,lockY,W*.90,true);
-    crReraBlock(g,c,W*.95,lockY+H*.055,true);
-  }else{
-    const rw=crReraBlock(g,c,W*.95,lockY,true);
-    crLockup(g,ct,W*.05,lockY,W*.90-rw-W*.04,true);
-  }
+  crLockup(g,ct,W*.05,lockY,W*.90,true);
   if(wide){
     /* Stacking copy above a picture needs vertical room a 1.91:1 canvas does
        not have. Wide sits them side by side: copy on the left, the arched
@@ -6375,7 +6739,6 @@ header(g,c){
       g.fillStyle=INK; g.textAlign="center"; g.textBaseline="middle";
       g.fillText(c.offer,cx,by2+bh2+18*S+th/2+s2*.04);
     }
-    crDisclaimer(g,c,cx,H-34*S,true,colW);
     return;
   }
   let y=H*(tall?.245:.22);
@@ -6406,12 +6769,67 @@ header(g,c){
 }
 };
 
+/* ── the legal strip ──────────────────────────────────────────────────────
+   RERA is a legal notice, not a design element: it has to be on every
+   creative, in the same place, legible. Letting each layout place it meant
+   two layouts never drew it at all, and on a 9:16 it landed under the project
+   name. It is drawn here instead, after the layout, in its own navy band at
+   the foot of every creative — same position, same size relative to the
+   width, on all six layouts and all four ratios. The layout is handed a
+   shorter canvas so nothing of its own lands underneath. */
+function crBandH(W){ return Math.round(W*0.064); }
+function crFootBand(g,c,W,H){
+  const S=W/1200, bh=crBandH(W), by=H-bh;
+  g.save();
+  g.fillStyle=INK; g.fillRect(0,by,W,bh);
+  g.fillStyle=c.accent; g.fillRect(0,by,W,Math.max(2,3*S));
+  const padX=W*.042, mid=by+bh/2;
+  /* the QR sits at the right edge, on white so a scanner can read it */
+  let rightEdge=W-padX;
+  if(CR.qr){
+    const q=Math.round(bh*.70), pad=Math.round(q*.07);
+    const qx=rightEdge-q;
+    g.fillStyle="#FFFFFF"; g.fillRect(qx-pad,mid-q/2-pad,q+pad*2,q+pad*2);
+    g.drawImage(CR.qr,qx,mid-q/2,q,q);
+    rightEdge=qx-pad*2-14*S;
+  }
+  let leftEdge=padX;
+  if(c.rera){
+    const ns=27*S, us=13.5*S;
+    g.textAlign="left"; g.textBaseline="alphabetic";
+    g.fillStyle="rgba(255,255,255,.62)"; g.font=F_B(500,us);
+    g.fillText("MahaRERA",leftEdge,mid-ns*.46);
+    g.fillStyle="#FFFFFF"; g.font=F_H(700,ns);
+    const num=String(c.rera);
+    g.fillText(num,leftEdge,mid+ns*.40);
+    const w1=g.measureText(num).width;
+    g.fillStyle="rgba(255,255,255,.55)"; g.font=F_B(400,us);
+    g.fillText("maharera.mahaonline.gov.in",leftEdge,mid+ns*.40+us*1.45);
+    g.font=F_B(400,us);
+    leftEdge+=Math.max(w1,g.measureText("maharera.mahaonline.gov.in").width)+28*S;
+  }
+  /* the disclaimer takes whatever is left between the two, and is fitted to
+     it rather than allowed to run under the QR */
+  if(c.disc&&rightEdge-leftEdge>W*.12){
+    const ds=15*S;
+    g.font=F_B(400,ds);
+    const d2=crFit(g,c.disc,g.font,rightEdge-leftEdge);
+    g.font=F_B(400,d2);
+    g.fillStyle="rgba(255,255,255,.72)";
+    g.textAlign="right"; g.textBaseline="middle";
+    g.fillText(c.disc,rightEdge,mid+d2*.04);
+  }
+  g.restore();
+}
 function crRenderOne(W,H){
   const cv=document.createElement("canvas"); cv.width=W; cv.height=H;
   const g=cv.getContext("2d");
   g.fillStyle="#07090F"; g.fillRect(0,0,W,H);
-  const c=crCtx(W,H);
+  const bh=crBandH(W);
+  /* the layout believes the canvas ends where the band begins */
+  const c=crCtx(W,H-bh);
   (CR_DRAW[crLayoutId()]||CR_DRAW.frame)(g,c);
+  crFootBand(g,c,W,H);
   return cv;
 }
 
@@ -6435,8 +6853,61 @@ on("#crRender","click",()=>{
         <span class="p-mute">${(o.bytes/1024).toFixed(0)} KB</span></div>
     </div>`).join("")+`</div>`;
   $("#crSizes").innerHTML=`<span class="pill p-ok">${CR_OUT.length} rendered</span>`;
-  crChecks(); drawApSettings();
+  crChecks(); drawApSettings(); drawApPlan();
   logEvent("creative",`${CR_OUT.length} sizes`);
+});
+
+/* ── the ad set ───────────────────────────────────────────────────────────
+   One project is rarely one picture. Each kept set is four renders plus the
+   logo, and each becomes its own Demand Gen ad under the same ad groups.
+   They are held in memory, not localStorage: four JPEGs come to a couple of
+   megabytes and the whole store is about five. */
+let CR_SETS=[];
+function setSnapshot(name){
+  const im={};
+  CR_OUT.forEach(o=>{ const b=String(o.url||"").split(",")[1]; if(b)im[o.name]={data:b}; });
+  const lg=dgLogo(); if(lg)im.logo=lg;
+  return {name:name||`Creative ${CR_SETS.length+1}`,images:im,
+          thumb:(CR_OUT.find(o=>o.name==="square")||CR_OUT[0]||{}).url||"",
+          sizes:CR_OUT.map(o=>o.name),layout:crLayoutId()};
+}
+function drawSets(){
+  const st=$("#setStat");
+  if(st)st.innerHTML=CR_SETS.length
+    ? `<span class="pill p-ok">${CR_SETS.length} set${CR_SETS.length===1?"":"s"} · ${CR_SETS.length} ad${CR_SETS.length===1?"":"s"} per ad group</span>`
+    : `<span class="pill p-mute">no creatives kept</span>`;
+  const box=$("#setList"); if(!box)return;
+  box.innerHTML=CR_SETS.length?CR_SETS.map((s,i)=>`
+    <div class="tgt-row">
+      ${s.thumb?`<img src="${s.thumb}" alt="" style="width:34px;height:34px;object-fit:cover;border-radius:4px;flex:0 0 auto">`:""}
+      <span class="tgt-kind k-city">AD ${i+1}</span>
+      <span class="nm">${esc(s.name)}</span>
+      <span class="cid">${s.sizes.length} size${s.sizes.length===1?"":"s"} · ${esc(s.layout||"")}</span>
+      <button class="x" data-sx="${i}" title="Remove">✕</button>
+    </div>`).join(""):`<div class="empty">Nothing kept. Render, then press Keep.</div>`;
+  /* the whole plan travels to the Apps Script as one request, pictures and
+     all, so the size is worth saying out loud before a deploy fails on it */
+  const mb=CR_SETS.reduce((a,s)=>a+Object.keys(s.images)
+    .reduce((b,k)=>b+(s.images[k].data||"").length,0),0)/1048576;
+  if(mb>9)box.innerHTML+=`<div class="check c-warn" style="margin-top:8px"><span class="ic">!</span><span>
+    <b>${mb.toFixed(0)} MB of artwork.</b> Everything travels to the script in one request. Four sets
+    is comfortable; past that, deploy in two runs.</span></div>`;
+}
+on("#setKeep","click",()=>{
+  if(!CR_OUT.length)return toast("Render the four sizes first");
+  const nm=($("#setName").value||"").trim()||`Creative ${CR_SETS.length+1}`;
+  if(CR_SETS.some(s=>s.name.toLowerCase()===nm.toLowerCase()))
+    return toast("A set with that name is already kept — give this one another name");
+  CR_SETS.push(setSnapshot(nm));
+  $("#setName").value="";
+  drawSets(); drawApSettings(); drawApPlan();
+  toast(`"${nm}" kept — ${CR_SETS.length} ad${CR_SETS.length===1?"":"s"} per ad group`);
+});
+on("#setList","click",e=>{
+  const x=e.target.closest("[data-sx]"); if(!x)return;
+  const [s]=CR_SETS.splice(+x.dataset.sx,1);
+  drawSets(); drawApSettings(); drawApPlan();
+  toast(`"${s.name}" removed`);
 });
 
 /* Google's own limits for Demand Gen image assets */
@@ -6517,47 +6988,91 @@ function mapInit(){
   setTimeout(()=>MAP.invalidateSize(),120);
   drawTargets();
 }
-function addTarget(t){ TARGETS.push(t); saveTargets(); drawTargets(); }
+function addTarget(t){ TARGETS.push(t); saveTargets(); drawTargets();
+  try{ drawApSettings(); drawApPlan(); }catch(e){} }
 function removeTarget(i){ TARGETS.splice(i,1); saveTargets(); drawTargets(); }
 
+const TGT_KIND={ geo:["CITY","k-city"], pin:["PINCODE","k-pin"], radius:["RADIUS","k-rad"] };
 function drawTargets(){
   const st=$("#mapStat");
-  const nR=TARGETS.filter(t=>t.kind==="radius").length, nP=TARGETS.length-nR;
+  const n=k=>TARGETS.filter(t=>t.kind===k).length;
+  const miss=TARGETS.filter(t=>t.kind!=="radius"&&!t.id).length;
+  const bits=[];
+  if(n("geo"))bits.push(`${n("geo")} cit${n("geo")===1?"y":"ies"}`);
+  if(n("pin"))bits.push(`${n("pin")} pincode${n("pin")===1?"":"s"}`);
+  if(n("radius"))bits.push(`${n("radius")} radius`);
   if(st)st.innerHTML=TARGETS.length
-    ? `<span class="pill p-ok">${nR} radius \u00b7 ${nP} pincode${nP===1?"":"s"}</span>`
+    ? `<span class="pill ${miss?"p-warn":"p-ok"}">${bits.join(" \u00b7 ")}${
+        miss?` \u00b7 ${miss} without an ID`:""}</span>`
     : `<span class="pill p-mute">nothing targeted yet</span>`;
   const box=$("#tgtList");
-  if(box)box.innerHTML=TARGETS.length?TARGETS.map((t,i)=>`
-    <div class="tgt-row">
-      <span class="tgt-kind">${t.kind==="radius"?"RADIUS":"PIN"}</span>
-      <span class="nm">${esc(t.label||"")}${t.id?` <code>${esc(t.id)}</code>`:
-        (t.kind==="pin"?' <span class="p-mute">no ID yet</span>':"")}</span>
-      ${t.kind==="radius"?`<input class="rad" type="number" min="1" max="80" value="${t.radius}" data-r="${i}">
-        <span class="p-mute">${t.units==="MILES"?"mi":"km"}</span>`:""}
+  if(box)box.innerHTML=TARGETS.length?TARGETS.map((t,i)=>{
+    const K=TGT_KIND[t.kind]||TGT_KIND.pin;
+    return `<div class="tgt-row">
+      <input type="checkbox" data-sel="${i}"${t.sel?" checked":""}>
+      <span class="tgt-kind ${K[1]}">${K[0]}</span>
+      <span class="nm">${esc(t.kind==="radius"
+        ? `${Number(t.lat).toFixed(4)}, ${Number(t.lng).toFixed(4)}` : (t.label||""))}</span>
+      ${t.kind==="radius"
+        ? `<input class="rad" type="number" min="1" max="80" value="${t.radius}" data-r="${i}">
+           <span class="cid">${t.units==="MILES"?"mi":"km"}</span>`
+        : `<span class="cid${t.id?"":" miss"}">${t.id?"ID "+esc(t.id):"no ID \u2014 not targetable"}</span>`}
       <button class="x" data-x="${i}" title="Remove">\u2715</button>
-    </div>`).join(""):`<div class="empty">Click the map or add pincodes.</div>`;
+    </div>`;}).join("")
+    :`<div class="empty">Nothing targeted. Search a city, paste pincodes, or click the map.</div>`;
   if(!MAP||!MAP_LAYER)return;
   MAP_LAYER.clearLayers();
   const pts=[];
+  const dot=col=>L.divIcon({className:"",iconSize:[14,14],iconAnchor:[7,7],
+    html:`<div style="width:14px;height:14px;border-radius:50%;background:${col};border:2px solid #fff;box-shadow:0 0 0 1px rgba(0,0,0,.3)"></div>`});
   TARGETS.forEach((t,i)=>{
     if(t.kind==="radius"){
       const m=t.units==="MILES"?t.radius*1609.34:t.radius*1000;
       L.circle([t.lat,t.lng],{radius:m,color:"#FB6A02",weight:2,fillOpacity:.12}).addTo(MAP_LAYER);
-      const mk=L.marker([t.lat,t.lng],{draggable:true}).addTo(MAP_LAYER);
+      const mk=L.marker([t.lat,t.lng],{draggable:true,icon:dot("#FB6A02")}).addTo(MAP_LAYER);
       mk.bindTooltip(t.label||"Radius");
       mk.on("dragend",e=>{ const p2=e.target.getLatLng();
         TARGETS[i].lat=p2.lat; TARGETS[i].lng=p2.lng; saveTargets(); drawTargets(); });
       pts.push([t.lat,t.lng]);
-    }else{
-      L.marker([t.lat,t.lng]).addTo(MAP_LAYER).bindTooltip(t.label||"Pincode");
+    }else if(t.lat&&t.lng){
+      L.marker([t.lat,t.lng],{icon:dot(t.kind==="geo"?"#14213D":"#2E86C1")})
+        .addTo(MAP_LAYER).bindTooltip(`${TGT_KIND[t.kind][0]} \u00b7 ${t.label||""}`);
       pts.push([t.lat,t.lng]);
     }
   });
   if(pts.length)try{ MAP.fitBounds(L.latLngBounds(pts).pad(.35),{maxZoom:13}); }catch(e){}
 }
 on("#tgtList","click",e=>{
-  const x=e.target.closest("[data-x]"); if(x)removeTarget(+x.dataset.x);
+  const x=e.target.closest("[data-x]"); if(x){ removeTarget(+x.dataset.x); drawApSettings(); drawApPlan(); }
+  const s=e.target.closest("[data-sel]");
+  if(s){ TARGETS[+s.dataset.sel].sel=s.checked; saveTargets(); }
 });
+on("#tgtAll","click",()=>{
+  const none=TARGETS.every(t=>t.sel);
+  TARGETS.forEach(t=>t.sel=!none); saveTargets(); drawTargets();
+});
+on("#tgtDelSel","click",()=>{
+  const n=TARGETS.filter(t=>t.sel).length;
+  if(!n)return toast("Tick the ones to remove first");
+  TARGETS=TARGETS.filter(t=>!t.sel); saveTargets(); drawTargets();
+  drawApSettings(); drawApPlan();
+  toast(`${n} target${n===1?"":"s"} removed`);
+});
+on("#radAll","click",()=>{
+  const v=Math.max(1,Math.min(80,Number($("#radKm").value)||5));
+  const u=$("#radUnit").value||"KILOMETERS";
+  const n=TARGETS.filter(t=>t.kind==="radius").length;
+  if(!n)return toast("No circles on the map yet");
+  TARGETS.forEach(t=>{ if(t.kind!=="radius")return;
+    t.radius=v; t.units=u; t.label=`Radius ${v} ${u==="MILES"?"mi":"km"}`; });
+  saveTargets(); drawTargets(); drawApSettings(); drawApPlan();
+  toast(`${n} circle${n===1?"":"s"} set to ${v} ${u==="MILES"?"mi":"km"}`);
+});
+$$(".locbar-b").forEach(b=>b.addEventListener("click",()=>{
+  $$(".locbar-b").forEach(x=>x.classList.toggle("on",x===b));
+  $$(".locpane").forEach(p=>p.classList.toggle("on",p.dataset.pane===b.dataset.loc));
+  if(MAP)setTimeout(()=>MAP.invalidateSize(),60);
+}));
 on("#tgtList","change",e=>{
   const r=e.target.closest("[data-r]"); if(!r)return;
   const i=+r.dataset.r, v=Math.max(1,Math.min(80,Number(r.value)||5));
@@ -6576,6 +7091,42 @@ async function geocodePin(pin,country){
   }catch(e){}
   return null;
 }
+/* the free-text version, for a city or locality name */
+async function geocodePlace(q){
+  try{
+    const r=await fetch(`https://nominatim.openstreetmap.org/search?q=${
+      encodeURIComponent(q)}&format=json&limit=1`);
+    const j=await r.json();
+    if(j&&j[0])return {lat:Number(j[0].lat),lng:Number(j[0].lon)};
+  }catch(e){}
+  return null;
+}
+/* A pincode is only targetable once Google has given it a criterion ID, so
+   this is offered on its own as well as after an add — the first attempt
+   needs the customer ID to be filled in, and often it is not yet. */
+async function pinLookupIds(){
+  const cid=$("#apCid")?$("#apCid").value.replace(/[^0-9]/g,""):"";
+  const todo=TARGETS.filter(t=>t.kind==="pin"&&!t.id);
+  if(!todo.length)return {found:0,left:0};
+  if(!cid){ toast("Put the customer ID in first — the lookup runs through the account"); return null; }
+  let found=0;
+  for(let i=0;i<todo.length;i+=10){
+    const chunk=todo.slice(i,i+10);
+    const r=await adsCall("ads-geo",{names:chunk.map(t=>t.pin),countryCode:"IN"});
+    if(r&&r.suggestions)r.suggestions.forEach(sg=>{
+      const t=TARGETS.find(x=>x.kind==="pin"&&!x.id&&String(sg.name||"").indexOf(x.pin)>-1);
+      if(t){ t.id=String(sg.id||""); if(t.id)found++; }
+    });
+  }
+  saveTargets(); drawTargets(); drawApSettings(); drawApPlan();
+  return {found,left:TARGETS.filter(t=>t.kind==="pin"&&!t.id).length};
+}
+on("#pinRetry","click",async()=>{
+  const r=await pinLookupIds();
+  if(!r)return;
+  if(!r.found&&!r.left)return toast("Every pincode already has its ID");
+  toast(`${r.found} ID${r.found===1?"":"s"} found${r.left?`, ${r.left} still missing`:""}`);
+});
 on("#pinAdd","click",async()=>{
   const raw=($("#pinList")&&$("#pinList").value)||"";
   const pins=[...new Set(raw.split(/[\s,;]+/).map(x=>x.trim()).filter(x=>/^\d{4,8}$/.test(x)))];
@@ -6595,26 +7146,14 @@ on("#pinAdd","click",async()=>{
   }
   saveTargets(); drawTargets();
   /* a pincode needs its criterion ID to be targetable, and that comes from Google */
-  const cid=$("#apCid")?$("#apCid").value.replace(/[^0-9]/g,""):"";
-  if(cid&&done){
-    const names=TARGETS.filter(t=>t.kind==="pin"&&!t.id).map(t=>t.pin);
-    if(names.length){
-      const r=await adsCall("ads-geo",{names:names.slice(0,10),countryCode:"IN"});
-      if(r&&r.suggestions){
-        r.suggestions.forEach(sg=>{
-          const t=TARGETS.find(x=>x.kind==="pin"&&!x.id&&
-            String(sg.name||"").indexOf(x.pin)>-1);
-          if(t)t.id=String(sg.id||"");
-        });
-        saveTargets(); drawTargets();
-      }
-    }
-  }
-  toast(`${done} pincode${done===1?"":"s"} added${missed.length?`, ${missed.length} not found`:""}`);
+  const ids=done?await pinLookupIds():null;
+  drawApSettings(); drawApPlan();
+  toast(`${done} pincode${done===1?"":"s"} added${missed.length?`, ${missed.length} not found`:""}${
+    ids&&ids.left?`, ${ids.left} without an ID`:""}`);
 });
 on("#mapClear","click",()=>{
-  if(TARGETS.length&&!confirm("Remove every radius and pincode target?"))return;
-  TARGETS=[]; saveTargets(); drawTargets();
+  if(TARGETS.length&&!confirm("Remove every city, pincode and radius target?"))return;
+  TARGETS=[]; saveTargets(); drawTargets(); drawApSettings(); drawApPlan();
 });
 on("#mapCentre","click",async()=>{
   if(!MAP)return;
@@ -6672,7 +7211,7 @@ on("#crOut","click",e=>{
   if(img)lbShow(+img.dataset.k);
 });
 
-drawProjects(); projectRestore();
+drawProjects(); projectRestore(); drawSets();
 initAuth();
 /* Catch any button that lost its handler during an edit. */
 (function(){

@@ -1086,18 +1086,15 @@ function buildDgOps(cid, plan, c, notes) {
         language: { languageConstant: 'languageConstants/' + digits(id) }
       }}});
     });
-    (S.exAge || []).forEach(function (t) {
-      ops.push({ campaignCriterionOperation: { create: {
-        campaign: campRn, negative: true, ageRange: { type: t } } } });
-    });
-    (S.exGender || []).forEach(function (t) {
-      ops.push({ campaignCriterionOperation: { create: {
-        campaign: campRn, negative: true, gender: { type: t } } } });
-    });
-    (S.exIncome || []).forEach(function (t) {
-      ops.push({ campaignCriterionOperation: { create: {
-        campaign: campRn, negative: true, incomeRange: { type: t } } } });
-    });
+    /* The demographics are deliberately NOT here. A Demand Gen campaign uses
+       audience-grouped targeting, and that makes an age, gender or income
+       EXCLUSION illegal at every level: as a campaign criterion Google answers
+       "The Criterion is not allowed to be excluded", and as an ad group
+       criterion "Audience segment attachment is not allowed when use audience
+       grouped bit is set to true". The only place they are accepted is inside
+       the Audience resource below, written as inclusions. Turning upgraded
+       targeting off buys location, radius and language on the campaign; it
+       does not buy demographic exclusions. */
   } else if ((S.proximity || []).length) {
     notes.push('Radius targeting was not sent \u2014 it only exists as a campaign ' +
                'criterion, and upgraded targeting puts this campaign\u2019s targeting ' +
@@ -1112,20 +1109,52 @@ function buildDgOps(cid, plan, c, notes) {
   if ((S.sharedSets || []).length)
     notes.push('The negative keyword lists were not attached \u2014 Demand Gen does not take them.');
 
-  /* the artwork, created once and shared by every ad group's ad */
-  const img = {};
-  const CRE = plan.creatives || {};
-  DG_IMAGE_SLOTS.forEach(function (slot) {
-    const src = CRE[slot[0]];
-    if (!src || !src.data) return;
+  /* The artwork. A project is usually shot more than once — a different hero
+     render, a different elevation — and each of those is its own ad, so the
+     plan carries a LIST of creative sets rather than one set of four images.
+     plan.creatives (one set) is still read, so an older plan still deploys.
+     The logo is uploaded once and shared: it is the same logo on every ad. */
+  var SETS = plan.creativeSets;
+  if (!SETS || !SETS.length)
+    SETS = [{ name: 'Creative', images: plan.creatives || {} }];
+  const stamp = new Date().getTime();
+  var logoRn = '';
+  const upload = function (data, label) {
     const rn = base + 'assets/' + next();
     ops.push({ assetOperation: { create: {
       resourceName: rn,
-      name: slot[2] + ' ' + new Date().getTime() + '-' + Math.abs(tmp),
-      imageAsset: { data: src.data }
+      name: label + ' ' + stamp + '-' + Math.abs(tmp),
+      imageAsset: { data: data }
     }}});
-    img[slot[0]] = rn;
+    return rn;
+  };
+  (function () {
+    for (var i = 0; i < SETS.length; i++) {
+      const lg = (SETS[i].images || {}).logo;
+      if (lg && lg.data) { logoRn = upload(lg.data, 'Logo'); return; }
+    }
+  })();
+  /* a set with neither a square nor a landscape cannot become an ad, so its
+     images are not uploaded at all rather than left orphaned in the account */
+  SETS = SETS.filter(function (st, i) {
+    const im = st.images || {};
+    if ((im.square && im.square.data) || (im.landscape && im.landscape.data)) return true;
+    notes.push('"' + (st.name || ('Set ' + (i + 1))) + '" has neither a landscape nor a square ' +
+               'image, so no ad was made from it and nothing was uploaded.');
+    return false;
   });
+  if (!SETS.length) SETS = [{ name: 'Creative', images: {} }];
+  const sets = SETS.map(function (st, i) {
+    const src = st.images || {}, out = {};
+    DG_IMAGE_SLOTS.forEach(function (slot) {
+      if (slot[0] === 'logo') { if (logoRn) out.logo = logoRn; return; }
+      const s = src[slot[0]];
+      if (s && s.data) out[slot[0]] = upload(s.data, slot[2] + ' · ' + (st.name || ('Set ' + (i + 1))));
+    });
+    return { name: st.name || ('Creative ' + (i + 1)), img: out };
+  });
+  /* the first set still answers the "is there any artwork at all" checks */
+  const img = sets[0].img;
 
   const groups = (c.adgroups || []).map(function (g) {
     const rn = base + 'adGroups/' + next();
@@ -1164,10 +1193,9 @@ function buildDgOps(cid, plan, c, notes) {
                ' skipped because no ID was given \u2014 add them in the interface, ' +
                'or paste the segment ID so they can be attached here.');
 
-  /* With upgraded targeting off, the demographics are already campaign
-     criteria above, so the audience carries only the segments. */
+  /* The demographics always live here, whichever way targeting is set: see
+     the note above the campaign criteria. */
   const dims = [];
-  if (!upgraded) { S = Object.assign({}, S, { exAge: [], exIncome: [], exGender: [] }); }
   const keep = function (all, excluded) {
     const ex = excluded || [];
     return all.filter(function (v) { return ex.indexOf(v) === -1; });
@@ -1266,19 +1294,23 @@ function buildDgOps(cid, plan, c, notes) {
     if (!img.logo)
       throw new Error('Demand Gen needs a logo image. Upload the developer logo on the Creative studio tab.');
 
-    const ad = {
-      headlines       : h.slice(0, 5).map(function (t) { return { text: t }; }),
-      descriptions    : d.slice(0, 5).map(function (t) { return { text: t }; }),
-      businessName    : bn,
-      callToActionText: String(plan.cta || 'Learn more')
-    };
-    DG_IMAGE_SLOTS.forEach(function (slot) {
-      if (img[slot[0]]) ad[slot[1]] = [{ asset: img[slot[0]] }];
+    /* one ad per creative set, same copy, different artwork — which is how
+       two renders of the same project get tested against each other */
+    sets.forEach(function (st) {
+      const ad = {
+        headlines       : h.slice(0, 5).map(function (t) { return { text: t }; }),
+        descriptions    : d.slice(0, 5).map(function (t) { return { text: t }; }),
+        businessName    : bn,
+        callToActionText: String(plan.cta || 'Learn more')
+      };
+      DG_IMAGE_SLOTS.forEach(function (slot) {
+        if (st.img[slot[0]]) ad[slot[1]] = [{ asset: st.img[slot[0]] }];
+      });
+      ops.push({ adGroupAdOperation: { create: {
+        adGroup: x.rn, status: 'ENABLED',
+        ad: { name: st.name, finalUrls: [plan.finalUrl], demandGenMultiAssetAd: ad }
+      }}});
     });
-    ops.push({ adGroupAdOperation: { create: {
-      adGroup: x.rn, status: 'ENABLED',
-      ad: { finalUrls: [plan.finalUrl], demandGenMultiAssetAd: ad }
-    }}});
   });
 
   return ops;
