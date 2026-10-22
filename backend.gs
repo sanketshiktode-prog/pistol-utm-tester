@@ -90,6 +90,18 @@ function handlePost(e) {
     return json(out || { error: 'Unknown ads action: ' + body.action });
   }
 
+  /* The design agent. The split is deliberate: everything that has to be
+     EXACT — the RERA number, the QR, the price, the configuration, the
+     logo's own pixels — is drawn by the canvas and never leaves it. The
+     model is handed a finished picture and asked only what a designer would
+     be asked: does anything collide, is anything cut off, can it be read,
+     and which of these layouts and palettes suits this render. It chooses
+     settings; it never draws, and it never supplies a word of copy. */
+  if (String(body.action || '').indexOf('ai-') === 0) {
+    if (!v.ok) return json({ error: 'Sign in again — ' + v.reason });
+    return json(aiRoute(body, v) || { error: 'Unknown action: ' + body.action });
+  }
+
   /* The browser cannot fetch another site directly, and the public text
      proxies are blocked by most landing pages. Apps Script has no such
      restriction, so the page is fetched here, cleaned here, and read here. */
@@ -1376,4 +1388,151 @@ function applyDgBidding(camp, S, notes) {
       notes.push('Manual CPC is not available on Demand Gen, so the campaign was set to ' +
                  'Maximize conversions.');
   }
+}
+
+/* ═══════════ the design agent ═══════════════════════════════════════════
+   What this is for, and what it is deliberately not for.
+
+   The canvas draws everything that has to be exact and stays exact: the RERA
+   number, the scannable QR, the price, the configuration, the developer's own
+   logo pixels, the four pixel sizes Google asks for. None of that is a matter
+   of taste and none of it is sent anywhere to be re-imagined. An image model
+   cannot reproduce an uploaded logo, cannot be trusted with a digit of a
+   registration number and cannot draw a QR that scans.
+
+   What IS a matter of taste is which layout suits a particular render, which
+   palette suits the project, whether the type is big enough to read, and
+   whether anything is colliding. That is what the model is asked, and the
+   only thing it may change is a setting the toolkit already offers.
+
+   The key lives in the Apps Script's own Script Properties, never in this
+   repository, which is public. Project Settings -> Script Properties ->
+   OPENAI_KEY. Nothing to paste into the code. */
+
+const AI_ALLOWED = {
+  layout : ['header','frame','card','footer','panel','arch','band','strip','split'],
+  palette: ['navy-gold','black-gold','white-gold','maroon-gold','navy-sky','forest',
+            'coastal','river','sunset','amber','ivory'],
+  font   : ['archivo','oswald','playfair','cormorant','marcellus','cinzel']
+};
+
+function aiKey_() {
+  try { return PropertiesService.getScriptProperties().getProperty('OPENAI_KEY') || ''; }
+  catch (e) { return ''; }
+}
+function aiModel_() {
+  try {
+    return PropertiesService.getScriptProperties().getProperty('OPENAI_MODEL') || 'gpt-4o-mini';
+  } catch (e) { return 'gpt-4o-mini'; }
+}
+
+function aiRoute(body, v) {
+  if (body.action === 'ai-check')  return { ok: true, ready: !!aiKey_(), model: aiModel_() };
+  if (!aiKey_()) return { error: 'No OPENAI_KEY in the Apps Script. Add it under ' +
+    'Project Settings → Script Properties → OPENAI_KEY. It is never put in the repository.' };
+  if (body.action === 'ai-review') return aiReview(body, v);
+  return null;
+}
+
+/* One call to the model, with whatever images were sent. */
+function aiCall_(messages, maxTokens) {
+  var res;
+  try {
+    res = UrlFetchApp.fetch('https://api.openai.com/v1/chat/completions', {
+      method: 'post', contentType: 'application/json', muteHttpExceptions: true,
+      headers: { Authorization: 'Bearer ' + aiKey_() },
+      payload: JSON.stringify({
+        model: aiModel_(),
+        messages: messages,
+        max_tokens: maxTokens || 900,
+        temperature: 0.2,
+        response_format: { type: 'json_object' }
+      })
+    });
+  } catch (err) { return { error: 'Could not reach OpenAI: ' + err }; }
+  const code = res.getResponseCode();
+  const text = res.getContentText();
+  var b = {};
+  try { b = JSON.parse(text); } catch (e) { return { error: 'OpenAI returned something that is not JSON: ' + text.slice(0, 300) }; }
+  if (code !== 200)
+    return { error: 'OpenAI ' + code + ': ' + (((b.error || {}).message) || text.slice(0, 300)) };
+  const msg = (((b.choices || [])[0] || {}).message || {}).content || '';
+  var out = {};
+  try { out = JSON.parse(msg); } catch (e) { return { error: 'The model did not answer in JSON.', raw: msg.slice(0, 600) }; }
+  out._usage = b.usage || null;
+  return out;
+}
+
+function aiReview(body, v) {
+  const shots = body.shots || [];                 /* [{name,data}] base64 JPEG */
+  if (!shots.length) return { error: 'No renders were sent to review.' };
+  const brief = body.brief || {};
+  const now = body.settings || {};
+
+  const system =
+    'You are a senior art director reviewing finished real estate performance ads. ' +
+    'You are NOT writing copy and you are NOT redrawing anything. Every word, the ' +
+    'price, the RERA registration number and the QR code are fixed and correct ' +
+    'already; never comment on their wording or their accuracy, only on whether ' +
+    'they are legible and well placed. Judge only craft: collisions and overlaps, ' +
+    'anything cropped or running off the edge, type too small or too low in ' +
+    'contrast to read at a glance, promotional badges covering the building, ' +
+    'unbalanced space, and whether the chosen layout and palette suit this ' +
+    'particular render. Be specific about where a problem is. If a size is ' +
+    'clean, say so plainly rather than inventing something. Answer as JSON.';
+
+  const schema =
+    'Answer with this exact shape:\n' +
+    '{"verdict":"clean"|"minor"|"bad",' +
+    '"sizes":[{"name":"<the size name given>","verdict":"clean"|"minor"|"bad",' +
+    '"issues":[{"severity":"minor"|"bad","what":"<one sentence>"}]}],' +
+    '"suggest":{"layout":"<id or empty>","palette":"<id or empty>","font":"<id or empty>",' +
+    '"scrim":<0-100 or null>,"fill":<0-100 or null>,"why":"<one sentence>"}}\n' +
+    'layout must be one of: ' + AI_ALLOWED.layout.join(', ') + '\n' +
+    'palette must be one of: ' + AI_ALLOWED.palette.join(', ') + '\n' +
+    'font must be one of: ' + AI_ALLOWED.font.join(', ') + '\n' +
+    'Leave a suggestion empty or null when what is already set is right. ' +
+    'scrim is how hard the render is darkened under the type. fill is how much ' +
+    'of the frame the render fills on a ratio far from its own shape: 0 keeps the ' +
+    'whole picture with a blurred surround, 100 crops to fill.';
+
+  const content = [{ type: 'text', text:
+    schema + '\n\nThe project: ' + JSON.stringify({
+      developer: brief.dev || '', project: brief.proj || '', location: brief.loc || ''
+    }) + '\nCurrently set: ' + JSON.stringify({
+      layout: now.layout || '', palette: now.palette || '', font: now.font || '',
+      scrim: now.scrim, fill: now.fill
+    }) + '\nThe sizes below are, in order: ' + shots.map(function (s) { return s.name; }).join(', ') }];
+
+  shots.slice(0, 4).forEach(function (s) {
+    content.push({ type: 'text', text: 'Size: ' + s.name });
+    content.push({ type: 'image_url', image_url: {
+      url: 'data:image/jpeg;base64,' + s.data, detail: 'high' } });
+  });
+
+  const out = aiCall_([{ role: 'system', content: system },
+                       { role: 'user', content: content }], 1100);
+  if (out.error) return out;
+
+  /* The model may only pick from what the toolkit already has. Anything else
+     it says to set is dropped rather than passed through to the renderer. */
+  const sug = out.suggest || {};
+  const clean = {};
+  ['layout','palette','font'].forEach(function (k) {
+    const want = String(sug[k] || '').trim();
+    if (want && AI_ALLOWED[k].indexOf(want) > -1) clean[k] = want;
+  });
+  ['scrim','fill'].forEach(function (k) {
+    const n = Number(sug[k]);
+    if (isFinite(n) && n >= 0 && n <= 100) clean[k] = Math.round(n);
+  });
+  clean.why = String(sug.why || '').slice(0, 300);
+  out.suggest = clean;
+
+  try {
+    if (v && v.ok && typeof write === 'function')
+      write([new Date(), v.email, v.name, typeof role === 'function' ? role(v.email) : '',
+             'ai-review', shots.length + ' sizes', String(out.verdict || '')]);
+  } catch (e) {}
+  return out;
 }

@@ -142,11 +142,36 @@ nothing anywhere reports it.
 - Sets live in memory only — four JPEGs are megabytes and localStorage is
   about five in total.
 
+## The design agent
+
+The split is the whole point and must not drift:
+
+- **The canvas draws everything exact.** RERA number, scannable QR, price,
+  configuration, the developer's own logo pixels, the four exact sizes. None of
+  it is sent to be re-imagined. An image model cannot reproduce an uploaded
+  logo, cannot be trusted with a digit of a registration number, and cannot
+  draw a QR that scans.
+- **The model judges only craft**, from the finished picture: collisions,
+  cropping, legibility, badges over the elevation, balance, and which of the
+  toolkit's own layouts and palettes suit this render.
+- **It may only pick settings the toolkit already offers.** `AI_ALLOWED` in
+  `backend.gs` whitelists layout, palette and font by id and clamps scrim and
+  fill to 0-100; everything else it tries to set is dropped before the answer
+  reaches the page. It has no way to change a word of copy.
+- The key is a Script Property, `OPENAI_KEY`, in the Apps Script. Never in this
+  repository, which is public. `OPENAI_MODEL` overrides the default.
+- Renders are shrunk to a 1024px long edge before they are sent — about a
+  quarter of the tokens, and no worse at spotting a collision.
+
+A reviewer cannot catch what it is not shown: the logo bugs survived three
+rounds because the renders had no logo in them. Fix the input first.
+
 ## What this session cannot reach
 
 The container's egress allows package registries and GitHub, nothing else.
 Blocked: `script.googleapis.com`, `oauth2.googleapis.com`, `accounts.google.com`,
-`cdnjs.cloudflare.com`, `fonts.googleapis.com`, `cdn.propertypistol.com`.
+`cdnjs.cloudflare.com`, `fonts.googleapis.com`, `cdn.propertypistol.com`,
+`api.openai.com`.
 
 So: **the map, the fonts and any Google call cannot be exercised here.** Their
 data paths can be simulated and must be; the rendering cannot. Say which of

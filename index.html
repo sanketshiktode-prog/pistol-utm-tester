@@ -316,7 +316,7 @@ code{font-family:var(--mono);background:rgba(0,0,0,.05);padding:1px 4px;border-r
     <div class="wordmark">Search Ops Toolkit <span>· Google Ads</span></div>
     <div class="spacer"></div>
     <div class="badge-env" id="varCount">0 VARIANTS</div>
-    <span class="pill p-mute" id="buildTag" title="build">b-22oct-6</span>
+    <span class="pill p-mute" id="buildTag" title="build">b-22oct-7</span>
     <div id="userChip" class="hidden" style="display:flex;align-items:center;gap:9px">
       <div class="divider-v"></div>
       <span id="userName" style="font-size:12.5px;font-weight:500"></span>
@@ -1500,6 +1500,28 @@ Static Square</textarea>
         <div id="setList" style="margin-top:12px"></div>
         <div class="f-note" style="margin-top:8px">These live for this browser session only — far too
           large for a saved project, so render again next time.</div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-hd"><h2>Design agent</h2><span class="hint" id="aiStat">not checked</span></div>
+      <div class="card-bd">
+        <div class="callout">The split is deliberate. The <b>RERA number, the QR, the price, the
+          configuration and your logo</b> are drawn here and never leave — a model cannot reproduce
+          an uploaded logo, cannot be trusted with a digit of a registration number and cannot draw
+          a QR that scans. What it <i>is</i> good at is the part that is taste: it looks at the
+          finished picture and says what collides, what is cut off, what cannot be read, and which
+          layout and palette suit this particular render. It can only pick settings this toolkit
+          already offers; it never writes a word and never draws a pixel.</div>
+        <div class="btnrow" style="margin-top:12px">
+          <button class="btn btn-sm btn-pri" id="aiReview">Review these creatives</button>
+          <button class="btn btn-sm" id="aiApply" disabled>Apply what it suggests</button>
+          <button class="btn btn-sm" id="aiLoop">Review, adjust, repeat ×3</button>
+        </div>
+        <div id="aiOut" style="margin-top:12px"><div class="empty">Render, then ask for a review.</div></div>
+        <div class="f-note" style="margin-top:10px">The key lives in the Apps Script, under
+          <b>Project Settings → Script Properties → OPENAI_KEY</b>. Nothing to paste into any code,
+          and it never goes near the repository, which is public.</div>
       </div>
     </div>
 
@@ -7617,6 +7639,119 @@ on("#crRender","click",async()=>{
     HEROES.length===1?"":"es"} × 4 = ${CR_OUT.length} rendered</span>`;
   drawSets(); crChecks(); drawApSettings(); drawApPlan();
   logEvent("creative",`${HEROES.length} heroes, ${CR_OUT.length} sizes`);
+});
+
+/* ═══════════ the design agent ═══════════════════════════════════════════
+   It is handed the finished pictures and asked what a designer would be
+   asked. Everything exact — the RERA number, the QR, the price, the logo —
+   was drawn here and is not up for discussion; the model only ever picks
+   from settings this page already offers, and the backend drops anything
+   else it tries to set. */
+let AI_SUGGEST=null;
+function aiLine(kind,ic,html){
+  return `<div class="check c-${kind}"><span class="ic">${ic}</span><span>${html}</span></div>`;
+}
+/* A full-size render is half a megabyte of base64 and the model is being
+   asked about collisions and legibility, not about pixels. They go down to
+   a long edge of 1024, which is about a quarter of the tokens and makes no
+   difference to anything it is being asked. */
+function aiShrink(url,max){
+  return new Promise(res=>{
+    const im=new Image();
+    im.onload=()=>{
+      const k=Math.min(1,max/Math.max(im.naturalWidth,im.naturalHeight));
+      const c=document.createElement("canvas");
+      c.width=Math.round(im.naturalWidth*k); c.height=Math.round(im.naturalHeight*k);
+      c.getContext("2d").drawImage(im,0,0,c.width,c.height);
+      res(c.toDataURL("image/jpeg",0.82).split(",")[1]);
+    };
+    im.onerror=()=>res(String(url||"").split(",")[1]);
+    im.src=url;
+  });
+}
+async function aiShots(){
+  /* the first hero's four sizes — one set is what a review is about */
+  const first=CR_OUT.length?CR_OUT[0].hero:null;
+  const mine=CR_OUT.filter(o=>!first||o.hero===first).slice(0,4);
+  const out=[];
+  for(const o of mine){
+    const data=await aiShrink(o.url,1024);
+    if(data)out.push({name:`${o.name} ${o.w}x${o.h}`,data});
+  }
+  return out;
+}
+async function aiRun(){
+  if(!CR_OUT.length){ toast("Render first"); return null; }
+  const st=$("#aiStat"), out=$("#aiOut");
+  st.innerHTML=`<span class="pill p-mute">looking…</span>`;
+  out.innerHTML=aiLine("warn","…","Sending the four sizes to the design agent…");
+  const r=await adsCall("ai-review",{
+    shots:await aiShots(),
+    brief:{dev:val("crDev"),proj:val("crProj"),loc:val("crLoc")},
+    settings:{layout:crLayoutId(),palette:$("#crPalette").value,font:$("#crFont").value,
+              scrim:Number($("#crScrim").value),fill:Number($("#crFill").value)}
+  });
+  if(r.error){
+    st.innerHTML=`<span class="pill p-bad">failed</span>`;
+    out.innerHTML=aiLine("bad","✕",esc(r.error));
+    return null;
+  }
+  AI_SUGGEST=r.suggest&&Object.keys(r.suggest).filter(k=>k!=="why"&&r.suggest[k]!=="").length
+    ? r.suggest : null;
+  $("#aiApply").disabled=!AI_SUGGEST;
+  const V={clean:["ok","✓"],minor:["warn","!"],bad:["bad","✕"]};
+  const v=V[r.verdict]||V.minor;
+  st.innerHTML=`<span class="pill ${r.verdict==="clean"?"p-ok":r.verdict==="bad"?"p-bad":"p-warn"}">${
+    esc(r.verdict||"reviewed")}</span>`;
+  let html=aiLine(v[0],v[1],`<b>${r.verdict==="clean"?"Nothing to fix.":
+    r.verdict==="bad"?"Serious problems.":"Minor problems."}</b>`);
+  (r.sizes||[]).forEach(sz=>{
+    const issues=(sz.issues||[]).filter(i=>i&&i.what);
+    html+=`<div class="f-lab" style="margin:10px 0 4px">${esc(sz.name||"")}</div>`;
+    html+=issues.length
+      ? issues.map(i=>aiLine(i.severity==="bad"?"bad":"warn",i.severity==="bad"?"✕":"!",esc(i.what))).join("")
+      : aiLine("ok","✓","Clean.");
+  });
+  if(AI_SUGGEST){
+    const bits=["layout","palette","font","scrim","fill"]
+      .filter(k=>AI_SUGGEST[k]!==undefined&&AI_SUGGEST[k]!=="")
+      .map(k=>`${k} → <b>${esc(String(AI_SUGGEST[k]))}</b>`);
+    html+=aiLine("warn","→",`<b>It would change:</b> ${bits.join(" · ")}<br>
+      ${esc(AI_SUGGEST.why||"")}`);
+  }
+  if(r._usage)html+=`<div class="f-note" style="margin-top:8px">${r._usage.total_tokens||"?"} tokens</div>`;
+  out.innerHTML=html;
+  return r;
+}
+function aiApply(){
+  if(!AI_SUGGEST)return false;
+  let moved=false;
+  const put=(id,v)=>{ const el=$("#"+id); if(el&&v!==undefined&&v!==""&&el.value!==String(v)){
+    el.value=String(v); el.dispatchEvent(new Event("change",{bubbles:true})); moved=true; } };
+  put("crLayout",AI_SUGGEST.layout);
+  put("crPalette",AI_SUGGEST.palette);
+  put("crFont",AI_SUGGEST.font);
+  if(AI_SUGGEST.scrim!==undefined)put("crScrim",AI_SUGGEST.scrim);
+  if(AI_SUGGEST.fill!==undefined)put("crFill",AI_SUGGEST.fill);
+  return moved;
+}
+on("#aiReview","click",()=>aiRun());
+on("#aiApply","click",async()=>{
+  if(!aiApply())return toast("Nothing it suggested is different from what is set");
+  $("#crRender").click();
+  toast("Applied — re-rendered");
+});
+on("#aiLoop","click",async()=>{
+  for(let i=0;i<3;i++){
+    const r=await aiRun();
+    if(!r)return;
+    if(r.verdict==="clean"){ toast(`Clean after ${i+1} pass${i?"es":""}`); return; }
+    if(!AI_SUGGEST){ toast("It found problems but nothing to change automatically — read them"); return; }
+    if(!aiApply()){ toast("It keeps suggesting what is already set — read the issues"); return; }
+    $("#crRender").click();
+    await new Promise(r2=>setTimeout(r2,700));
+  }
+  toast("Three passes done — read what is left");
 });
 
 /* ── the ad set ───────────────────────────────────────────────────────────
