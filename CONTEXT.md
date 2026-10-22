@@ -129,6 +129,16 @@ nothing anywhere reports it.
   the location belongs with the copy.
 - Several heroes upload at once. Each is adapted to all four sizes and becomes
   its own Demand Gen ad. The logo is uploaded once and shared.
+- A developer lockup is wide and short. Sizing a logo by height alone and
+  trusting the width tears one apart — `crLogoBox` fits it into the real space
+  between the left margin and the legal mark. The logo is never recoloured,
+  faded or filtered: contrast comes from a scrim across the top of the canvas,
+  never from touching the mark. A logo saved as a JPEG carries a white box,
+  which is flood-filled out from the edges.
+- Nothing promotional sits on the elevation. Badges go in a header or a band.
+- A band's height is measured from what goes in it (`crBandNeed`) and its
+  contents are laid out in order down it (`crBandFill`). Positioning them
+  independently is what made them print on top of each other.
 - Sets live in memory only — four JPEGs are megabytes and localStorage is
   about five in total.
 
@@ -148,9 +158,23 @@ Playwright drives the real page; Chromium is at
 `/opt/pw-browsers/chromium-1194/chrome-linux/chrome` (`--no-sandbox`).
 `jsdom` works too but is slow.
 
+**Render with a logo uploaded.** Three rounds of creative bugs came back about
+the logo — cropped, oversized, faded, in the wrong corner — and every one of
+them survived because the test harness set the developer and project as TEXT
+and never put an image in `CR.logo`. A logo-less render exercises a code path
+the user never uses. `/home/claude/logo-wide.png` (a wide two-mark lockup, the
+shape that actually breaks things) and `logo-white.jpg` (a logo with a white
+box baked in) exist for this. A creative change is not tested until both have
+been through all nine layouts.
+
+**Look at the renders.** Not "0 failures" — the picture. Every defect in the
+issue decks was visible at a glance in an image the harness had already
+written to disk.
+
 Every push should clear all of these:
 
-- 6 layouts × 4 sizes render, 0 failures, 0 page errors
+- 9 layouts × 4 sizes render, 0 failures, 0 page errors, with a logo loaded
+  and again without one
 - Search ZIP still 11,512 bytes
 - Demand Gen plan builds; no demographic left as a criterion
 - Both-channel build returns to the channel it started on
