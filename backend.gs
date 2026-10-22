@@ -530,12 +530,25 @@ function adsSegments(body, v) {
   });
 
   const out = [], ops = [], pending = [];
+  const taken = {};
   rows.forEach(function (r) {
-    const name = String(r.name || '').trim();
+    var name = String(r.name || '').trim();
     const kind = String(r.kind || '').trim();
     const input = String(r.input || '').trim();
-    if (!name || !input || !CS_TYPE[kind]) return;
-    const existing = have[name.toLowerCase()];
+    if (!input || !CS_TYPE[kind]) return;
+    if (!name) { out.push({ name: input, error: 'This line produced an empty name.' }); return; }
+    /* Google refuses a batch outright if two members of it carry the same
+       name, and two different inputs can slug down to the same thing
+       ("99acres.com/pune" and "99acres.com/pune/") — so a repeat inside this
+       batch gets a number rather than taking the whole press down with it. */
+    var key = name.toLowerCase();
+    if (taken[key]) {
+      var n = 2;
+      while (taken[(name + ' ' + n).toLowerCase()]) n++;
+      name = name + ' ' + n; key = name.toLowerCase();
+    }
+    taken[key] = true;
+    const existing = have[key];
     if (existing) { out.push({ name: name, id: existing, made: false }); return; }
     const member = { memberType: CS_TYPE[kind][0] };
     if (CS_TYPE[kind][0] === 'KEYWORD') member.keyword = input;
@@ -553,12 +566,31 @@ function adsSegments(body, v) {
   });
 
   if (ops.length) {
-    const r = adsCall('customers/' + cid + '/customAudiences:mutate', { operations: ops });
+    /* partialFailure, so one bad line no longer takes the other twenty with
+       it. Without it a single rejected name meant nothing at all was created
+       and the press had to be repeated after guessing which line was wrong. */
+    const r = adsCall('customers/' + cid + '/customAudiences:mutate',
+                      { operations: ops, partialFailure: true });
     if (r.error) return { error: r.error, created: out };
+    const why = {};
+    const pf = r.body && r.body.partialFailureError;
+    if (pf) (((pf.details || [])[0] || {}).errors || pf.errors || []).forEach(function (e) {
+      var at = -1;
+      ((e.location || {}).fieldPathElements || []).forEach(function (f) {
+        if (f.fieldName === 'operations' && f.index !== undefined) at = Number(f.index);
+      });
+      if (at >= 0) why[at] = e.message || 'Google refused this one.';
+    });
     (r.body.results || []).forEach(function (res, i) {
+      if (why[i] !== undefined) { out.push({ name: pending[i], error: why[i] }); return; }
       const id = String(res.resourceName || '').split('/').pop();
+      /* a refused operation comes back as an empty result in the same slot */
+      if (!id || id === 'null') { out.push({ name: pending[i], error: 'Google refused this one.' }); return; }
       out.push({ name: pending[i], id: id, made: true });
     });
+    /* anything Google did not answer for at all */
+    for (var k = (r.body.results || []).length; k < pending.length; k++)
+      out.push({ name: pending[k], error: why[k] || 'No answer from Google for this one.' });
   }
 
   try {
@@ -1225,6 +1257,15 @@ function buildDgOps(cid, plan, c, notes) {
     dims.push({ gender: {
       genders: gen,
       includeUndetermined: exGen.indexOf('UNDETERMINED') === -1
+    }});
+  }
+  const exPar = S.exParental || [];
+  if (exPar.length) {
+    const par = keep(['PARENT','NOT_A_PARENT'], exPar);
+    if (!par.length) throw new Error('Both parental statuses are excluded, so the campaign could reach nobody.');
+    dims.push({ parentalStatus: {
+      parentalStatuses: par,
+      includeUndetermined: exPar.indexOf('UNDETERMINED') === -1
     }});
   }
   if (wanted.length) {

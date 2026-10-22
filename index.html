@@ -265,6 +265,17 @@ code{font-family:var(--mono);background:rgba(0,0,0,.05);padding:1px 4px;border-r
 .dgc-n{font-family:var(--mono);font-size:10.5px;color:var(--muted);text-align:right}
 .dgc-n.bad{color:var(--bad,#C0392B);font-weight:700}
 .dgc-f{font-size:10px}
+/* the Demand Gen copy review: label, field, count, flag */
+.dgc-row{display:grid;grid-template-columns:34px 1fr 54px 48px;gap:8px;align-items:center;margin-bottom:5px}
+.dgc-lab{font-family:var(--mono);font-size:10.5px;color:var(--muted)}
+.dgc-in{width:100%;border:1px solid var(--line);border-radius:6px;padding:7px 9px;
+  font:inherit;font-size:12.5px;resize:vertical;min-height:34px;line-height:1.35}
+.dgc-in.over{border-color:var(--bad,#C0392B);background:#FDF3F2}
+.dgc-n{font-family:var(--mono);font-size:10.5px;color:var(--muted);text-align:right}
+.dgc-n.bad{color:var(--bad,#C0392B);font-weight:700}
+.dgc-f{font-size:10px}
+.hero-nm{flex:1 1 auto;min-width:0;border:1px solid var(--line);border-radius:5px;
+  font:inherit;font-size:12.5px;padding:4px 7px;background:#fff}
 .tgt-kind.k-city{background:#E6EBF4;color:#14213D}
 .tgt-kind.k-pin{background:#E2EEF7;color:#17618F}
 .tgt-kind.k-rad{background:#FDEBDC;color:#9A4200}
@@ -293,7 +304,7 @@ code{font-family:var(--mono);background:rgba(0,0,0,.05);padding:1px 4px;border-r
     <div class="wordmark">Search Ops Toolkit <span>· Google Ads</span></div>
     <div class="spacer"></div>
     <div class="badge-env" id="varCount">0 VARIANTS</div>
-    <span class="pill p-mute" id="buildTag" title="build">b-22oct-2</span>
+    <span class="pill p-mute" id="buildTag" title="build">b-22oct-3</span>
     <div id="userChip" class="hidden" style="display:flex;align-items:center;gap:9px">
       <div class="divider-v"></div>
       <span id="userName" style="font-size:12.5px;font-weight:500"></span>
@@ -535,48 +546,30 @@ Static Square</textarea>
           <span class="f-note">Attached to every Demand Gen ad group. Segments must already exist in the account.</span>
         </div>
         <div class="f">
-          <span class="f-lab">Custom segments to build — one line becomes one segment</span>
-          <span class="f-note" style="margin-bottom:8px">Google builds a custom segment from one kind of
-            signal at a time, so each line below is created as its own segment. Mixing a URL and a keyword
-            into one segment makes it match neither well.<br>
-            <b>Two strategies share a kind</b> — yb and yc both run on channels, ub and uc on URLs,
-            kb/kc/kg on terms. Start a line with a strategy and a pipe to give that line to one of
-            them only: <code>yb | https://youtube.com/@channel</code>. Several at once with commas:
-            <code>kb,kc | 3 bhk pune</code>. A line with no strategy goes to every strategy of that kind.</span>
+          <span class="f-lab">Custom segments — one box per strategy</span>
+          <span class="f-note" style="margin-bottom:10px">Each box belongs to one strategy and one kind of
+            signal, so there is nothing to name and nothing to tag. One line becomes one segment, because
+            Google matches a custom segment on a single signal at a time. The name is built for you from
+            the project and the strategy.</span>
         </div>
-        <div class="row2">
-          <label class="f"><span class="f-lab">Search terms — one keyword per line</span>
-            <textarea id="csKw" rows="4" placeholder="flats in koregaon park&#10;kb | 3 bhk pune riverfront&#10;kc,kg | luxury apartments pune"></textarea>
-            <span class="f-note">People who searched any of these terms · used by kb, kc, kg</span></label>
-          <label class="f"><span class="f-lab">Website URLs — one URL per line</span>
-            <textarea id="csUrl" rows="4" placeholder="https://www.competitor-project.com&#10;ub | https://www.99acres.com/pune&#10;uc | https://housing.com/pune"></textarea>
-            <span class="f-note">People who browse sites like these · used by ub, uc, news-portal, property-portal-url</span></label>
-        </div>
-        <div class="row2">
-          <label class="f"><span class="f-lab">YouTube channels — one URL per line</span>
-            <textarea id="csYt" rows="4" placeholder="yb | https://www.youtube.com/@channelname&#10;yc | https://www.youtube.com/@builderchannel"></textarea>
-            <span class="f-note">People who watch these channels · used by yb, yc</span></label>
-          <label class="f"><span class="f-lab">Apps — one package ID per line</span>
-            <textarea id="csApp" rows="4" placeholder="com.til.magicbricks&#10;com.nnacres.app&#10;in.housing.app"></textarea>
-            <span class="f-note">People who use these apps · used by news-app, property-portal-app</span></label>
-        </div>
+        <div id="csBoxes"></div>
         <div class="f">
           <span class="f-lab">What each strategy will actually get</span>
           <div id="csMap"></div>
-          <span class="f-note">Read straight off the lines above. A strategy with nothing listed targets
-            no segment at all, which on Demand Gen means it reaches everyone in the location.</span>
+          <span class="f-note">A strategy with nothing listed targets no segment at all, which on Demand
+            Gen means it reaches everyone inside the location.</span>
         </div>
         <div class="f">
           <div class="btnrow" style="margin-bottom:8px">
             <button class="btn btn-sm btn-pri" id="csBuild">Create these in the account</button>
+            <button class="btn btn-sm" id="csMore">More signal types</button>
             <span class="hint" id="csStat"></span>
           </div>
-          <span class="f-note">One press creates each line as its own custom segment in the client
-            account and writes the ID back here, so the next deploy attaches them. A segment that is
-            already there is matched by name rather than made twice. Sheet 13 lists them either way.<br>
-            Which strategy uses which list: <b>yb/yc</b> the channels, <b>ub/uc</b> and the portal and
-            news URL strategies the URLs, <b>kb/kc/kg</b> the search terms, the app strategies the apps,
-            <b>In</b>/luxury/invest/avid the library segments, <b>Op</b> none.</span>
+          <div id="csErrs" style="margin-bottom:8px"></div>
+          <span class="f-note">One press creates each line as its own custom segment in the client account
+            and writes the ID back beside the line, so the next deploy attaches it. One that is already
+            there is matched by name rather than made twice. A line Google refuses is reported on its own
+            now — the rest are still created.</span>
         </div>
       </div>
     </div>
@@ -1267,12 +1260,19 @@ Static Square</textarea>
         <div class="f">
           <span class="f-lab">Exclude household income</span>
           <div id="demoInc"></div>
-          <span class="f-note">Top 50% and unknown are normally kept; everything below is excluded.</span>
+          <span class="f-note">The bands Google Ads itself shows. Excluding Lower 50% is the house
+            default, which leaves Top 10% through 41-50% and Unknown running.</span>
         </div>
         <div class="f">
           <span class="f-lab">Exclude gender</span>
           <div id="demoGen"></div>
-          <span class="f-note">Leave both unticked unless the project genuinely calls for it.</span>
+          <span class="f-note">Leave all three unticked unless the project genuinely calls for it.</span>
+        </div>
+        <div class="f">
+          <span class="f-lab">Exclude parental status</span>
+          <div id="demoPar"></div>
+          <span class="f-note">Normally left alone — a flat sells to parents and to people without
+            children alike.</span>
         </div>
       </div>
     </div>
@@ -1351,15 +1351,19 @@ Static Square</textarea>
     <div class="card">
       <div class="card-hd"><h2>Artwork</h2><span class="hint" id="crStat">no hero image</span></div>
       <div class="card-bd">
-        <div class="callout">The hero render is the developer's own artwork, so it is uploaded, not invented.
-          Everything over it — logo, RERA, the offer badge, the price bar — is drawn here, in all four
-          sizes Demand Gen asks for.</div>
-        <div class="f" style="margin-top:12px"><span class="f-lab">Hero image <span class="pill p-mute">required</span></span>
+        <div class="callout">The renders are the developer's own artwork, so they are uploaded, not
+          invented. Everything over them — logo, RERA, the offer badge, the price bar — is drawn here,
+          in all four sizes Demand Gen asks for.</div>
+        <div class="f" style="margin-top:12px"><span class="f-lab">Hero images <span class="pill p-mute">required</span></span>
           <label class="drop" for="crHero" id="dropHero">
-            <input type="file" id="crHero" accept="image/*">
+            <input type="file" id="crHero" accept="image/*" multiple>
             <span class="drop-ic">↑</span>
-            <span class="drop-txt"><b>Choose the project render</b><span class="drop-sub">or drop it here — 1920px wide or more</span></span>
-          </label></div>
+            <span class="drop-txt"><b>Choose the project renders</b><span class="drop-sub">or drop them here — several at once, 1920px wide or more</span></span>
+          </label>
+          <span class="f-note">Elevation, Interior, Amenities, Clubhouse — drop them all in. Each is
+            adapted to all four sizes and becomes <b>its own Demand Gen ad</b>, under the same ad groups
+            with the same copy. The file name becomes the ad name; edit it below.</span>
+          <div id="heroList" style="margin-top:8px"></div></div>
         <div class="row2">
           <div class="f"><span class="f-lab">Developer logo</span>
             <label class="drop drop-sm" for="crLogo" id="dropLogo">
@@ -1431,27 +1435,23 @@ Static Square</textarea>
       <div class="card-hd"><h2>Creatives</h2><span class="hint" id="crSizes">4 sizes</span></div>
       <div class="card-bd">
         <div class="btnrow">
-          <button class="btn btn-pri" id="crRender">Render all four sizes</button>
+          <button class="btn btn-pri" id="crRender">Render every hero, all four sizes</button>
           <button class="btn btn-navy" id="crZip">Download ZIP</button>
           <button class="btn" id="crChecks">Check against Google</button>
         </div>
-        <div id="crOut" style="margin-top:14px"><div class="empty">Upload a hero image, then render.</div></div>
+        <div id="crOut" style="margin-top:14px"><div class="empty">Upload at least one hero image, then render.</div></div>
       </div>
     </div>
 
     <div class="card">
-      <div class="card-hd"><h2>Ad set</h2><span class="hint" id="setStat">no creatives kept</span></div>
+      <div class="card-hd"><h2>Ads to be created</h2><span class="hint" id="setStat">nothing rendered</span></div>
       <div class="card-bd">
-        <div class="callout">Keep what you have rendered, change the hero image, render again, keep that
-          too. <b>Each kept set becomes its own ad</b>, with the same copy and the same ad groups — which
-          is how two renders of one project get tested against each other.</div>
-        <div class="ticket" style="grid-template-columns:1fr 150px;margin-top:12px">
-          <input type="text" id="setName" placeholder="Name this one — Elevation, Clubhouse, Aerial">
-          <button class="btn btn-sm btn-pri" id="setKeep">Keep these four</button>
-        </div>
-        <div id="setList" style="margin-top:10px"></div>
-        <div class="f-note" style="margin-top:8px">Kept sets live for this browser session only — they are
-          too large for saved projects, so render and keep them again next time.</div>
+        <div class="callout">One ad per hero image, all under the same ad groups with the same copy —
+          which is how Elevation, Interior and Amenities get tested against each other instead of
+          replacing one another. Rename an ad by renaming its hero on the left.</div>
+        <div id="setList" style="margin-top:12px"></div>
+        <div class="f-note" style="margin-top:8px">These live for this browser session only — far too
+          large for a saved project, so render again next time.</div>
       </div>
     </div>
 
@@ -2013,6 +2013,7 @@ function fillStrategies(){
   if(![...sel.selectedOptions].length){const f=[...sel.options].find(o=>!blockedStrat(o.value)); if(f)f.selected=true;}
   rememberStrats();
   drawStratBoxes();
+  try{ drawCsBoxes(); }catch(e){}
   $("#wrapMatch").classList.toggle("hidden",CH!=="search");
   $("#mgLabel").textContent=CH==="search"?"Search":"Demand Gen";
 }
@@ -4023,12 +4024,52 @@ function adFor(kws){
    well. Each row below is therefore one segment with exactly one input.
    These are created through the API by "Create these in the account", which
    writes each new ID back beside its line. */
-const CS_KINDS=[
-  ["csKw",  "Search terms",     "People who searched any of these terms"],
-  ["csUrl", "Website URLs",     "People who browse types of websites"],
-  ["csYt",  "YouTube channels", "People who browse types of websites (channel URL)"],
-  ["csApp", "Apps",             "People who use types of apps"]
+/* One box per strategy, not one per signal type. Two strategies share a
+   signal — yb and yc both run on channels — so a box per type meant both got
+   the same lines, and tagging them by hand was worse. The strategy is the box,
+   the signal type comes with it, and the segment name is built, never typed. */
+const CS_BUCKETS=[
+  /* code, box label, signal type, placeholder, core */
+  ["kb","KB — Keyword · Brand",      "Search terms",     "goelganga global riverfront\nglobal riverfront mundhwa",true],
+  ["kc","KC — Keyword · Competitor", "Search terms",     "kolte patil life republic\ngodrej park greens",true],
+  ["ub","UB — URL · Brand",          "Website URLs",     "https://www.goelganga.com/global-riverfront",true],
+  ["uc","UC — URL · Competitor",     "Website URLs",     "https://www.koltepatil.com/life-republic",true],
+  ["yb","YB — YouTube · Brand",      "YouTube channels", "https://www.youtube.com/@goelgangadevelopments",true],
+  ["yc","YC — YouTube · Competitor", "YouTube channels", "https://www.youtube.com/@koltepatil",true],
+  ["kg","KG — Keyword · Generic",         "Search terms",     "3 bhk flats in mundhwa\nluxury apartments pune",false],
+  ["news-portal","News portal · URLs",    "Website URLs",     "https://timesofindia.indiatimes.com/city/pune",false],
+  ["property-portal-url","Property portal · URLs","Website URLs","https://www.99acres.com/property-in-pune",false],
+  ["news-app","News · Apps",              "Apps",             "com.toi.reader.activities",false],
+  ["property-portal-app","Property portal · Apps","Apps",      "com.til.magicbricks\ncom.nnacres.app",false]
 ];
+const csId=code=>"cs_"+String(code).replace(/[^a-z0-9]/gi,"_");
+let CS_SHOW_ALL=store.get("pp_csall",false)||false;
+function drawCsBoxes(){
+  const box=$("#csBoxes"); if(!box)return;
+  const live=new Set((STRATS.demandgen||[]).map(r=>String(r[1]||r[0]||"").toLowerCase()));
+  /* the six he runs are always there; the rest appear when they are in use,
+     or when he asks for them */
+  const show=CS_BUCKETS.filter(b=>b[4]||CS_SHOW_ALL||live.has(b[0]));
+  box.innerHTML=`<div class="row2">`+show.map(b=>{
+    const [code,label,kind,ph]=b;
+    const off=live.size&&!live.has(code);
+    return `<label class="f">
+      <span class="f-lab">${esc(label)}
+        ${off?`<span class="pill p-mute" title="This strategy is not picked on tab 01">not in this build</span>`:""}</span>
+      <textarea id="${csId(code)}" rows="4" spellcheck="false" placeholder="${esc(ph)}"></textarea>
+      <span class="f-note">${esc(kind)} · one per line · goes only to <b>${esc(code)}</b></span></label>`;
+  }).join("")+`</div>`;
+  const btn=$("#csMore");
+  if(btn)btn.textContent=CS_SHOW_ALL?"Just the six":"More signal types";
+  /* the fields are rebuilt, so what was typed has to be put back */
+  CS_BUCKETS.forEach(b=>{ const el=$("#"+csId(b[0]));
+    if(el&&CS_TEXT[b[0]]!==undefined)el.value=CS_TEXT[b[0]]; });
+}
+let CS_TEXT=store.get("pp_csv2",{})||{};
+function csRead(){
+  CS_BUCKETS.forEach(b=>{ const el=$("#"+csId(b[0])); if(el)CS_TEXT[b[0]]=el.value; });
+  store.set("pp_csv2",CS_TEXT);
+}
 function csLabel(v){
   let t=String(v||"").trim();
   /* a channel is best named by its handle, not by "youtube-com-..." */
@@ -4060,10 +4101,11 @@ function audiencesFor(strat){
   const picked=pickedAudiences().map(a=>({name:a[0],type:a[1],id:a[2]||""}));
   if(code==="op")return [];
   if(STRAT_LIB.indexOf(code)>-1)return picked;
-  const kind=STRAT_KIND[code];
-  if(!kind)return picked;
+  if(!STRAT_KIND[code])return picked;
+  /* each line already belongs to exactly one strategy — the box it was typed
+     into — so there is nothing to work out here */
   return customSegments()
-    .filter(r=>r[1]===kind&&(!r[6].length||r[6].indexOf(code)>-1))
+    .filter(r=>(r[6]||[]).indexOf(code)>-1)
     .map(r=>({name:r[0],type:"Custom segment",id:r[5]||""}));
 }
 /* the live answer to "which strategy gets what", read off the same lines */
@@ -4105,6 +4147,12 @@ function csParse(v){
   }
   return {input,id,strats};
 }
+const CS_FIELD={
+  "Search terms"    :"People who searched any of these terms",
+  "Website URLs"    :"People who browse types of websites",
+  "YouTube channels":"People who browse types of websites (channel URL)",
+  "Apps"            :"People who use types of apps"
+};
 function customSegments(){
   const b=brief(), rows=[];
   /* [Developer] [Project] [Location], except the developer is dropped when
@@ -4116,17 +4164,29 @@ function customSegments(){
   const devCarried=String(b.dev||"").split(/\s+/).some(w=>projWords.has(key(w)));
   const stem=[devCarried?"":slug(b.dev||""), slug(b.proj||"project"),
               slug(b.micro||b.city||"")].filter(Boolean).join("-");
-  CS_KINDS.forEach(([id,kind,field])=>{
-    const el=$("#"+id); if(!el)return;
-    lines(el.value).forEach(v=>{
+  const seen={};
+  CS_BUCKETS.forEach(([code,label,kind])=>{
+    const el=$("#"+csId(code));
+    const txt=el?el.value:(CS_TEXT[code]||"");
+    lines(txt).forEach(v=>{
       /* "the input  ::1234567" lets a segment that has been created carry its
          ID back in, so the deploy attaches it instead of reporting it skipped */
-      const {input,id,strats}=csParse(v);
+      const {input,id}=csParse(v);
       if(!input)return;
-      rows.push([`${stem}-${slug(kind.split(" ")[0])}-${slug(csLabel(input))}`.slice(0,80),
-                 kind, input, field,
+      /* the name is built, never typed: project, strategy, then the thing
+         itself. Two inputs that slug down to the same name get a number,
+         because Google refuses a whole batch that carries one name twice —
+         which is how a naming error used to mean nothing got created. */
+      /* 78 characters cut the input off mid-word once the project stem had
+         taken its share; Google's own field is far longer than that. */
+      var nm=`${stem}-${code}-${slug(csLabel(input))}`.slice(0,110);
+      if(seen[nm.toLowerCase()]){ var n=2;
+        while(seen[`${nm} ${n}`.toLowerCase()])n++;
+        nm=`${nm} ${n}`; }
+      seen[nm.toLowerCase()]=true;
+      rows.push([nm, kind, input, CS_FIELD[kind]||"",
                  "Google Ads → Tools → Audience manager → Custom segments → New custom segment",
-                 id, strats]);
+                 id, [code]]);
     });
   });
   return rows;
@@ -5278,6 +5338,7 @@ function apSettings(){
     exAge       : demoPicked("age"),
     exGender    : demoPicked("gen"),
     exIncome    : demoPicked("inc"),
+    exParental  : demoPicked("par"),
     /* This account targets on the campaign for both channels, so Demand Gen
        is created with upgraded targeting off. That is also what makes a
        radius possible at all. */
@@ -5700,18 +5761,27 @@ const DEMO_AGE=[["AGE_RANGE_18_24","18-24",true],["AGE_RANGE_25_34","25-34",fals
   ["AGE_RANGE_35_44","35-44",false],["AGE_RANGE_45_54","45-54",false],
   ["AGE_RANGE_55_64","55-64",false],["AGE_RANGE_65_UP","65+",true],
   ["AGE_RANGE_UNDETERMINED","Unknown",false]];
-const DEMO_INC=[["INCOME_RANGE_0_50","Lower 50%",true],["INCOME_RANGE_50_60","50-60%",false],
-  ["INCOME_RANGE_60_70","60-70%",false],["INCOME_RANGE_70_80","70-80%",false],
-  ["INCOME_RANGE_80_90","80-90%",false],["INCOME_RANGE_90_UP","Top 10%",false],
+/* The API counts household income as a percentile from the BOTTOM, so
+   INCOME_RANGE_90_UP is the top 10% and INCOME_RANGE_50_60 is the 41-50%
+   band. Printing those raw boundaries put "60-70%" and "70-80%" on screen,
+   which are not bands Google Ads shows anywhere. The labels below are what
+   the interface says, in the order the interface lists them; the values are
+   the API's own, untouched. */
+const DEMO_INC=[["INCOME_RANGE_90_UP","Top 10%",false],["INCOME_RANGE_80_90","11-20%",false],
+  ["INCOME_RANGE_70_80","21-30%",false],["INCOME_RANGE_60_70","31-40%",false],
+  ["INCOME_RANGE_50_60","41-50%",false],["INCOME_RANGE_0_50","Lower 50%",true],
   ["INCOME_RANGE_UNDETERMINED","Unknown",false]];
-const DEMO_GEN=[["MALE","Male",false],["FEMALE","Female",false],["UNDETERMINED","Unknown",false]];
+const DEMO_GEN=[["FEMALE","Female",false],["MALE","Male",false],["UNDETERMINED","Unknown",false]];
+const DEMO_PAR=[["PARENT","Parent",false],["NOT_A_PARENT","Not a parent",false],
+  ["UNDETERMINED","Unknown",false]];
 function drawDemoBoxes(){
   const put=(sel,list,kind)=>{ const el=$(sel); if(!el)return;
     el.innerHTML=list.map(([v,label,def])=>
       `<label class="chk" style="display:inline-flex;margin-right:14px">
          <input type="checkbox" data-demo="${kind}" value="${v}"${def?" checked":""}><span>${esc(label)}</span></label>`).join("");
   };
-  put("#demoAge",DEMO_AGE,"age"); put("#demoInc",DEMO_INC,"inc"); put("#demoGen",DEMO_GEN,"gen");
+  put("#demoAge",DEMO_AGE,"age"); put("#demoInc",DEMO_INC,"inc");
+  put("#demoGen",DEMO_GEN,"gen");  put("#demoPar",DEMO_PAR,"par");
 }
 const demoPicked=kind=>[...document.querySelectorAll(`[data-demo="${kind}"]`)]
   .filter(b=>b.checked).map(b=>b.value);
@@ -5876,25 +5946,37 @@ on("#csBuild","click",async()=>{
   if(r.error){ if(st)st.innerHTML=`<span class="pill p-bad">failed</span>`;
     return toast(explainErr?String(r.error).slice(0,160):r.error); }
   /* write each ID back beside the line that produced it */
-  const byName={}; (r.segments||[]).forEach(x=>{ byName[x.name]=x.id; });
+  const byName={}, errByName={};
+  (r.segments||[]).forEach(x=>{ if(x.id)byName[x.name]=x.id; if(x.error)errByName[x.name]=x.error; });
   let wrote=0;
-  CS_KINDS.forEach(([id,kind])=>{
-    const el=$("#"+id); if(!el)return;
+  CS_BUCKETS.forEach(([code])=>{
+    const el=$("#"+csId(code)); if(!el)return;
     const out=lines(el.value).map(v=>{
       const p=csParse(v);
       if(!p.input||p.id)return v;                       /* empty, or already has one */
-      const row=rows.find(x=>x[1]===kind&&x[2]===p.input);
+      const row=rows.find(x=>(x[6]||[])[0]===code&&x[2]===p.input);
       const nid=row&&byName[row[0]];
-      /* the strategy tag is kept on the line, the ID appended after it */
       if(nid){ wrote++; return `${v.split("::")[0].trim()} ::${nid}`; }
       return v;
     });
     el.value=out.join("\n");
   });
+  csRead();
   const made=(r.segments||[]).filter(x=>x.made).length;
-  if(st)st.innerHTML=`<span class="pill p-ok">${made} created · ${(r.segments||[]).length-made} already there</span>`;
-  toast(`${made} segments created, ${wrote} IDs written back`);
-  drawApSettings(); drawApPlan();
+  const bad=(r.segments||[]).filter(x=>x.error);
+  if(st)st.innerHTML=`<span class="pill ${bad.length?"p-warn":"p-ok"}">${made} created · ${
+    (r.segments||[]).length-made-bad.length} already there${bad.length?` · ${bad.length} refused`:""}</span>`;
+  /* a refused line used to take the whole press down with it and say nothing
+     about which one it was. Now the others are created and each refusal is
+     named, under the box it came from. */
+  const em=$("#csErrs");
+  if(em)em.innerHTML=bad.length?bad.map(x=>{
+    const row=rows.find(y=>y[0]===x.name);
+    return `<div class="check c-bad"><span class="ic">✕</span><span>
+      <b>${esc(((row||[])[6]||[""])[0].toUpperCase())} · ${esc((row||[])[2]||x.name)}</b><br>${esc(x.error)}</span></div>`;
+  }).join(""):"";
+  toast(`${made} segments created, ${wrote} IDs written back${bad.length?`, ${bad.length} refused`:""}`);
+  drawCsMap(); drawApSettings(); drawApPlan();
   logEvent("ads-segments",`${cid} ${made} created`);
 });
 on("#apValidate","click",()=>apRun("validate"));
@@ -5983,7 +6065,10 @@ on("#cgLocId","input",()=>{
 });
 
 drawDemo(); fillAudPick(); showDGCard(); dgcShow(); drawCsMap();
-CS_KINDS.forEach(([id])=>{ const el=$("#"+id); if(el)el.addEventListener("input",drawCsMap); });
+drawCsBoxes();
+on("#csBoxes","input",()=>{ csRead(); drawCsMap(); });
+on("#csMore","click",()=>{ CS_SHOW_ALL=!CS_SHOW_ALL; store.set("pp_csall",CS_SHOW_ALL);
+  drawCsBoxes(); drawCsMap(); });
 on("#audPick","change",drawCsMap);
 /* ═══════════ 08 creative studio ═══════════
    The hero render belongs to the developer, so it is uploaded. Everything
@@ -6015,17 +6100,74 @@ function crLoad(file){
     fr.readAsDataURL(file);
   });
 }
-["hero","logo","qr"].forEach(k=>{
+/* \u2500\u2500 the heroes \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
+   A project is shot more than once \u2014 elevation, interior, amenities \u2014 and
+   each of those is a different ad, not a different project. They are all
+   loaded here, adapted to the four sizes each, and each becomes its own ad. */
+let HEROES=[];
+const heroName=f=>String(f.name||"Hero").replace(/\.[a-z0-9]+$/i,"")
+  .replace(/[_-]+/g," ").replace(/\s+/g," ").trim().slice(0,40)||"Hero";
+function drawHeroes(){
+  const box=$("#heroList"); if(!box)return;
+  box.innerHTML=HEROES.length?HEROES.map((h,i)=>`
+    <div class="tgt-row">
+      <img src="${h.img.src}" alt="" style="width:34px;height:34px;object-fit:cover;border-radius:4px;flex:0 0 auto">
+      <span class="tgt-kind k-city">AD ${i+1}</span>
+      <input class="hero-nm" value="${esc(h.name)}" data-hn="${i}" spellcheck="false">
+      <span class="cid${h.img.naturalWidth<1200?" miss":""}">${h.img.naturalWidth}\u00d7${h.img.naturalHeight}</span>
+      <button class="x" data-hx="${i}" title="Remove">\u2715</button>
+    </div>`).join(""):"";
+  CR.hero=HEROES.length?HEROES[0].img:null;
+  crStat();
+}
+on("#heroList","input",e=>{
+  const n=e.target.closest("[data-hn]"); if(!n)return;
+  HEROES[+n.dataset.hn].name=n.value.trim()||`Hero ${+n.dataset.hn+1}`;
+});
+on("#heroList","click",e=>{
+  const x=e.target.closest("[data-hx]"); if(!x)return;
+  HEROES.splice(+x.dataset.hx,1); drawHeroes();
+  if(!HEROES.length){ CR_OUT=[]; CR_SETS=[]; drawSets();
+    $("#crOut").innerHTML=`<div class="empty">Upload at least one hero image, then render.</div>`; }
+});
+(function(){
+  const el=$("#crHero"); if(!el)return;
+  const take=async files=>{
+    const list=files&&files.length?[...files]:(files?[files]:[]);
+    if(!list.length)return;
+    let bad=0;
+    for(const f of list){
+      try{
+        const img=await crLoad(f);
+        const nm=heroName(f);
+        /* the same file dropped twice is one ad, not two */
+        if(HEROES.some(h=>h.name.toLowerCase()===nm.toLowerCase()&&h.img.src===img.src))continue;
+        HEROES.push({name:HEROES.some(h=>h.name.toLowerCase()===nm.toLowerCase())
+          ?`${nm} ${HEROES.length+1}`:nm, img});
+      }catch(err){ bad++; }
+    }
+    el.value=""; drawHeroes();
+    dropFilled("dropHero",
+      `${HEROES.length} hero${HEROES.length===1?"":"es"}`,
+      HEROES.map(h=>h.name).join(" \u00b7 ").slice(0,90),
+      HEROES.length?HEROES[0].img.src:"");
+    toast(bad?`${HEROES.length} loaded, ${bad} could not be read`
+             :`${HEROES.length} hero${HEROES.length===1?"":"es"} loaded \u2014 press Render`);
+  };
+  el.addEventListener("change",e=>take(e.target.files));
+  dropWire("dropHero",take);
+})();
+["logo","qr"].forEach(k=>{
   const cap=k.charAt(0).toUpperCase()+k.slice(1);
   const el=$("#cr"+cap);
   if(!el)return;
   const take=async f=>{
+    if(f&&f.length!==undefined)f=f[0];
     if(!f)return;
     try{
       CR[k]=await crLoad(f); crStat();
       dropFilled("drop"+cap,f.name,
         CR[k].naturalWidth+"\u00d7"+CR[k].naturalHeight+" \u00b7 "+kbSize(f.size),CR[k].src);
-      if(k==="hero")toast("Hero loaded \u2014 press Render");
     }catch(err){ el.value=""; toast(String(err.message||err)); }
   };
   el.addEventListener("change",e=>take(e.target.files&&e.target.files[0]));
@@ -6835,26 +6977,47 @@ function crRenderOne(W,H){
 
 
 on("#crRender","click",()=>{
-  if(!CR.hero)return toast("Upload the hero image first");
+  if(!HEROES.length)return toast("Upload at least one hero image first");
   crFill();
-  CR_OUT=[];
+  CR_OUT=[]; CR_SETS=[];
   const box=$("#crOut"); box.innerHTML="";
-  CR_SIZES.forEach(([name,w,h,ratio])=>{
-    const c=crRenderOne(w,h);
-    const url=c.toDataURL("image/jpeg",0.92);
-    const bytes=Math.round((url.length-url.indexOf(",")-1)*3/4);
-    CR_OUT.push({name,w,h,ratio,url,bytes});
+  const lg=dgLogo();
+  let html="";
+  HEROES.forEach((hero,hi)=>{
+    /* the layout draws whatever CR.hero currently is, so each pass puts its
+       own render there and takes it out again at the end */
+    CR.hero=hero.img;
+    const set={name:hero.name,images:{},thumb:"",sizes:[],layout:crLayoutId()};
+    const mine=[];
+    CR_SIZES.forEach(([name,w,h,ratio])=>{
+      const c=crRenderOne(w,h);
+      const url=c.toDataURL("image/jpeg",0.92);
+      const bytes=Math.round((url.length-url.indexOf(",")-1)*3/4);
+      const o={name,w,h,ratio,url,bytes,hero:hero.name,k:CR_OUT.length};
+      CR_OUT.push(o); mine.push(o);
+      const b64=url.split(",")[1];
+      if(b64){ set.images[name]={data:b64}; set.sizes.push(name); }
+      if(name==="square")set.thumb=url;
+    });
+    if(lg)set.images.logo=lg;
+    if(!set.thumb)set.thumb=mine[0]?mine[0].url:"";
+    CR_SETS.push(set);
+    html+=`<div class="f-lab" style="margin:${hi?18:4}px 0 8px">
+        <span class="tgt-kind k-city">AD ${hi+1}</span> ${esc(hero.name)}</div>`+
+      `<div class="row2">`+mine.map(o=>`
+      <div style="margin-bottom:14px">
+        <img src="${o.url}" alt="${esc(o.name)}" data-k="${o.k}" class="cr-open"
+          style="width:100%;border:1px solid var(--line);border-radius:6px;display:block">
+        <div class="mini" style="margin-top:6px">${esc(o.name)} · ${o.w}×${o.h} · ${o.ratio}
+          <span class="p-mute">${(o.bytes/1024).toFixed(0)} KB</span></div>
+      </div>`).join("")+`</div>`;
   });
-  box.innerHTML=`<div class="row2">`+CR_OUT.map(o=>`
-    <div style="margin-bottom:14px">
-      <img src="${o.url}" alt="${esc(o.name)}" data-k="${CR_OUT.indexOf(o)}" class="cr-open"
-        style="width:100%;border:1px solid var(--line);border-radius:6px;display:block">
-      <div class="mini" style="margin-top:6px">${esc(o.name)} · ${o.w}×${o.h} · ${o.ratio}
-        <span class="p-mute">${(o.bytes/1024).toFixed(0)} KB</span></div>
-    </div>`).join("")+`</div>`;
-  $("#crSizes").innerHTML=`<span class="pill p-ok">${CR_OUT.length} rendered</span>`;
-  crChecks(); drawApSettings(); drawApPlan();
-  logEvent("creative",`${CR_OUT.length} sizes`);
+  CR.hero=HEROES[0].img;
+  box.innerHTML=html;
+  $("#crSizes").innerHTML=`<span class="pill p-ok">${HEROES.length} hero${
+    HEROES.length===1?"":"es"} × 4 = ${CR_OUT.length} rendered</span>`;
+  drawSets(); crChecks(); drawApSettings(); drawApPlan();
+  logEvent("creative",`${HEROES.length} heroes, ${CR_OUT.length} sizes`);
 });
 
 /* ── the ad set ───────────────────────────────────────────────────────────
@@ -6863,14 +7026,6 @@ on("#crRender","click",()=>{
    They are held in memory, not localStorage: four JPEGs come to a couple of
    megabytes and the whole store is about five. */
 let CR_SETS=[];
-function setSnapshot(name){
-  const im={};
-  CR_OUT.forEach(o=>{ const b=String(o.url||"").split(",")[1]; if(b)im[o.name]={data:b}; });
-  const lg=dgLogo(); if(lg)im.logo=lg;
-  return {name:name||`Creative ${CR_SETS.length+1}`,images:im,
-          thumb:(CR_OUT.find(o=>o.name==="square")||CR_OUT[0]||{}).url||"",
-          sizes:CR_OUT.map(o=>o.name),layout:crLayoutId()};
-}
 function drawSets(){
   const st=$("#setStat");
   if(st)st.innerHTML=CR_SETS.length
@@ -6893,16 +7048,6 @@ function drawSets(){
     <b>${mb.toFixed(0)} MB of artwork.</b> Everything travels to the script in one request. Four sets
     is comfortable; past that, deploy in two runs.</span></div>`;
 }
-on("#setKeep","click",()=>{
-  if(!CR_OUT.length)return toast("Render the four sizes first");
-  const nm=($("#setName").value||"").trim()||`Creative ${CR_SETS.length+1}`;
-  if(CR_SETS.some(s=>s.name.toLowerCase()===nm.toLowerCase()))
-    return toast("A set with that name is already kept — give this one another name");
-  CR_SETS.push(setSnapshot(nm));
-  $("#setName").value="";
-  drawSets(); drawApSettings(); drawApPlan();
-  toast(`"${nm}" kept — ${CR_SETS.length} ad${CR_SETS.length===1?"":"s"} per ad group`);
-});
 on("#setList","click",e=>{
   const x=e.target.closest("[data-sx]"); if(!x)return;
   const [s]=CR_SETS.splice(+x.dataset.sx,1);
@@ -6964,7 +7109,7 @@ drawDemoBoxes(); drawImgs();
 if($("#asBizName")&&PROJ.bizName)$("#asBizName").value=PROJ.bizName;
 ["negExtra","negLists","negExactInPhrase"].forEach(id=>{
   const el=$("#"+id); if(el)el.addEventListener("change",drawApSettings); });
-$$("#demoAge input,#demoInc input,#demoGen input").forEach(el=>el.addEventListener("change",drawApSettings));
+$$("#demoAge input,#demoInc input,#demoGen input,#demoPar input").forEach(el=>el.addEventListener("change",drawApSettings));
 drawApSettings(); drawApPlan();
 /* ═══════════ the targeting map ═══════════
    Radius and pincode targeting, drawn rather than typed. Both end up as
