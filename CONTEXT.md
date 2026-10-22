@@ -75,9 +75,13 @@ never dropped silently between the plan and what Google received.
 - **One URL or one keyword per custom segment.** Mixing signals makes a
   segment match neither well.
 - **Location goes on the campaign** for both channels.
-- **RERA is a legal notice.** It appears on every creative, in the same place,
-  at the same size relative to the width — one navy band at the foot, drawn
-  after the layout, never by the layout.
+- **RERA is a legal notice, and it goes top right.** The Creative Guidelines
+  say so outright: number top-right, QR beside it, portal URL directly below
+  the number, "consistent placement across every creative format". It is drawn
+  after the layout by `crReraTop`, never by a layout, and every layout caps its
+  lockup out of that corner with `crReraW(W)`.
+- **The price is the strongest element on the creative.** The deck says it
+  every time. It carries the palette accent on dark, the ink on light.
 
 ## The strategy codes
 
@@ -93,8 +97,18 @@ segment name is built, never typed.
 
 ## The creative renderer
 
-Six layouts in `CR_DRAW` (`header` is the default), four sizes: square
+Nine layouts in `CR_DRAW` (`header` is the default), four sizes: square
 1200×1200, portrait 960×1200, landscape 1200×628, story 1080×1920.
+
+Palettes (`CR_PALETTES`) and typefaces (`CR_FONTS`) are picked per project and
+are taken from the Creative Guidelines deck, not invented — each palette is one
+of the colour schemes that deck states in words, each typeface pair one of the
+four registers it keeps asking for. `crRenderOne` sets `INK`, `PAPER`, `RED`,
+`CR_DISP` and `CR_BODY` for the duration of a render. Never name a face
+directly in a `g.font` string; go through `F_H` / `F_B`, or the picker stops
+working for that one line. `crFontsReady()` is awaited before a render: a
+webfont that has not finished loading is silently swapped for the fallback and
+nothing anywhere reports it.
 
 - Scale is `S`. On a wide canvas it comes off the **width**, not
   `min(W,H)` — sizing for height left 1.91:1 type at about half size.

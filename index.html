@@ -8,7 +8,11 @@
 <link rel="icon" type="image/svg+xml" href="https://cdn.propertypistol.com/images/pp-logo-updated.svg">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700;800&family=IBM+Plex+Mono:wght@400;500;600&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700;800&family=IBM+Plex+Mono:wght@400;500;600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<!-- the creative faces: the four registers the Creative Guidelines deck keeps
+     asking for. Loaded here so the canvas can draw with them, and awaited
+     before a render so a half-loaded face cannot silently fall back. -->
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@300;400;500;600;700&family=Playfair+Display:wght@400;500;600;700;800&family=Cormorant+Garamond:wght@300;400;500;600;700&family=Marcellus&family=Cinzel:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
 :root{
   --ink:#14161C; --ink-soft:#4A5160; --line:#DFE2E7; --line-soft:#ECEEF1;
@@ -274,6 +278,14 @@ code{font-family:var(--mono);background:rgba(0,0,0,.05);padding:1px 4px;border-r
 .dgc-n{font-family:var(--mono);font-size:10.5px;color:var(--muted);text-align:right}
 .dgc-n.bad{color:var(--bad,#C0392B);font-weight:700}
 .dgc-f{font-size:10px}
+/* the palette and typeface pickers on the Creative studio */
+.swatches{display:flex;gap:6px;margin:8px 0 4px}
+.swatches i{width:30px;height:30px;border-radius:5px;border:1px solid rgba(0,0,0,.14);display:block}
+.type-prev{margin:8px 0 4px;padding:10px 12px;border:1px solid var(--line);border-radius:7px;
+  background:#fff;overflow:hidden}
+.type-prev .tp-d{font-size:21px;font-weight:700;letter-spacing:.01em;line-height:1.15}
+.type-prev .tp-p{font-size:24px;font-weight:800;line-height:1.1;margin-top:2px}
+.type-prev .tp-b{font-size:11.5px;letter-spacing:.06em;text-transform:uppercase;margin-top:5px;color:var(--ink-soft)}
 .hero-nm{flex:1 1 auto;min-width:0;border:1px solid var(--line);border-radius:5px;
   font:inherit;font-size:12.5px;padding:4px 7px;background:#fff}
 .tgt-kind.k-city{background:#E6EBF4;color:#14213D}
@@ -304,7 +316,7 @@ code{font-family:var(--mono);background:rgba(0,0,0,.05);padding:1px 4px;border-r
     <div class="wordmark">Search Ops Toolkit <span>· Google Ads</span></div>
     <div class="spacer"></div>
     <div class="badge-env" id="varCount">0 VARIANTS</div>
-    <span class="pill p-mute" id="buildTag" title="build">b-22oct-3</span>
+    <span class="pill p-mute" id="buildTag" title="build">b-22oct-4</span>
     <div id="userChip" class="hidden" style="display:flex;align-items:center;gap:9px">
       <div class="divider-v"></div>
       <span id="userName" style="font-size:12.5px;font-weight:500"></span>
@@ -1400,6 +1412,10 @@ Static Square</textarea>
         <label class="f"><span class="f-lab">Offer badge</span>
           <input type="text" id="crOffer" placeholder="EOI TOKEN AMOUNT ₹1 LACS*">
           <span class="f-note">Leave empty and the badge is left off entirely.</span></label>
+        <label class="f"><span class="f-lab">Feature strip — up to three, one per line</span>
+          <textarea id="crFeats" rows="3" spellcheck="false" placeholder="70% OPEN TO SKY&#10;RIVERSIDE TOWNSHIP&#10;30:70 PAYMENT PLAN"></textarea>
+          <span class="f-note">The three short claims the reference creatives run in a row above the
+            price. Used by the layouts that have a strip; ignored by the ones that do not.</span></label>
         <label class="f"><span class="f-lab">MahaRERA number</span>
           <input type="text" id="crRera" placeholder="PM1261012602103"></label>
         <label class="f"><span class="f-lab">Disclaimer</span>
@@ -1416,14 +1432,38 @@ Static Square</textarea>
     </div>
 
     <div class="card">
-      <div class="card-hd"><h2>Look</h2></div>
+      <div class="card-hd"><h2>Look</h2><span class="hint" id="crLookHint">Navy &amp; Gold</span></div>
       <div class="card-bd">
-        <div class="row2">
-          <label class="f"><span class="f-lab">Accent</span>
-            <input type="color" id="crAccent" value="#D4AF61" style="height:42px;padding:4px"></label>
-          <label class="f"><span class="f-lab">Scrim strength</span>
-            <input type="range" id="crScrim" min="0" max="100" value="62"></label>
+        <div class="f">
+          <span class="f-lab">Colour palette</span>
+          <select id="crPalette"></select>
+          <div id="crSwatch" class="swatches"></div>
+          <span class="f-note" id="crPaletteNote"></span>
         </div>
+        <div class="row2 hidden" id="crCustomCols">
+          <label class="f"><span class="f-lab">Ink</span>
+            <input type="color" id="crInk" value="#14213D" style="height:38px;padding:4px"></label>
+          <label class="f"><span class="f-lab">Paper</span>
+            <input type="color" id="crPaper" value="#F6F4EF" style="height:38px;padding:4px"></label>
+        </div>
+        <div class="row2 hidden" id="crCustomCols2">
+          <label class="f"><span class="f-lab">Accent</span>
+            <input type="color" id="crAccent" value="#D4AF61" style="height:38px;padding:4px"></label>
+          <label class="f"><span class="f-lab">Location pin</span>
+            <input type="color" id="crPin" value="#E2231A" style="height:38px;padding:4px"></label>
+        </div>
+
+        <div class="f">
+          <span class="f-lab">Typeface</span>
+          <select id="crFont"></select>
+          <div id="crTypePrev" class="type-prev"></div>
+          <span class="f-note" id="crFontNote"></span>
+        </div>
+
+        <label class="f"><span class="f-lab">Scrim strength</span>
+          <input type="range" id="crScrim" min="0" max="100" value="62">
+          <span class="f-note">How hard the render is darkened under the type. More scrim buys
+            readability and costs some of the picture.</span></label>
         <label class="chk"><input type="checkbox" id="crFrame" checked>
           <span>Thin accent frame, as on the samples</span></label>
       </div>
@@ -6280,9 +6320,9 @@ function crFrame(g,x,y,w,h,S,accent){
 function crPlaque(g,cx,cy,text,S,accent){
   if(!text)return 0;
   const fs=Math.round(38*S);
-  g.font=`700 ${fs}px Archivo, Inter, sans-serif`;
+  g.font=F_H(700,fs);
   const size=crFit(g,text,g.font,g.canvas.width*0.70);
-  g.font=`700 ${size}px Archivo, Inter, sans-serif`;
+  g.font=F_H(700,size);
   const tw=g.measureText(text).width;
   const padX=Math.round(34*S), h=Math.round(size*1.85), w=tw+padX*2;
   const x=cx-w/2, y=cy-h/2, c=Math.round(12*S);
@@ -6302,11 +6342,11 @@ function crPriceBar(g,cx,topY,cfg,amount,unit,tail,S,accent){
   const padX=Math.round(30*S), gap=Math.round(26*S);
   const cfgSize=Math.round(44*S), kickSize=Math.round(17*S);
   const numSize=Math.round(70*S), unitSize=Math.round(23*S), tailSize=Math.round(15*S);
-  g.font=`700 ${cfgSize}px Archivo, Inter, sans-serif`;
+  g.font=F_H(700,cfgSize);
   const cfgW=cfg?g.measureText(cfg).width:0;
-  g.font=`800 ${numSize}px Archivo, Inter, sans-serif`;
+  g.font=F_H(800,numSize);
   const numW=amount?g.measureText(amount).width:0;
-  g.font=`700 ${unitSize}px Archivo, Inter, sans-serif`;
+  g.font=F_H(700,unitSize);
   const unitW=Math.max(unit?g.measureText(unit).width:0,
                        tail?g.measureText(tail).width*0.9:0);
   const rightW=amount?numW+(unitW?unitW+Math.round(8*S):0):0;
@@ -6320,7 +6360,7 @@ function crPriceBar(g,cx,topY,cfg,amount,unit,tail,S,accent){
     g.textAlign="left"; g.textBaseline="alphabetic";
     g.fillStyle=accent; g.font=`600 ${kickSize}px Inter, sans-serif`;
     crTrack(g,"PREMIUM",cur,y+h*0.33,Math.round(5*S),"left");
-    g.fillStyle="#FFFFFF"; g.font=`700 ${cfgSize}px Archivo, Inter, sans-serif`;
+    g.fillStyle="#FFFFFF"; g.font=F_H(700,cfgSize);
     g.fillText(cfg,cur,y+h*0.78);
     cur+=cfgW+gap;
   }
@@ -6331,10 +6371,10 @@ function crPriceBar(g,cx,topY,cfg,amount,unit,tail,S,accent){
   }
   if(rightW){
     g.textAlign="left"; g.textBaseline="alphabetic";
-    g.fillStyle=GOLD_HI; g.font=`800 ${numSize}px Archivo, Inter, sans-serif`;
+    g.fillStyle=accent||GOLD_HI; g.font=F_H(800,numSize);
     g.fillText(amount,cur,y+h*0.74);
     const ux=cur+numW+Math.round(8*S);
-    if(unit){ g.fillStyle="#FFFFFF"; g.font=`700 ${unitSize}px Archivo, Inter, sans-serif`;
+    if(unit){ g.fillStyle="#FFFFFF"; g.font=F_H(700,unitSize);
       g.fillText(unit,ux,y+h*0.52); }
     if(tail){ g.fillStyle="#D8D8D8"; g.font=`600 ${tailSize}px Inter, sans-serif`;
       crTrack(g,tail,ux,y+h*0.74,Math.round(2*S),"left"); }
@@ -6380,15 +6420,63 @@ const crDark=(a,k)=>`rgb(${Math.round(a[0]*k)},${Math.round(a[1]*k)},${Math.roun
 
 /* Header stack first, because it is the house default \u2014 the picker takes
    the first entry when nothing has been chosen. */
+/* id, name, note, and whether the foot of the canvas is light \u2014 which is all
+   the disclaimer needs to know to pick its colour */
 const CR_LAYOUTS=[
-  ["header","Header stack", "Copy above on light, arched render below \u2014 the default"],
-  ["frame", "Gold frame",   "Dark plaques on the render inside a hairline notched frame"],
-  ["card",  "White card",   "Render full bleed, scalloped white panel at the foot"],
-  ["footer","Light footer", "Render full bleed, light band carrying configuration and price"],
-  ["panel", "Centre panel", "Deco panel centred on the render"],
-  ["arch",  "Arch",         "Light ground, arched render, ornament rules"]
+  ["header","Header stack", "Copy above on light, arched render below \u2014 the default",false],
+  ["frame", "Gold frame",   "Dark plaques on the render inside a hairline notched frame",false],
+  ["card",  "White card",   "Render full bleed, scalloped white panel at the foot",false],
+  ["footer","Light footer", "Render full bleed, light band carrying configuration and price",true],
+  ["panel", "Centre panel", "Deco panel centred on the render",false],
+  ["arch",  "Arch",         "Light ground, arched render, ornament rules",true],
+  ["band",  "Dark band",    "Render full bleed, deep band at the foot with the price in accent",false],
+  ["strip", "Feature strip","Three claims in a row above a light band \u2014 the deck's workhorse",true],
+  ["split", "Split panel",  "Render one side, information panel the other",true]
 ];
-const INK="#14213D", PAPER="#F6F4EF", RED="#E2231A";
+var INK="#14213D", PAPER="#F6F4EF", RED="#E2231A";
+
+/* ── palettes ─────────────────────────────────────────────────────────────
+   Not invented. Each of these is one of the colour schemes the Creative
+   Guidelines deck states in so many words, in the deck's own wording:
+   "deep navy blue, royal blue, white, and gold/yellow accents", "deep forest
+   green, black, muted olive, white, and champagne gold", and so on. They are
+   written out as four working colours the renderer actually uses:
+     ink    the dark — panels, bands, body type on light
+     paper  the light — bands and panels on the render
+     accent the metal — price, rules, frames
+     pin    the marker colour; the deck keeps this red almost everywhere */
+const CR_PALETTES=[
+  ["navy-gold","Navy & Gold","Deep navy, royal blue, white, gold — the deck's most used",
+    {ink:"#14213D",paper:"#F6F4EF",accent:"#D4AF61",pin:"#E2231A"}],
+  ["navy-sky","Navy & Sky","Deep navy, sky blue, white, charcoal — daylight renders",
+    {ink:"#102A43",paper:"#F4F8FB",accent:"#2E86C1",pin:"#E2231A"}],
+  ["charcoal-gold","Charcoal & Gold","Black, charcoal, muted blue-grey, white, gold",
+    {ink:"#1A1A1A",paper:"#F2F1EE",accent:"#C9A227",pin:"#E2231A"}],
+  ["forest","Forest & Champagne","Deep forest green, black, muted olive, white, champagne gold",
+    {ink:"#17352A",paper:"#F3F1E7",accent:"#C7B178",pin:"#D23A2E"}],
+  ["ivory","Ivory & Gold","Champagne beige, warm ivory, white, black, subtle gold",
+    {ink:"#2A241C",paper:"#FAF6EE",accent:"#B9975B",pin:"#C0392B"}],
+  ["coastal","Coastal Teal","Turquoise, cyan, deep teal, white, minimal gold",
+    {ink:"#0B3C49",paper:"#F2FAFB",accent:"#17A2B8",pin:"#E2231A"}],
+  ["river","River Blue","White, river blue, teal, dark navy, red pins",
+    {ink:"#123A5C",paper:"#F5F9FC",accent:"#3E8EDE",pin:"#E2231A"}],
+  ["sunset","Sunset","Deep navy, sunset orange, charcoal, white, champagne gold",
+    {ink:"#1B2238",paper:"#FBF4EC",accent:"#E07A28",pin:"#C0392B"}],
+  ["amber","Amber Night","Deep navy, black, warm amber, white, subtle gold",
+    {ink:"#0E1424",paper:"#F7F3EA",accent:"#E0A42E",pin:"#E2231A"}],
+  ["wine","Wine & Gold","Deep maroon, charcoal, ivory, muted gold",
+    {ink:"#4A1B22",paper:"#F8F2EC",accent:"#C19A5B",pin:"#E2231A"}]
+];
+function crPalette(){
+  const id=(($("#crPalette")&&$("#crPalette").value)||"navy-gold");
+  if(id==="custom")return {
+    ink   :val("crInk")   ||"#14213D",
+    paper :val("crPaper") ||"#F6F4EF",
+    accent:val("crAccent")||"#D4AF61",
+    pin   :val("crPin")   ||"#E2231A"};
+  const row=CR_PALETTES.find(p=>p[0]===id);
+  return row?row[3]:CR_PALETTES[0][3];
+}
 
 function crLayoutId(){
   const el=$("#crLayout");
@@ -6400,8 +6488,11 @@ function crCtx(W,H){
      is still 1200 wide, which is why the landscape read as microscopic. */
   const S=(W/H>=1.7) ? (W/1200)*0.72 : Math.min(W,H)/1200;
   const loc=(val("crLoc")||"").toUpperCase();
+  const P=crPalette();
   return {W,H,S, wide:W/H>=1.7, tall:H/W>=1.5,
-    accent:val("crAccent")||GOLD,
+    ink:P.ink, paper:P.paper, pin:P.pin,
+    accent:P.accent,
+    feats:lines(val("crFeats")).slice(0,3).map(x=>x.toUpperCase()),
     scrim:(parseInt(val("crScrim"),10)||62)/100,
     dev:(val("crDev")||"").toUpperCase(),
     proj:(val("crProj")||"").toUpperCase(),
@@ -6411,8 +6502,53 @@ function crCtx(W,H){
     offer:(val("crOffer")||"").toUpperCase(),
     rera:val("crRera"), disc:val("crDisc")};
 }
-const F_H=(w,s)=>`${w} ${Math.round(s)}px Archivo, Inter, sans-serif`;
-const F_B=(w,s)=>`${w} ${Math.round(s)}px Inter, sans-serif`;
+/* ── type ─────────────────────────────────────────────────────────────────
+   The deck names four registers and uses them over and over: "bold sans-serif
+   for project names, configurations and pricing", "condensed uppercase
+   sans-serif for promotional headlines", "elegant serif for the emotional
+   headline", "elegant lightweight uppercase for luxury descriptors", with
+   "clean sans-serif" underneath all of them for supporting detail. These are
+   those registers, as pairs: a display face and the body face beneath it.
+   The script face is for a tagline only — the deck says "selectively" and
+   "sparingly" every single time it mentions one. */
+const CR_FONTS=[
+  ["archivo","Archivo · Inter","Bold geometric sans — the house default",
+   "Archivo","Inter","Archivo"],
+  ["oswald","Oswald · Inter","Condensed uppercase — promotional headlines, payment plans",
+   "Oswald","Inter","Oswald"],
+  ["playfair","Playfair · Inter","Elegant serif — emotional headlines, launches",
+   "Playfair Display","Inter","Playfair Display"],
+  ["cormorant","Cormorant · Inter","Refined light serif — the quietest, most premium",
+   "Cormorant Garamond","Inter","Cormorant Garamond"],
+  ["marcellus","Marcellus · Inter","Lightweight uppercase — luxury descriptors",
+   "Marcellus","Inter","Marcellus"],
+  ["cinzel","Cinzel · Inter","Inscriptional caps — the most formal",
+   "Cinzel","Inter","Cinzel"]
+];
+function crFontPair(){
+  const id=($("#crFont")&&$("#crFont").value)||"archivo";
+  return CR_FONTS.find(f=>f[0]===id)||CR_FONTS[0];
+}
+/* Canvas draws with whatever is loaded at the moment fillText runs. A webfont
+   that has not finished loading is silently replaced by the fallback, so the
+   render comes out in the wrong face with no error anywhere. Every weight the
+   renderer asks for is loaded and awaited before a render starts. */
+async function crFontsReady(){
+  const [,,,disp,body]=crFontPair();
+  if(!document.fonts||!document.fonts.load)return;
+  const want=[];
+  [300,400,500,600,700,800].forEach(w=>{
+    want.push(`${w} 40px "${disp}"`);
+    want.push(`${w} 40px "${body}"`);
+  });
+  try{
+    await Promise.all(want.map(f=>document.fonts.load(f).catch(()=>{})));
+    await document.fonts.ready;
+  }catch(e){}
+}
+var CR_DISP="Archivo", CR_BODY="Inter";
+const F_H=(w,s)=>`${w} ${Math.round(s)}px "${CR_DISP}", Archivo, Inter, sans-serif`;
+const F_B=(w,s)=>`${w} ${Math.round(s)}px "${CR_BODY}", Inter, sans-serif`;
 
 /* ── shapes ──────────────────────────────────────────────────────────────── */
 function crArch(g,x,y,w,h,r){
@@ -6576,7 +6712,9 @@ function crCfgPriceSplit(g,c,cx,baseY,light,sub,maxW){
   }
   if(rightW){
     g.textAlign="left"; g.textBaseline="alphabetic";
-    g.fillStyle=light?INK:GOLD_HI; g.font=F_H(800,numS);
+    /* the price is the strongest element on the creative, and the deck
+       says so every time: it carries the palette accent. */
+    g.fillStyle=light?INK:(c.accent||GOLD_HI); g.font=F_H(800,numS);
     g.fillText(amt,x,baseY);
     const ux=x+numW+8*S;
     if(m.unit){ g.font=F_H(700,unitS); g.fillStyle=light?INK:"#FFFFFF";
@@ -6626,7 +6764,7 @@ function crCfgPriceStack(g,c,cx,topY,sub){
     g.font=F_H(800,numS); const nw=g.measureText(m.amount).width;
     g.font=F_H(700,unitS); const uw=m.unit?g.measureText(m.unit).width:0;
     const tot=nw+(uw?uw+8*S:0); let x=cx-tot/2;
-    g.textAlign="left"; g.fillStyle=GOLD_HI; g.font=F_H(800,numS);
+    g.textAlign="left"; g.fillStyle=c.accent||GOLD_HI; g.font=F_H(800,numS);
     g.fillText(m.amount,x,y); x+=nw+8*S;
     if(m.unit){ g.font=F_H(700,unitS); g.fillStyle="#FFFFFF"; g.fillText(m.unit,x,y-numS*.30); }
     if(m.tail){ g.font=F_B(600,tailS); g.fillStyle="rgba(255,255,255,.82)";
@@ -6705,7 +6843,7 @@ frame(g,c){
   const fy=H*(tall?.315:wide?.215:.179), fy2=H*(tall?.775:wide?.872:.898);
   if(!$("#crFrame")||$("#crFrame").checked)crFrame(g,fx,fy,fw,fy2-fy,S,c.accent);
   const lockY=H*(tall?.225:wide?.075:.072);
-  crLockup(g,c,fx,lockY,fw,false);
+  crLockup(g,c,fx,lockY,fw-crReraW(W),false);
   if(c.offer)crPlaque(g,W/2,fy,c.offer,S,c.accent);
   const barH=Math.round(104*S), barTop=Math.round(fy2-barH/2);
   crPriceBar(g,W/2,barTop,c.cfg,c.money&&c.money.amount,c.money&&c.money.unit,
@@ -6758,8 +6896,8 @@ footer(g,c){
   g.fillStyle=tg; g.fillRect(0,0,W,H*.30);
   g.fillStyle=PAPER; g.fillRect(0,bandY,W,bandH);
   const lockY=H*(tall?.10:.072);
-  const locW=crTopRightLoc(g,c,W*.95,lockY,(wide?44:56)*S,RED,W*.44);
-  crLockup(g,c,W*.05,lockY,W*.90-locW-W*.04,false);
+  const locW=crTopRightLoc(g,c,W*.95-crReraW(W),lockY,(wide?44:56)*S,RED,W*.30);
+  crLockup(g,c,W*.05,lockY,W*.90-locW-crReraW(W)-W*.04,false);
   if(c.offer){
     const fs=(wide?32:40)*S;
     g.font=F_H(700,fs); const s2=crFit(g,c.offer,g.font,W*.74); g.font=F_H(700,s2);
@@ -6772,7 +6910,7 @@ footer(g,c){
     g.fillStyle="#FFFFFF"; g.textAlign="center"; g.textBaseline="middle";
     g.fillText(c.offer,W/2,by+bh/2+s2*.04);
   }
-  crCfgPriceSplit(g,c,W/2,bandY+bandH*(wide?.66:.60),true,"APARTMENTS",W*.86);
+  crCfgPriceSplit(g,c,W/2,bandY+(bandH-crFootH(c))*(wide?.72:.66),true,"APARTMENTS",W*.86);
 },
 
 /* 4. Centre panel — a deco panel set on the render */
@@ -6784,7 +6922,7 @@ panel(g,c){
   vg.addColorStop(1,`rgba(5,10,8,${.62*c.scrim})`);
   g.fillStyle=vg; g.fillRect(0,0,W,H);
   const lockY=H*(tall?.09:.068);
-  crLockup(g,c,W*.05,lockY,W*.90,false);
+  crLockup(g,c,W*.05,lockY,W*.90-crReraW(W),false);
   const pw=W*(wide?.48:.56), px=(W-pw)/2;
   const ph=H*(tall?.34:wide?.56:.46), py=H*(tall?.30:wide?.24:.24);
   /* the panel needs its own ground, or the copy sits on whatever the render
@@ -6823,8 +6961,8 @@ arch(g,c){
   const ax=W*.0, aw=W, ah=H*(tall?.42:wide?.60:.52), ay=H*(tall?.26:wide?.18:.22);
   g.fillStyle=sky; g.fillRect(0,0,W,ay+ah*.5);
   const lockY=H*(tall?.09:.068);
-  const locW=crTopRightLoc(g,c,W*.95,lockY,(wide?44:56)*S,RED,W*.44);
-  crLockup(g,c,W*.05,lockY,W*.90-locW-W*.04,false);
+  const locW=crTopRightLoc(g,c,W*.95-crReraW(W),lockY,(wide?44:56)*S,RED,W*.30);
+  crLockup(g,c,W*.05,lockY,W*.90-locW-crReraW(W)-W*.04,false);
   if(c.offer){
     const fs=(wide?34:44)*S;
     g.font=F_H(700,fs); const s2=crFit(g,c.offer,g.font,W*.72); g.font=F_H(700,s2);
@@ -6856,7 +6994,7 @@ header(g,c){
   const TS=tall?S*1.35:S;
   const ct=tall?Object.assign({},c,{S:TS}):c;
   const lockY=H*(tall?.085:.062);
-  crLockup(g,ct,W*.05,lockY,W*.90,true);
+  crLockup(g,ct,W*.05,lockY,W*.90-crReraW(W),true);
   if(wide){
     /* Stacking copy above a picture needs vertical room a 1.91:1 canvas does
        not have. Wide sits them side by side: copy on the left, the arched
@@ -6908,6 +7046,138 @@ header(g,c){
     g.fillStyle=INK; g.textAlign="center"; g.textBaseline="middle";
     g.fillText(c.offer,W/2,ay+s2*.04);
   }
+},
+
+/* 7. Dark band — the single most common shape in the reference deck:
+   render full bleed, a deep band across the foot, configuration on the left,
+   the price on the right in accent. "Display the price in large, bold
+   yellow/gold text against a dark-blue panel." */
+band(g,c){
+  const {W,H,S,wide,tall}=c;
+  const bandH=H*(tall?.155:wide?.30:.21), bandY=H-bandH;
+  crHero(g,c,0,0,W,H,true);
+  const tg=g.createLinearGradient(0,0,0,H*.26);
+  tg.addColorStop(0,`rgba(5,8,14,${.55*c.scrim})`); tg.addColorStop(1,"rgba(5,8,14,0)");
+  g.fillStyle=tg; g.fillRect(0,0,W,H*.26);
+  g.fillStyle=INK; g.fillRect(0,bandY,W,bandH);
+  g.fillStyle=c.accent; g.fillRect(0,bandY,W,Math.max(2,3*S));
+  const lockY=H*(tall?.085:.068);
+  crLockup(g,c,W*.05,lockY,W*.90-crReraW(W),false);
+  if(c.offer){
+    const fs=(wide?30:38)*S;
+    g.font=F_H(700,fs); const s2=crFit(g,c.offer,g.font,W*.74); g.font=F_H(700,s2);
+    const tw=g.measureText(c.offer).width, bh=s2*1.9, bw=tw+54*S;
+    const by=bandY-bh/2;
+    g.fillStyle=c.accent; g.fillRect(W/2-bw/2,by,bw,bh);
+    g.fillStyle=INK; g.textAlign="center"; g.textBaseline="middle";
+    g.fillText(c.offer,W/2,by+bh/2+s2*.04);
+  }
+  crLocLine(g,c,W/2,bandY-(c.offer?(wide?46:58):(wide?22:30))*S,(wide?40:50)*S,
+            RED,"#FFFFFF",W*.80);
+  crCfgPriceSplit(g,c,W/2,bandY+(bandH-crFootH(c))*(wide?.72:.68),false,"APARTMENTS",W*.86);
+},
+
+/* 8. Feature strip — three claims in a row above a light band. The deck runs
+   this constantly: "EOI Tokens Opening Soon · 70% Open-to-Sky · Riverside
+   Township Lifestyle" sitting between the render and the price. */
+strip(g,c){
+  const {W,H,S,wide,tall}=c;
+  const feats=(c.feats||[]).filter(Boolean).slice(0,3);
+  const stripH=feats.length?(wide?52:64)*S:0;
+  const bandH=H*(tall?.165:wide?.30:.225);
+  const bandY=H-bandH, stripY=bandY-stripH;
+  crHero(g,c,0,0,W,stripY+2,true);
+  const tg=g.createLinearGradient(0,0,0,H*.28);
+  tg.addColorStop(0,`rgba(5,8,14,${.52*c.scrim})`); tg.addColorStop(1,"rgba(5,8,14,0)");
+  g.fillStyle=tg; g.fillRect(0,0,W,H*.28);
+  if(stripH){
+    g.fillStyle=INK; g.fillRect(0,stripY,W,stripH);
+    const fs=(wide?19:23)*S, cellW=W/feats.length;
+    g.font=F_B(600,fs);
+    feats.forEach((t,i)=>{
+      const cx=cellW*i+cellW/2;
+      const s2=crFit(g,t,F_B(600,fs),cellW*.86);
+      g.font=F_B(600,s2);
+      g.fillStyle="#FFFFFF"; g.textAlign="center"; g.textBaseline="middle";
+      g.fillText(t,cx,stripY+stripH/2+s2*.04);
+      if(i){ g.strokeStyle=`${c.accent}`; g.globalAlpha=.5; g.lineWidth=Math.max(1,1.4*S);
+        g.beginPath(); g.moveTo(cellW*i,stripY+stripH*.24);
+        g.lineTo(cellW*i,stripY+stripH*.76); g.stroke(); g.globalAlpha=1; }
+    });
+  }
+  g.fillStyle=PAPER; g.fillRect(0,bandY,W,bandH);
+  const lockY=H*(tall?.085:.068);
+  crLockup(g,c,W*.05,lockY,W*.90-crReraW(W),false);
+  if(c.offer){
+    const fs=(wide?28:36)*S;
+    g.font=F_H(700,fs); const s2=crFit(g,c.offer,g.font,W*.70); g.font=F_H(700,s2);
+    const tw=g.measureText(c.offer).width, bh=s2*1.85, bw=tw+54*S;
+    const by=stripY-bh-(wide?14:20)*S;
+    g.fillStyle=c.accent; g.fillRect(W/2-bw/2,by,bw,bh);
+    g.fillStyle=INK; g.textAlign="center"; g.textBaseline="middle";
+    g.fillText(c.offer,W/2,by+bh/2+s2*.04);
+  }
+  let y=bandY+(wide?44:56)*S;
+  y+=crLocLine(g,c,W/2,y,(wide?38:48)*S,RED,INK,W*.84)*.4;
+  crCfgPriceSplit(g,c,W/2,bandY+(bandH-crFootH(c))*(wide?.78:.74),true,"APARTMENTS",W*.86);
+},
+
+/* 9. Split panel — "a split-panel composition with rounded or curved image
+   boundaries, consistent margins, aligned text blocks". Render on one side,
+   everything else on the other. On a tall canvas a side-by-side split leaves
+   two thin columns, so there it splits top and bottom instead. */
+split(g,c){
+  const {W,H,S,wide,tall}=c;
+  g.fillStyle=PAPER; g.fillRect(0,0,W,H);
+  const r=Math.round(W*.045);
+  var ix,iy,iw,ih, px,py,pw,ph;
+  if(tall){ ix=0; iy=0; iw=W; ih=H*.52; px=W*.07; py=H*.56; pw=W*.86; ph=H*.36; }
+  else{
+    /* the panel is directly under the RERA corner, so it starts below it
+       rather than fighting it for the same inch */
+    ix=0; iy=0; iw=W*.56; ih=H;
+    px=W*.60; pw=W*.355;
+    py=Math.max(H*.12,W*.135); ph=H-py-crFootH(c)-H*.06;
+  }
+  g.save();
+  g.beginPath();
+  if(tall)g.rect(ix,iy,iw,ih);
+  else{ g.moveTo(ix,iy); g.lineTo(ix+iw-r,iy);
+        g.quadraticCurveTo(ix+iw,iy,ix+iw,iy+r);
+        g.lineTo(ix+iw,iy+ih-r);
+        g.quadraticCurveTo(ix+iw,iy+ih,ix+iw-r,iy+ih);
+        g.lineTo(ix,iy+ih); g.closePath(); }
+  g.clip(); crHero(g,c,ix,iy,iw,ih); g.restore();
+  /* on a wide or square canvas the panel sits directly under the RERA corner,
+     so the lockup is capped out of it exactly as everywhere else */
+  const lockY=tall?H*.60:py;
+  crLockup(g,c,px,lockY,pw,true);
+  c.footBox={cx:tall?W/2:px+pw/2,w:(tall?W*.90:pw*.98),light:true};
+  let y=(tall?H*.66:py+H*.17);
+  y+=crLocLine(g,c,px+pw/2,y,(wide?34:44)*S,RED,INK,pw*.94)*.5;
+  crOrnRule(g,px+pw/2,y+16*S,pw*.56,S,c.accent);
+  crCfgPriceSplit(g,c,px+pw/2,y+(wide?62:84)*S,true,"APARTMENTS",pw*.94);
+  const feats=(c.feats||[]).filter(Boolean).slice(0,3);
+  if(feats.length){
+    const fs=(wide?17:21)*S;
+    let fy=y+(wide?150:168)*S;
+    feats.forEach(t=>{
+      const s2=crFit(g,t,F_B(500,fs),pw*.88);
+      g.font=F_B(500,s2);
+      g.fillStyle="rgba(20,33,61,.74)"; g.textAlign="center"; g.textBaseline="middle";
+      g.fillText(t,px+pw/2,fy);
+      fy+=s2*1.75;
+    });
+  }
+  if(c.offer){
+    const fs=(wide?26:34)*S;
+    g.font=F_H(700,fs); const s2=crFit(g,c.offer,g.font,pw*.92); g.font=F_H(700,s2);
+    const tw=g.measureText(c.offer).width, bh=s2*1.85, bw=Math.min(pw,tw+48*S);
+    const by=py+ph-bh;
+    g.fillStyle=c.accent; g.fillRect(px+pw/2-bw/2,by,bw,bh);
+    g.fillStyle=INK; g.textAlign="center"; g.textBaseline="middle";
+    g.fillText(c.offer,px+pw/2,by+bh/2+s2*.04);
+  }
 }
 };
 
@@ -6919,65 +7189,105 @@ header(g,c){
    the foot of every creative — same position, same size relative to the
    width, on all six layouts and all four ratios. The layout is handed a
    shorter canvas so nothing of its own lands underneath. */
-function crBandH(W){ return Math.round(W*0.064); }
-function crFootBand(g,c,W,H){
-  const S=W/1200, bh=crBandH(W), by=H-bh;
+/* ── RERA, top right ──────────────────────────────────────────────────────
+   The Creative Guidelines are explicit about this and every reference
+   creative follows it: "Display the project's applicable RERA registration
+   number in the top-right corner", "Place the project's official RERA QR code
+   in the top-right corner, alongside the registration number", "Display the
+   official RERA website URL directly below the registration number",
+   "Maintain consistent placement ... across every creative format."
+
+   So it is drawn here, after the layout, in the top right, at the same size
+   relative to the width on every layout and every ratio. It used to be each
+   layout's own job, which is how two layouts never drew it at all and a 9:16
+   put it under the project name. The layouts keep their hands off it now; the
+   lockup is simply capped so it cannot reach this corner.
+
+   The sizing is off W, not c.S, so the legal mark is the same fraction of
+   every creative rather than tiny on one ratio and large on another. */
+function crReraW(W){ return Math.round(W*0.30); }
+function crReraTop(g,c,W){
+  if(!c.rera&&!CR.qr)return;
+  const S=W/1200, padX=W*.045, top=Math.round(W*.030);
   g.save();
-  g.fillStyle=INK; g.fillRect(0,by,W,bh);
-  g.fillStyle=c.accent; g.fillRect(0,by,W,Math.max(2,3*S));
-  const padX=W*.042, mid=by+bh/2;
-  /* the QR sits at the right edge, on white so a scanner can read it */
-  let rightEdge=W-padX;
+  g.textAlign="right"; g.textBaseline="top";
+  let right=W-padX;
   if(CR.qr){
-    const q=Math.round(bh*.70), pad=Math.round(q*.07);
-    const qx=rightEdge-q;
-    g.fillStyle="#FFFFFF"; g.fillRect(qx-pad,mid-q/2-pad,q+pad*2,q+pad*2);
-    g.drawImage(CR.qr,qx,mid-q/2,q,q);
-    rightEdge=qx-pad*2-14*S;
+    const q=Math.round(92*S), pad=Math.round(q*.07);
+    g.fillStyle="#FFFFFF";
+    g.fillRect(right-q-pad,top-pad,q+pad*2,q+pad*2);
+    g.drawImage(CR.qr,right-q,top,q,q);
+    right-=q+pad*2+12*S;
   }
-  let leftEdge=padX;
   if(c.rera){
-    const ns=27*S, us=13.5*S;
-    g.textAlign="left"; g.textBaseline="alphabetic";
-    g.fillStyle="rgba(255,255,255,.62)"; g.font=F_B(500,us);
-    g.fillText("MahaRERA",leftEdge,mid-ns*.46);
-    g.fillStyle="#FFFFFF"; g.font=F_H(700,ns);
+    const ls=13*S, ns=23*S, us=12*S;
+    /* a light chip behind the mark, so it reads over a bright sky as well as
+       over a dark one without the layout having to say which it is */
     const num=String(c.rera);
-    g.fillText(num,leftEdge,mid+ns*.40);
-    const w1=g.measureText(num).width;
-    g.fillStyle="rgba(255,255,255,.55)"; g.font=F_B(400,us);
-    g.fillText("maharera.mahaonline.gov.in",leftEdge,mid+ns*.40+us*1.45);
-    g.font=F_B(400,us);
-    leftEdge+=Math.max(w1,g.measureText("maharera.mahaonline.gov.in").width)+28*S;
-  }
-  /* the disclaimer takes whatever is left between the two, and is fitted to
-     it rather than allowed to run under the QR */
-  if(c.disc&&rightEdge-leftEdge>W*.12){
-    const ds=15*S;
-    g.font=F_B(400,ds);
-    const d2=crFit(g,c.disc,g.font,rightEdge-leftEdge);
-    g.font=F_B(400,d2);
-    g.fillStyle="rgba(255,255,255,.72)";
-    g.textAlign="right"; g.textBaseline="middle";
-    g.fillText(c.disc,rightEdge,mid+d2*.04);
+    g.font=F_H(700,ns); const wNum=g.measureText(num).width;
+    g.font=F_B(500,ls); const wLab=g.measureText("MahaRERA").width;
+    g.font=F_B(400,us); const wUrl=g.measureText("maharera.mahaonline.gov.in").width;
+    const bw=Math.max(wNum,wLab,wUrl)+22*S, bh=ls+ns+us+26*S;
+    g.fillStyle="rgba(255,255,255,.92)";
+    g.fillRect(right-bw,top-6*S,bw,bh);
+    const x=right-11*S;
+    let y=top+3*S;
+    g.fillStyle="rgba(20,33,61,.62)"; g.font=F_B(500,ls);
+    g.fillText("MahaRERA",x,y); y+=ls*1.25;
+    g.fillStyle="#14213D"; g.font=F_H(700,ns);
+    g.fillText(num,x,y); y+=ns*1.18;
+    g.fillStyle="rgba(20,33,61,.58)"; g.font=F_B(400,us);
+    g.fillText("maharera.mahaonline.gov.in",x,y);
   }
   g.restore();
 }
+/* how much of the foot the disclaimer needs. The band layouts put their price
+   near the bottom edge, and without reserving this the two printed on top of
+   each other. */
+function crFootH(c){ return c.disc?Math.round(c.W*0.044):0; }
+/* the disclaimer, its own thin strip at the very foot */
+function crDiscFoot(g,c,W,H,light){
+  if(!c.disc)return;
+  /* a split layout has a dark half and a light half at the foot, so it says
+     which box the disclaimer belongs in rather than taking the full width and
+     landing invisible over the render */
+  const box=c.footBox||{cx:W/2,w:W*.90,light:light};
+  const S=W/1200, ds=14*S;
+  g.save();
+  g.font=F_B(400,ds);
+  const d2=crFit(g,c.disc,g.font,box.w); g.font=F_B(400,d2);
+  g.fillStyle=box.light?"rgba(20,33,61,.58)":"rgba(255,255,255,.70)";
+  g.textAlign="center"; g.textBaseline="bottom";
+  g.fillText(c.disc,box.cx,H-Math.round(W*.018));
+  g.restore();
+}
 function crRenderOne(W,H){
+  /* INK, PAPER and RED are read all over the layouts; the palette sets them
+     for the duration of the render rather than threading four more arguments
+     through every drawing primitive. */
+  const P=crPalette();
+  INK=P.ink; PAPER=P.paper; RED=P.pin;
+  const F=crFontPair(); CR_DISP=F[3]; CR_BODY=F[4];
   const cv=document.createElement("canvas"); cv.width=W; cv.height=H;
   const g=cv.getContext("2d");
   g.fillStyle="#07090F"; g.fillRect(0,0,W,H);
-  const bh=crBandH(W);
-  /* the layout believes the canvas ends where the band begins */
-  const c=crCtx(W,H-bh);
-  (CR_DRAW[crLayoutId()]||CR_DRAW.frame)(g,c);
-  crFootBand(g,c,W,H);
+  const id=crLayoutId();
+  const c=crCtx(W,H);
+  (CR_DRAW[id]||CR_DRAW.frame)(g,c);
+  /* both of these belong to every layout equally, so neither is a layout's
+     job: the legal mark top right, the disclaimer at the foot */
+  crReraTop(g,c,W);
+  const row=CR_LAYOUTS.find(r=>r[0]===id);
+  crDiscFoot(g,c,W,H,!!(row&&row[3]));
   return cv;
 }
 
 
-on("#crRender","click",()=>{
+on("#crRender","click",async()=>{
   if(!HEROES.length)return toast("Upload at least one hero image first");
+  /* a webfont that has not finished loading is silently swapped for the
+     fallback mid-render, so it is waited for rather than hoped for */
+  await crFontsReady();
   crFill();
   CR_OUT=[]; CR_SETS=[];
   const box=$("#crOut"); box.innerHTML="";
@@ -7103,6 +7413,44 @@ on("#crZip","click",()=>{
     if($("#crLayoutNote"))$("#crLayoutNote").textContent=row?row[2]:""; };
   note(); sel.addEventListener("change",()=>{ note();
     if(typeof CR_OUT!=="undefined"&&CR_OUT.length&&$("#crRender"))$("#crRender").click(); });
+})();
+
+/* the palette and typeface pickers, filled from their registries for the
+   same reason — a new palette is one row, nothing else */
+(function(){
+  const ps=$("#crPalette"), fs=$("#crFont");
+  if(!ps||!fs)return;
+  ps.innerHTML=CR_PALETTES.map(p=>`<option value="${p[0]}">${esc(p[1])}</option>`).join("")+
+    `<option value="custom">Custom — pick the four colours</option>`;
+  fs.innerHTML=CR_FONTS.map(f=>`<option value="${f[0]}">${esc(f[1])}</option>`).join("");
+  const rerender=()=>{ if(typeof CR_OUT!=="undefined"&&CR_OUT.length&&$("#crRender"))$("#crRender").click(); };
+  const drawPal=()=>{
+    const custom=ps.value==="custom";
+    $("#crCustomCols").classList.toggle("hidden",!custom);
+    $("#crCustomCols2").classList.toggle("hidden",!custom);
+    const p=crPalette(), row=CR_PALETTES.find(r=>r[0]===ps.value);
+    $("#crSwatch").innerHTML=["ink","paper","accent","pin"]
+      .map(k=>`<i style="background:${p[k]}" title="${k} ${p[k]}"></i>`).join("");
+    $("#crPaletteNote").textContent=custom
+      ? "Ink is the dark panels and bands, paper the light ones, accent the price and rules."
+      : (row?row[2]:"");
+    $("#crLookHint").textContent=custom?"Custom":(row?row[1]:"");
+  };
+  const drawType=()=>{
+    const f=crFontPair();
+    $("#crFontNote").textContent=f[2];
+    $("#crTypePrev").innerHTML=
+      `<div class="tp-d" style="font-family:'${f[3]}',serif">${esc((val("crProj")||"PROJECT NAME").toUpperCase())}</div>`+
+      `<div class="tp-p" style="font-family:'${f[3]}',serif">${esc(val("crPrice")||"₹ 1.70 Cr*")}</div>`+
+      `<div class="tp-b" style="font-family:'${f[4]}',sans-serif">${esc((val("crCfg")||"2, 3 & 4 BHK").toUpperCase())} · ${esc((val("crLoc")||"LOCATION").toUpperCase())}</div>`;
+  };
+  ps.addEventListener("change",()=>{ drawPal(); rerender(); });
+  fs.addEventListener("change",()=>{ drawType(); rerender(); });
+  ["crInk","crPaper","crAccent","crPin"].forEach(id=>{
+    const el=$("#"+id); if(el)el.addEventListener("change",()=>{ drawPal(); rerender(); }); });
+  ["crProj","crPrice","crCfg","crLoc"].forEach(id=>{
+    const el=$("#"+id); if(el)el.addEventListener("input",drawType); });
+  drawPal(); drawType();
 })();
 
 drawDemoBoxes(); drawImgs();
