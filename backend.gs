@@ -1846,6 +1846,11 @@ function aiCall_(system, parts, maxTokens) {
 
 function aiCall1_(system, parts, maxTokens, models) {
   const key = aiKey_();
+  /* Retrying a busy model is worth doing, but not for longer than the browser
+     is prepared to wait: six slow attempts in a row once ran past the client's
+     own timeout, which turned a recoverable 503 into "signal is aborted". So
+     the whole thing runs to a budget and gives up honestly inside it. */
+  const started = Date.now(), BUDGET = 70000;
   var fails = [], retired = false, busy = false;
   for (var i = 0; i < models.length; i++) {
     var res, attempt = 0;
@@ -1877,9 +1882,10 @@ function aiCall1_(system, parts, maxTokens, models) {
       /* Google saying it is busy is not a failure yet. The model is tried
          once more after a pause before moving on, because that is usually
          all a spike in demand needs. */
-      if ((code === 503 || code === 500 || code === 502 || code === 504) && attempt < 1) {
+      if ((code === 503 || code === 500 || code === 502 || code === 504) &&
+          attempt < 1 && (Date.now() - started) < BUDGET - 15000) {
         attempt++;
-        try { Utilities.sleep(2500); } catch (e) {}
+        try { Utilities.sleep(1200); } catch (e) {}
         continue;
       }
 
@@ -1914,6 +1920,10 @@ function aiCall1_(system, parts, maxTokens, models) {
     out._model = models[i];
     return out;
     }                                          /* end retry loop */
+    if ((Date.now() - started) > BUDGET) {
+      fails.push('ran out of time after ' + Math.round((Date.now() - started) / 1000) + 's');
+      break;
+    }
   }
   /* Busy is worth saying plainly: there is nothing to fix, only to redo. */
   if (busy && fails.length === models.length)

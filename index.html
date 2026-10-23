@@ -344,7 +344,7 @@ code{font-family:var(--mono);background:rgba(0,0,0,.05);padding:1px 4px;border-r
     <div class="subject">Google Ads</div>
     <div class="spacer"></div>
     <div class="badge-env" id="varCount">0 VARIANTS</div>
-    <span class="pill p-mute" id="buildTag" title="build">b-23oct-13</span>
+    <span class="pill p-mute" id="buildTag" title="build">b-23oct-14</span>
     <div id="userChip" class="hidden" style="display:flex;align-items:center;gap:9px">
       <div class="divider-v"></div>
       <span id="userName" style="font-size:12.5px;font-weight:500"></span>
@@ -466,8 +466,15 @@ code{font-family:var(--mono);background:rgba(0,0,0,.05);padding:1px 4px;border-r
           <button class="btn" id="impKey">Check the AI key</button>
         </div>
         <div id="impKeyOut" style="margin-top:10px"></div>
-        <textarea id="impPaste" class="hidden" rows="9" style="margin-top:12px"
-          placeholder="Paste the whole WhatsApp announcement here, footer and all — the sender's own lines are ignored."></textarea>
+        <div id="impWaBox" class="hidden" style="margin-top:12px">
+          <textarea id="impPaste" rows="9"
+            placeholder="Paste the whole WhatsApp announcement here, footer and all — the sender's own lines are ignored."></textarea>
+          <div class="btnrow" style="margin-top:10px">
+            <button class="btn btn-pri" id="impWaGo">Read this message</button>
+            <button class="btn" id="impWaClear">Clear</button>
+            <span class="f-note" style="margin:0" id="impWaCount"></span>
+          </div>
+        </div>
         <div class="f-note" style="margin-top:8px">A prelaunch with no released name and no RERA
           number is normal: the developer and the locality become the name, and the launch stage is
           set for you.</div>
@@ -3877,10 +3884,24 @@ function waFacts(raw){
     }
   }
 
-  /* Configuration, as written. "2, 2.5 & 3 BHK" and "2/3 BR" both survive. */
-  const cfg=txt.match(/((?:\d(?:\.\d)?\s*(?:,|&|\/|\+|and|to)\s*)*\d(?:\.\d)?)\s*(bhk|br|rk)\b/i);
-  if(cfg)out.cfg=(cfg[1].replace(/\s+/g," ").trim()+" "+cfg[2].toUpperCase())
-    .replace(/\s*,\s*/g,", ").replace(/\s*&\s*/g," & ").replace(/\s*\/\s*/g,"/");
+  /* Configuration. Two shapes turn up and both have to work: a run on one
+     line, "2, 2.5 & 3 BHK", and a price table where each size has its own
+     line — "2 BHK 1115 sq.ft - 1.65 Cr", "3 BHK 1237 sq.ft - 1.89 Cr". The
+     first version took the first match and called a four-size project a
+     2 BHK. Every size is collected and they are written out once. */
+  const CFG=/((?:\d(?:\.\d)?\s*(?:,|&|\/|\+|and|to)\s*)*\d(?:\.\d)?)\s*(bhk|br|rk)\b/ig;
+  const sizes=[]; let unit="", cm;
+  while((cm=CFG.exec(txt))!==null){
+    unit=unit||cm[2].toUpperCase();
+    cm[1].split(/[,&\/+]|\band\b|\bto\b/i).map(x=>x.trim()).filter(Boolean)
+      .forEach(nn=>{ if(/^\d+(?:\.\d)?$/.test(nn)&&sizes.indexOf(nn)===-1)sizes.push(nn); });
+  }
+  if(sizes.length){
+    sizes.sort((x,y)=>parseFloat(x)-parseFloat(y));
+    out.cfg=sizes.length===1
+      ? sizes[0]+" "+unit
+      : sizes.slice(0,-1).join(", ")+" & "+sizes[sizes.length-1]+" "+unit;
+  }
 
   /* Price: the one that is actually the asking price, so a figure next to
      "starting", "onwards" or "from" wins over any other number in the text. */
@@ -3963,7 +3984,7 @@ function readDone(g,src,lists,meta){
 
 async function runWa(){
   const txt=$("#impPaste").value.trim();
-  if(txt.length<20){ $("#impPaste").classList.remove("hidden"); $("#impPaste").focus();
+  if(txt.length<20){ $("#impWaBox").classList.remove("hidden"); $("#impPaste").focus();
     return toast("Paste the WhatsApp message first"); }
   $("#startStat").innerHTML='<span class="pill p-mute">reading the message\u2026</span>';
 
@@ -4102,7 +4123,13 @@ on("#impKey","click",async()=>{
   if(probe.error)
     return box.innerHTML=line("ok","\u2713",`Key present, model <code>${esc(chk.model||"\u2014")}</code>.`)+
       line("bad","\u2715",`<b>But the call failed:</b> <code>${esc(probe.error)}</code>`)+
-      line("warn","!","A <b>403</b> or <b>API key not valid</b> means the key is the wrong kind \u2014 an AI Studio key looks like <code>AIza\u2026</code>. A <b>404 on the model</b> fixes itself on the next try.");
+      (/API key|403|refused the key/i.test(probe.error)
+        ? line("warn","!","That is about the key itself. An AI Studio key is the one from <b>aistudio.google.com \u2192 Get API key</b>.")
+        : /took too long|abort/i.test(probe.error)
+        ? line("warn","!","It ran out of time rather than failing. Press it again \u2014 the model it settles on is remembered.")
+        : /busy|high demand|503/i.test(probe.error)
+        ? line("warn","!","Google is busy, not broken. Press it again in a few seconds.")
+        : line("warn","!","If it mentions an unknown action, redeploy the Apps Script as a <b>new version</b>."));
   box.innerHTML=line("ok","\u2713",`<b>Working.</b> Model <code>${esc(chk.model||"\u2014")}</code> read the test message as `+
     `<b>${esc(probe.proj||"(no project)")}</b>${probe.dev?` by <b>${esc(probe.dev)}</b>`:""}`+
     `${probe.price?`, ${esc(probe.price)}`:""}.`)+
@@ -4118,13 +4145,21 @@ on("#impPdfFile","change",e=>{
     toast("Could not read the brochure: "+((err&&err.message)||err));
   });
 });
+/* Opening the box and reading what is in it are two different things. They
+   were one button once, which meant pressing it twice to do one job. */
 on("#impWa","click",()=>{
-  const ta=$("#impPaste");
-  ta.placeholder="Paste the whole WhatsApp announcement here, footer and all \u2014 the sender's own lines are ignored.";
-  if(ta.classList.contains("hidden")||!ta.value.trim()){
-    ta.classList.remove("hidden"); ta.focus();
-    if(!ta.value.trim())return toast("Paste the message, then press this again");
-  }
+  $("#impWaBox").classList.remove("hidden");
+  $("#impPaste").focus();
+});
+on("#impPaste","input",()=>{
+  const n=$("#impPaste").value.trim().length;
+  $("#impWaCount").textContent=n?`${n.toLocaleString()} characters`:"";
+});
+on("#impWaClear","click",()=>{
+  $("#impPaste").value=""; $("#impWaCount").textContent="";
+  $("#impPaste").focus();
+});
+on("#impWaGo","click",()=>{
   runWa().catch(e=>{
     $("#startStat").innerHTML='<span class="pill p-bad">failed</span>';
     toast("Could not read it: "+((e&&e.message)||e));
@@ -6139,14 +6174,22 @@ async function adsCall(action,extra){
     }
   }
   try{
-    const ctl=new AbortController(), bail=setTimeout(()=>ctl.abort(),120000);
+    /* A read can wait on Gemini retrying a busy model, so it is given longer
+       than the other calls — and when it does run out, it says so in words. */
+    const slow=/^(ai-|extract|read-|classify-)/.test(action);
+    const ctl=new AbortController(), bail=setTimeout(()=>ctl.abort(),slow?300000:120000);
     const r=await fetch(AUTH.logUrl,{method:"POST",signal:ctl.signal,
       headers:{"Content-Type":"text/plain;charset=utf-8"},
       body:JSON.stringify(Object.assign({action,credential:USER.credential},extra||{}))});
     clearTimeout(bail);
     if(!r.ok)return {error:`Apps Script returned ${r.status}. Redeploy it as a new version.`};
     return await r.json();
-  }catch(e){ return {error:"Could not reach the Apps Script: "+((e&&e.message)||e)}; }
+  }catch(e){
+    if(e&&(e.name==="AbortError"||/abort/i.test(String(e.message||e))))
+      return {error:"The Apps Script took too long and the request was given up on. "+
+        "Gemini was probably retrying a busy model \u2014 press it again."};
+    return {error:"Could not reach the Apps Script: "+((e&&e.message)||e)};
+  }
 }
 const apLine=(l,ic,h)=>`<div class="check c-${l}"><span class="ic">${ic}</span><span>${h}</span></div>`;
 /* One real failure makes every operation that referenced it fail too, so the
