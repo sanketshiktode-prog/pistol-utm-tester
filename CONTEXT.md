@@ -171,8 +171,16 @@ The split is the whole point and must not drift:
   `backend.gs` whitelists layout, palette and font by id and clamps scrim and
   fill to 0-100; everything else it tries to set is dropped before the answer
   reaches the page. It has no way to change a word of copy.
-- The key is a Script Property, `OPENAI_KEY`, in the Apps Script. Never in this
-  repository, which is public. `OPENAI_MODEL` overrides the default.
+- **The engine is Gemini**, through `generativelanguage.googleapis.com/v1beta`
+  `:generateContent`, because the Apps Script already carries a `GEMINI_KEY` for
+  the landing-page reader — one key, one bill. Renders go up as `inline_data`
+  JPEG parts, the brief goes in `system_instruction`, and
+  `generationConfig.responseMimeType` is `application/json` so the answer parses.
+  A model name this key cannot reach falls through to `gemini-2.0-flash`; a 403
+  or a 429 does not retry, because retrying cannot help.
+- The key is read from a `GEMINI_KEY` Script Property first, then from the
+  `GEMINI_KEY` in `Code.gs`. Never in this repository, which is public.
+  `GEMINI_MODEL` overrides the default.
 - Renders are shrunk to a 1024px long edge before they are sent — about a
   quarter of the tokens, and no worse at spotting a collision.
 
@@ -184,7 +192,13 @@ rounds because the renders had no logo in them. Fix the input first.
 The container's egress allows package registries and GitHub, nothing else.
 Blocked: `script.googleapis.com`, `oauth2.googleapis.com`, `accounts.google.com`,
 `cdnjs.cloudflare.com`, `fonts.googleapis.com`, `cdn.propertypistol.com`,
-`api.openai.com`.
+`generativelanguage.googleapis.com`. (`storage.googleapis.com` was opened by the
+user for ElevenLabs downloads.)
+
+So the design agent's request **shape** can be proved here and is, against a
+stubbed `UrlFetchApp` — four `inline_data` parts, JSON mode, the whitelist
+dropping off-menu keys, the model fallback, 403/429 not retrying. Whether
+Gemini accepts it is a separate claim and can only be settled in the browser.
 
 So: **the map, the fonts and any Google call cannot be exercised here.** Their
 data paths can be simulated and must be; the rendering cannot. Say which of

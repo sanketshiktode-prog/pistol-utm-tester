@@ -1518,7 +1518,10 @@ function applyDgBidding(camp, S, notes) {
 
    The key lives in the Apps Script's own Script Properties, never in this
    repository, which is public. Project Settings -> Script Properties ->
-   OPENAI_KEY. Nothing to paste into the code. */
+   GEMINI_KEY. Nothing to paste into the code.
+
+   Gemini is the engine: the Apps Script already carries a GEMINI_KEY for the
+   landing-page reader, so the agent needs no second key and no second bill. */
 
 const AI_ALLOWED = {
   layout : ['header','frame','card','footer','panel','arch','band','strip','split'],
@@ -1527,51 +1530,92 @@ const AI_ALLOWED = {
   font   : ['archivo','oswald','playfair','cormorant','marcellus','cinzel']
 };
 
+/* A Script Property wins, so the key can be rotated without touching Code.gs;
+   otherwise the GEMINI_KEY already declared there is used. */
 function aiKey_() {
-  try { return PropertiesService.getScriptProperties().getProperty('OPENAI_KEY') || ''; }
+  try {
+    var p = PropertiesService.getScriptProperties().getProperty('GEMINI_KEY');
+    if (p) return p;
+  } catch (e) {}
+  try { return (typeof GEMINI_KEY === 'string' && GEMINI_KEY) ? GEMINI_KEY : ''; }
   catch (e) { return ''; }
 }
 function aiModel_() {
   try {
-    return PropertiesService.getScriptProperties().getProperty('OPENAI_MODEL') || 'gpt-4o-mini';
-  } catch (e) { return 'gpt-4o-mini'; }
+    return PropertiesService.getScriptProperties().getProperty('GEMINI_MODEL') ||
+           'gemini-2.5-flash';
+  } catch (e) { return 'gemini-2.5-flash'; }
 }
 
 function aiRoute(body, v) {
   if (body.action === 'ai-check')  return { ok: true, ready: !!aiKey_(), model: aiModel_() };
-  if (!aiKey_()) return { error: 'No OPENAI_KEY in the Apps Script. Add it under ' +
-    'Project Settings → Script Properties → OPENAI_KEY. It is never put in the repository.' };
+  if (!aiKey_()) return { error: 'No Gemini key in the Apps Script. Put your AI Studio key ' +
+    'in GEMINI_KEY in Code.gs, or under Project Settings → Script Properties → GEMINI_KEY. ' +
+    'It is never put in the repository.' };
   if (body.action === 'ai-review') return aiReview(body, v);
   return null;
 }
 
-/* One call to the model, with whatever images were sent. */
-function aiCall_(messages, maxTokens) {
-  var res;
-  try {
-    res = UrlFetchApp.fetch('https://api.openai.com/v1/chat/completions', {
-      method: 'post', contentType: 'application/json', muteHttpExceptions: true,
-      headers: { Authorization: 'Bearer ' + aiKey_() },
-      payload: JSON.stringify({
-        model: aiModel_(),
-        messages: messages,
-        max_tokens: maxTokens || 900,
-        temperature: 0.2,
-        response_format: { type: 'json_object' }
-      })
-    });
-  } catch (err) { return { error: 'Could not reach OpenAI: ' + err }; }
-  const code = res.getResponseCode();
-  const text = res.getContentText();
-  var b = {};
-  try { b = JSON.parse(text); } catch (e) { return { error: 'OpenAI returned something that is not JSON: ' + text.slice(0, 300) }; }
-  if (code !== 200)
-    return { error: 'OpenAI ' + code + ': ' + (((b.error || {}).message) || text.slice(0, 300)) };
-  const msg = (((b.choices || [])[0] || {}).message || {}).content || '';
-  var out = {};
-  try { out = JSON.parse(msg); } catch (e) { return { error: 'The model did not answer in JSON.', raw: msg.slice(0, 600) }; }
-  out._usage = b.usage || null;
-  return out;
+/* One call to Gemini with whatever renders were sent. A newer model name that
+   this key cannot reach falls through to the next one rather than failing the
+   review; a bad key or a quota wall does not, because retrying cannot help. */
+function aiCall_(system, parts, maxTokens) {
+  const key = aiKey_();
+  const models = [aiModel_(), 'gemini-2.0-flash'];
+  var last = '';
+  for (var i = 0; i < models.length; i++) {
+    var res;
+    try {
+      res = UrlFetchApp.fetch(
+        'https://generativelanguage.googleapis.com/v1beta/models/' +
+        encodeURIComponent(models[i]) + ':generateContent?key=' + encodeURIComponent(key), {
+          method: 'post', contentType: 'application/json', muteHttpExceptions: true,
+          payload: JSON.stringify({
+            system_instruction: { parts: [{ text: system }] },
+            contents: [{ role: 'user', parts: parts }],
+            generationConfig: {
+              temperature: 0.2,
+              maxOutputTokens: maxTokens || 1400,
+              responseMimeType: 'application/json'
+            }
+          })
+        });
+    } catch (err) { last = 'Could not reach Gemini: ' + err; continue; }
+
+    var code = res.getResponseCode(), text = res.getContentText(), b = {};
+    try { b = JSON.parse(text); }
+    catch (e) { last = 'Gemini returned something that is not JSON: ' + text.slice(0, 300); continue; }
+
+    if (code !== 200) {
+      last = 'Gemini ' + code + ': ' + (((b.error || {}).message) || text.slice(0, 300));
+      if (code === 403 || code === 429) break;
+      if (code === 400 && /API key|API_KEY/i.test(last)) break;
+      continue;
+    }
+
+    var cand = (b.candidates || [])[0] || {};
+    var msg  = ((cand.content || {}).parts || [])
+                 .map(function (p) { return p.text || ''; }).join('');
+    if (!msg) {
+      last = 'Gemini answered with nothing' +
+             (cand.finishReason ? ' (' + cand.finishReason + ')' : '');
+      continue;
+    }
+
+    var out = null;
+    try { out = JSON.parse(msg); }
+    catch (e) {
+      var m = msg.match(/\{[\s\S]*\}/);          /* a fenced answer still has the object */
+      if (m) { try { out = JSON.parse(m[0]); } catch (e2) {} }
+    }
+    if (!out) return { error: 'The model did not answer in JSON.', raw: msg.slice(0, 600) };
+
+    var u = b.usageMetadata || null;
+    out._usage = u ? { total_tokens: u.totalTokenCount, prompt_tokens: u.promptTokenCount } : null;
+    out._model = models[i];
+    return out;
+  }
+  return { error: last || 'Gemini did not answer.' };
 }
 
 function aiReview(body, v) {
@@ -1607,22 +1651,21 @@ function aiReview(body, v) {
     'of the frame the render fills on a ratio far from its own shape: 0 keeps the ' +
     'whole picture with a blurred surround, 100 crops to fill.';
 
-  const content = [{ type: 'text', text:
+  const parts = [{ text:
     schema + '\n\nThe project: ' + JSON.stringify({
       developer: brief.dev || '', project: brief.proj || '', location: brief.loc || ''
     }) + '\nCurrently set: ' + JSON.stringify({
       layout: now.layout || '', palette: now.palette || '', font: now.font || '',
       scrim: now.scrim, fill: now.fill
-    }) + '\nThe sizes below are, in order: ' + shots.map(function (s) { return s.name; }).join(', ') }];
+    }) + '\nThe sizes below are, in order: ' +
+    shots.map(function (s) { return s.name; }).join(', ') }];
 
   shots.slice(0, 4).forEach(function (s) {
-    content.push({ type: 'text', text: 'Size: ' + s.name });
-    content.push({ type: 'image_url', image_url: {
-      url: 'data:image/jpeg;base64,' + s.data, detail: 'high' } });
+    parts.push({ text: 'Size: ' + s.name });
+    parts.push({ inline_data: { mime_type: 'image/jpeg', data: s.data } });
   });
 
-  const out = aiCall_([{ role: 'system', content: system },
-                       { role: 'user', content: content }], 1100);
+  const out = aiCall_(system, parts, 1400);
   if (out.error) return out;
 
   /* The model may only pick from what the toolkit already has. Anything else

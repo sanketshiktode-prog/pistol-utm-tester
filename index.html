@@ -326,7 +326,7 @@ code{font-family:var(--mono);background:rgba(0,0,0,.05);padding:1px 4px;border-r
     <div class="subject">Google Ads</div>
     <div class="spacer"></div>
     <div class="badge-env" id="varCount">0 VARIANTS</div>
-    <span class="pill p-mute" id="buildTag" title="build">b-23oct-6</span>
+    <span class="pill p-mute" id="buildTag" title="build">b-23oct-7</span>
     <div id="userChip" class="hidden" style="display:flex;align-items:center;gap:9px">
       <div class="divider-v"></div>
       <span id="userName" style="font-size:12.5px;font-weight:500"></span>
@@ -1498,6 +1498,25 @@ Static Square</textarea>
           <button class="btn" id="crChecks">Check against Google</button>
         </div>
         <div id="crOut" style="margin-top:14px"><div class="empty">Upload at least one hero image, then render.</div></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-hd"><h2>Design review</h2><span class="hint" id="aiStat">not run</span></div>
+      <div class="card-bd">
+        <div class="callout">Gemini looks at the four finished renders and judges craft only —
+          collisions, cropping, type you cannot read at a glance, badges over the building,
+          balance. It never touches a word, the price, the RERA number or the QR; those are
+          drawn by this tool and are already right. The only thing it can change is a layout,
+          palette, font, scrim or fill this toolkit already offers.</div>
+        <div class="btnrow">
+          <button class="btn btn-pri" id="aiReview">Review these renders</button>
+          <button class="btn" id="aiApply" disabled>Apply what it suggests</button>
+          <button class="btn btn-navy" id="aiLoop">Review and fix, up to 3 passes</button>
+        </div>
+        <div id="aiOut" style="margin-top:14px"><div class="empty">Render first, then review.</div></div>
+        <div class="f-note" style="margin-top:8px">Needs <code>GEMINI_KEY</code> in the Apps Script.
+          Renders are shrunk to a 1024px long edge before they are sent.</div>
       </div>
     </div>
 
@@ -7767,7 +7786,7 @@ async function aiRun(){
   if(!CR_OUT.length){ toast("Render first"); return null; }
   const st=$("#aiStat"), out=$("#aiOut");
   st.innerHTML=`<span class="pill p-mute">looking…</span>`;
-  out.innerHTML=aiLine("warn","…","Sending the four sizes to the design agent…");
+  out.innerHTML=aiLine("warn","…","Sending the four sizes to Gemini…");
   const r=await adsCall("ai-review",{
     shots:await aiShots(),
     brief:{dev:val("crDev"),proj:val("crProj"),loc:val("crLoc")},
