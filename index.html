@@ -316,7 +316,7 @@ code{font-family:var(--mono);background:rgba(0,0,0,.05);padding:1px 4px;border-r
     <div class="wordmark">Search Ops Toolkit <span>· Google Ads</span></div>
     <div class="spacer"></div>
     <div class="badge-env" id="varCount">0 VARIANTS</div>
-    <span class="pill p-mute" id="buildTag" title="build">b-23oct-1</span>
+    <span class="pill p-mute" id="buildTag" title="build">b-23oct-2</span>
     <div id="userChip" class="hidden" style="display:flex;align-items:center;gap:9px">
       <div class="divider-v"></div>
       <span id="userName" style="font-size:12.5px;font-weight:500"></span>
@@ -1763,8 +1763,12 @@ const csvq=v=>`"${String(v??"").replace(/"/g,'""')}"`;
 /* ── copy helpers, declared before anything calls them ── */
 const ABBR=[[/\bApartments\b/gi,"Apts"],[/\bMinutes\b/gi,"Mins"],[/\bBedroom\b/gi,"BR"],
   [/\band\b/g,"&"],[/\bAnd\b/g,"&"],[/\bWith\b/gi,"With"],[/\s{2,}/g," "]];
+/* A token here is a run of word characters, not a run of non-spaces: with
+   the latter, "Vadgaon,Pune" is one token and only the V is lifted, which is
+   how "Vadgaon, pune" reached a headline. */
 const tc=s=>String(s||"").trim().replace(/\s+/g," ")
-  .replace(/\w\S*/g,w=>w[0].toUpperCase()+w.slice(1));
+  .replace(/[A-Za-z\u00C0-\u024F][A-Za-z\u00C0-\u024F']*/g,
+           w=>w[0].toUpperCase()+w.slice(1));
 function fit(s,max){
   s=String(s||"").replace(/\s+/g," ").trim();
   if(!s)return null;
@@ -1854,9 +1858,16 @@ function joinParts(){
 /* the location clause, minus anything the project name already says */
 function placeOf(b){
   const proj=String(b.proj||"").toLowerCase();
-  return [b.micro,b.city].filter(Boolean)
-    .filter(x=>!proj.includes(String(x).toLowerCase()))
-    .join(", ");
+  const out=[];
+  [b.micro,b.city].filter(Boolean).forEach(x=>{
+    const t=String(x).toLowerCase();
+    if(proj.includes(t))return;
+    /* "Vadgaon, Pune" typed into the micro-market already carries the city,
+       and appending it again gave "Vadgaon, Pune, Pune" */
+    if(out.some(y=>String(y).toLowerCase().split(/[\s,]+/).includes(t)))return;
+    out.push(x);
+  });
+  return out.join(", ");
 }
 function brief(){
   const p=syncProj();
@@ -1865,11 +1876,46 @@ function brief(){
     p.proj=[dev,loc].filter(Boolean).join(" ")||tc(p.proj);
   }
   const price=(p.price||"").trim();
+  /* tidied here rather than at the end: what he sees on the Ad copy tab is
+     then exactly what gets sent, and a comma typed without a space never
+     reaches a headline in the first place */
   return {
-    proj:tc(p.proj)||tc(p.cfg&&"")||"", dev:tc(p.dev), micro:tc(p.micro), city:tc(p.city),
-    cfg:(p.cfg||"").trim(), price, offer:tc(p.offer), loc:(p.loc||"").trim(),
-    usps:lines(p.usps), marks:lines(p.marks), amen:lines(p.amen)
+    proj:tc(adText(p.proj))||"", dev:tc(adText(p.dev)),
+    micro:tc(adText(p.micro)), city:tc(adText(p.city)),
+    cfg:adText(p.cfg), price:adText(price), offer:tc(adText(p.offer)),
+    loc:adText(p.loc),
+    usps:lines(p.usps).map(adText), marks:lines(p.marks).map(adText),
+    amen:lines(p.amen).map(adText)
   };
+}
+/* ── spacing ──────────────────────────────────────────────────────────────
+   Google refuses an ad outright for this one. "UNACCEPTABLE_SPACING
+   (PROHIBITED)" with the evidence ",Pune" and "Vadgaon,Pune": a comma with
+   no space after it, and a leading comma left behind where the micro-market
+   was empty. It is a PROHIBITED topic, so the whole campaign is rolled back
+   with the ad — one missing space costs the entire deploy.
+
+   Every string that ships as ad text goes through here. An Indian number
+   keeps its commas ("1,70,000" must not become "1, 70, 000") and a colon is
+   left alone ("30:70 payment plan"). */
+function adText(s){
+  let t=String(s||"").replace(/\s+/g," ").trim();
+  t=t.replace(/\s+([,;.!?])/g,"$1");                 /* no space before punctuation */
+  t=t.replace(/([,;])(?=\S)/g,function(m,p,off,str){
+    /* 1,70,000 is a number and keeps its commas; 2,3 & 3.5 BHK is a list and
+       wants the spaces. Indian grouping runs in 2s and 3s, so that is the
+       test \u2014 a single digit after the comma means a list. */
+    if(p===","&&/\d/.test(str[off-1]||"")&&/^\d{2,3}(?!\d)/.test(str.slice(off+1)))return p;
+    return p+" ";
+  });
+  t=t.replace(/\.(?=[A-Za-z])/g,". ");
+  t=t.replace(/,\s*(?=,)/g,"").replace(/\s{2,}/g," ");
+  t=t.replace(/^[\s,;|–—-]+/,"").replace(/[\s,;|]+$/,"");
+  return t.trim();
+}
+/* the same, for a whole ad: used as the last thing before anything is sent */
+function adTextRows(rows){
+  return (rows||[]).map(r=>Array.isArray(r)?[adText(r[0]),r[1]]:adText(r));
 }
 function compose(parts,max){
   const p=parts.map(x=>String(x||"").replace(/\s+/g," ").trim()).filter(Boolean);
@@ -3856,8 +3902,12 @@ function blocked(s){
   return blockWords().some(w=>t.includes(" "+w+" ")||t.includes(" "+w));
 }
 function locList(){
-  const main=$("#locMain").value.trim()||PROJ.micro;
-  const alt=lines($("#locAlt").value);
+  /* These feed keywords AND headlines, and they come straight off the inputs
+     rather than through brief(), so "Vadgaon,Pune" typed here reached a
+     headline untouched. Tidied on the way out, like everything else that
+     ends up in ad text. */
+  const main=adText($("#locMain").value)||PROJ.micro;
+  const alt=lines($("#locAlt").value).map(adText);
   return [main,...alt].filter(Boolean);
 }
 /* "Mahindra Lifespaces" also gets searched as plain "Mahindra". The short
@@ -5517,12 +5567,14 @@ function apPlan(){
            carrying brand, project and location, and five descriptions under 90.
            The build fills g.ad with the Search copy, so the Demand Gen copy is
            taken from the same generator the export uses. */
-        headlines:CH==="demandgen"
+        /* the last thing before it leaves the browser: one comma without a
+           space behind it is a PROHIBITED policy topic and loses the campaign */
+        headlines:adTextRows(CH==="demandgen"
           ? dgAdFinal(gi).h.filter(Boolean).map(t=>[t,""])
-          : (ADG[g.name]?ADG[g.name].h:g.ad.h).filter(r=>r&&r[0]&&r[0].trim()),
-        descriptions:CH==="demandgen"
+          : (ADG[g.name]?ADG[g.name].h:g.ad.h).filter(r=>r&&r[0]&&r[0].trim())),
+        descriptions:adTextRows(CH==="demandgen"
           ? dgAdFinal(gi).d.filter(Boolean).map(t=>[t,""])
-          : (ADG[g.name]?ADG[g.name].d:g.ad.d).filter(r=>r&&r[0]&&r[0].trim())
+          : (ADG[g.name]?ADG[g.name].d:g.ad.d).filter(r=>r&&r[0]&&r[0].trim()))
       }))
     })),
     assets:{
@@ -5640,6 +5692,20 @@ function drawApPlan(){
     (pl.settings.noIdCount?`<div class="check c-warn" style="margin-top:10px"><span class="ic">!</span><span>
       <b>${pl.settings.noIdCount} location${pl.settings.noIdCount===1?"":"s"} without a criterion ID.</b>
       Those are not being targeted. Press <b>Look up the missing IDs again</b> under Locations.</span></div>`:"")+
+    /* spacing is a PROHIBITED topic, so it does not warn — it loses the whole
+       campaign. Caught here, before it costs a deploy. */
+    (()=>{ const bad=[];
+      pl.campaigns.forEach(c2=>c2.adgroups.forEach(g=>{
+        [...(g.headlines||[]),...(g.descriptions||[])].forEach(r=>{
+          const t=(r&&r[0])||""; if(t&&adText(t)!==t)bad.push(t);
+        });
+      }));
+      if(!bad.length)return "";
+      return `<div class="check c-bad" style="margin-top:10px"><span class="ic">✕</span><span>
+        <b>${bad.length} line${bad.length===1?"":"s"} would be refused for spacing.</b> Google treats a
+        comma with no space after it as a PROHIBITED policy topic and rolls the whole campaign back.
+        <code>${esc(bad.slice(0,3).join(" · "))}</code></span></div>`;
+    })()+
     (thin.length?`<div class="check c-bad" style="margin-top:10px"><span class="ic">\u2715</span><span>
       <b>Google will reject these ad groups</b> \u2014 it needs ${minH} headline${minH===1?"":"s"} and
       ${minD} description${minD===1?"":"s"}:<br>${thin.map(esc).join("<br>")}</span></div>`:"");

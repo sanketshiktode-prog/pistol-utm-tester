@@ -72,6 +72,14 @@ never dropped silently between the plan and what Google received.
   location in a proper sentence. Pin 2 is USP + CTA.
 - **Demand Gen headlines** must each carry brand, project AND location inside
   40 characters. One that cannot is flagged, never quietly dropped.
+- **Spacing loses the whole campaign.** Google treats a comma with no space
+  after it as `UNACCEPTABLE_SPACING`, a PROHIBITED policy topic: the ad is
+  refused and the campaign is all-or-nothing, so it rolls back with it. Every
+  string that ships as ad text goes through `adText()`. An Indian number keeps
+  its commas (1,70,000) and a colon is left alone (30:70); a list does not
+  (2,3 & 3.5 BHK becomes 2, 3 & 3.5 BHK). Anything that reads ad text straight
+  off an input rather than through `brief()` — `locList()` is the one that
+  caught us — has to tidy it itself.
 - **One URL or one keyword per custom segment.** Mixing signals makes a
   segment match neither well.
 - **Location goes on the campaign** for both channels.
