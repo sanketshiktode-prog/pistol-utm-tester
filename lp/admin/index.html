@@ -1,0 +1,128 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Leads Console</title>
+<meta name="robots" content="noindex, nofollow">
+<style>
+:root{--p:#0e5a43;--bg:#f3f5f4;--line:#e2e7e5;--txt:#17201d;--mut:#66736e;--red:#c0392b;--amb:#b7791f}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:Inter,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;background:var(--bg);color:var(--txt);font-size:14px}
+header{background:#fff;border-bottom:1px solid var(--line);padding:12px 20px;display:flex;gap:12px;align-items:center;flex-wrap:wrap}
+header b{font-size:16px}
+header .conn{margin-left:auto;display:flex;gap:6px;flex-wrap:wrap}
+input,select,button{font:inherit;border:1px solid var(--line);border-radius:8px;padding:7px 10px;background:#fff;color:inherit}
+button{cursor:pointer;font-weight:500}
+button.p{background:var(--p);color:#fff;border-color:var(--p)}
+button:hover{border-color:var(--p)}
+main{padding:18px 20px;display:grid;gap:16px;max-width:1500px;margin:0 auto}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px}
+.kpi{background:#fff;border:1px solid var(--line);border-radius:12px;padding:14px}
+.kpi small{color:var(--mut);font-size:12px;text-transform:uppercase;letter-spacing:.04em}
+.kpi div{font-size:26px;font-weight:700;margin-top:2px;font-variant-numeric:tabular-nums}
+.grid3{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:12px}
+.card{background:#fff;border:1px solid var(--line);border-radius:12px;padding:14px;overflow:auto}
+.card h3{font-size:13px;color:var(--mut);margin-bottom:8px;text-transform:uppercase;letter-spacing:.04em}
+.mini{width:100%;border-collapse:collapse;font-size:13px}
+.mini td{padding:5px 0;border-bottom:1px solid var(--bg)}
+.mini td:last-child{text-align:right;font-variant-numeric:tabular-nums;font-weight:600}
+.bar{height:4px;background:var(--p);border-radius:3px;opacity:.7}
+.filters{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+table.leads{width:100%;border-collapse:collapse;font-size:13px;background:#fff}
+.leads th{position:sticky;top:0;background:#fafbfb;text-align:left;padding:9px 8px;border-bottom:1px solid var(--line);font-size:12px;color:var(--mut);white-space:nowrap}
+.leads td{padding:8px;border-bottom:1px solid var(--bg);vertical-align:top}
+.leads tr:hover td{background:#fafcfb}
+.tag{display:inline-block;padding:2px 8px;border-radius:999px;font-size:11px;font-weight:600;background:var(--bg)}
+.tag.sent{background:#e3f4ec;color:#0e7a4f}.tag.failed{background:#fdecea;color:var(--red)}.tag.skipped{background:#eef0f2;color:#556}.tag.pending,.tag.awaiting_otp{background:#fff4df;color:var(--amb)}
+.muted{color:var(--mut);font-size:12px}
+.pager{display:flex;gap:8px;align-items:center;justify-content:flex-end;margin-top:10px}
+.x{border:0;background:none;color:var(--mut);padding:2px 6px}
+.x:hover{color:var(--p)}
+#msg{color:var(--red)}
+@media(max-width:700px){header .conn{margin-left:0;width:100%}header .conn input{flex:1}}
+</style>
+</head>
+<body>
+<header>
+  <b>Leads Console</b><span class="muted" id="who"></span>
+  <div class="conn">
+    <input id="api" placeholder="https://pp-leads.xxx.workers.dev" size="34">
+    <input id="tok" type="password" placeholder="Admin token" size="16">
+    <label class="muted" style="display:flex;align-items:center;gap:4px"><input type="checkbox" id="rem" style="padding:0"> remember</label>
+    <button class="p" id="go">Connect</button>
+  </div>
+</header>
+<main>
+  <div class="filters">
+    <input id="fq" placeholder="Search name / phone / email / campaign" size="30">
+    <select id="fp"><option value="">All projects</option></select>
+    <select id="fs"><option value="">Any CRM status</option><option>sent</option><option>failed</option><option>pending</option><option>awaiting_otp</option><option>skipped</option></select>
+    <input id="ff" type="date" title="From (IST)"><input id="ft" type="date" title="To (IST)">
+    <label class="muted" style="display:flex;align-items:center;gap:4px"><input type="checkbox" id="fd" style="padding:0"> hide duplicates</label>
+    <button id="apply">Apply</button>
+    <button id="today">Today</button>
+    <span style="flex:1"></span>
+    <button id="retry">Retry failed CRM pushes</button>
+    <button class="p" id="csv">Download CSV</button>
+    <span id="msg"></span>
+  </div>
+  <div class="kpis" id="kpis"></div>
+  <div class="grid3" id="breakdowns"></div>
+  <div class="card" style="padding:0">
+    <table class="leads"><thead><tr><th>Time (IST)</th><th>Name</th><th>Phone</th><th>Email</th><th>Project</th><th>Form</th><th>Source / Campaign</th><th>Location</th><th>CRM</th><th></th></tr></thead><tbody id="rows"><tr><td colspan="10" class="muted" style="padding:20px">Enter your Worker URL and admin token, then Connect.</td></tr></tbody></table>
+  </div>
+  <div class="pager"><span class="muted" id="pinfo"></span><button id="prev">‹ Prev</button><button id="next">Next ›</button></div>
+</main>
+<script>
+(function(){
+const $=s=>document.querySelector(s);const esc=s=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+let API='',TOK='',off=0;const LIM=100;
+try{API=localStorage.getItem('lc_api')||'';TOK=localStorage.getItem('lc_tok')||'';}catch(e){}
+$('#api').value=API;$('#tok').value=TOK;$('#rem').checked=!!TOK;
+const ist=iso=>{const d=new Date(new Date(iso).getTime()+5.5*3600e3);return d.toISOString().slice(0,16).replace('T',' ')};
+function qs(){const p=new URLSearchParams();const v={q:$('#fq').value,project:$('#fp').value,status:$('#fs').value,from:$('#ff').value,to:$('#ft').value};Object.entries(v).forEach(([k,x])=>x&&p.set(k,x));if($('#fd').checked)p.set('dupes','0');return p}
+async function call(path,opt={}){const r=await fetch(API+path,Object.assign({},opt,{headers:Object.assign({Authorization:'Bearer '+TOK},opt.headers||{})}));if(r.status===401)throw new Error('Wrong admin token');if(!r.ok)throw new Error('HTTP '+r.status);return r}
+async function load(){
+  $('#msg').textContent='';
+  if(!API||!TOK){$('#msg').textContent='Enter API URL and token';return}
+  try{
+    const p=qs();const s=await (await call('/api/admin/stats?'+p)).json();
+    const t=s.totals||{};
+    $('#kpis').innerHTML=[['Total leads',t.n],['Unique',t.uniq],['OTP verified',t.verified],['Pushed to CRM',t.sent],['CRM failed',t.failed]].map(([l,v])=>`<div class="kpi"><small>${l}</small><div>${(v||0).toLocaleString('en-IN')}</div></div>`).join('');
+    const mini=(title,arr)=>{const mx=Math.max(1,...arr.map(a=>a.n));return `<div class="card"><h3>${title}</h3><table class="mini">${arr.map(a=>`<tr><td>${esc(a.k||'(none)')}<div class="bar" style="width:${a.n/mx*100}%"></div></td><td>${a.n}</td></tr>`).join('')||'<tr><td class="muted">No data</td></tr>'}</table></div>`};
+    $('#breakdowns').innerHTML=mini('By project',s.by_project)+mini('By source',s.by_source)+mini('By form / CTA',s.by_form)+mini('By day (IST)',s.by_day);
+    const sel=$('#fp'),cur=sel.value;if(!cur){sel.innerHTML='<option value="">All projects</option>'+s.by_project.map(a=>`<option>${esc(a.k)}</option>`).join('')}
+    p.set('limit',LIM);p.set('offset',off);
+    const d=await (await call('/api/admin/leads?'+p)).json();
+    $('#rows').innerHTML=d.leads.map(l=>`<tr>
+      <td style="white-space:nowrap">${ist(l.created_at)}${l.is_duplicate?'<div class="tag">duplicate</div>':''}</td>
+      <td><b>${esc(l.name)}</b>${l.otp_verified?' <span class="tag sent">OTP ✓</span>':''}</td>
+      <td style="white-space:nowrap"><a href="tel:${esc(l.country_code+l.phone)}">${esc(l.country_code)} ${esc(l.phone)}</a></td>
+      <td>${esc(l.email)}</td>
+      <td>${esc(l.project_code)}<div class="muted">${esc(l.config)}</div></td>
+      <td>${esc(l.form_source)}</td>
+      <td>${esc(l.utm_source||(l.gclid?'google (gclid)':l.fbclid?'facebook (fbclid)':'direct'))}<div class="muted">${esc(l.utm_campaign)} ${esc(l.utm_term||l.keyword)}</div></td>
+      <td>${esc(l.city)}${l.country?', '+esc(l.country):''}<div class="muted">${l.is_mobile?'Mobile':'Desktop'}</div></td>
+      <td><span class="tag ${esc(l.crm_status)}" title="${esc(l.crm_response)}">${esc(l.crm_status)}</span>${l.crm_attempts>1?`<div class="muted">${l.crm_attempts} tries</div>`:''}</td>
+      <td style="white-space:nowrap"><button class="x" data-push="${esc(l.id)}" title="Push to CRM again">↻</button><button class="x" data-del="${esc(l.id)}" title="Delete">✕</button></td></tr>`).join('')||'<tr><td colspan="10" class="muted" style="padding:20px">No leads for these filters.</td></tr>';
+    $('#pinfo').textContent=d.total?`${off+1}–${Math.min(off+LIM,d.total)} of ${d.total}`:'';
+    $('#prev').disabled=off===0;$('#next').disabled=off+LIM>=d.total;
+    $('#who').textContent='· connected';
+  }catch(e){$('#msg').textContent=e.message}
+}
+$('#go').onclick=()=>{API=$('#api').value.trim().replace(/\/$/,'');TOK=$('#tok').value.trim();try{if($('#rem').checked){localStorage.setItem('lc_api',API);localStorage.setItem('lc_tok',TOK)}else{localStorage.removeItem('lc_tok');localStorage.setItem('lc_api',API)}}catch(e){}off=0;load()};
+$('#apply').onclick=()=>{off=0;load()};
+$('#today').onclick=()=>{const d=new Date(Date.now()+5.5*3600e3).toISOString().slice(0,10);$('#ff').value=d;$('#ft').value=d;off=0;load()};
+$('#prev').onclick=()=>{off=Math.max(0,off-LIM);load()};$('#next').onclick=()=>{off+=LIM;load()};
+$('#fq').onkeydown=e=>{if(e.key==='Enter'){off=0;load()}};
+$('#csv').onclick=async()=>{try{const b=await (await call('/api/admin/leads.csv?'+qs())).blob();const a=document.createElement('a');a.href=URL.createObjectURL(b);a.download='leads-'+new Date().toISOString().slice(0,10)+'.csv';a.click()}catch(e){$('#msg').textContent=e.message}};
+$('#retry').onclick=async()=>{try{const j=await (await call('/api/admin/retry',{method:'POST'})).json();alert('Re-pushed '+j.retried+' lead(s)');load()}catch(e){$('#msg').textContent=e.message}};
+$('#rows').onclick=async e=>{const p=e.target.closest('[data-push]'),d=e.target.closest('[data-del]');
+  try{if(p){const j=await (await call('/api/admin/leads/'+p.dataset.push+'/push',{method:'POST'})).json();alert('CRM: '+j.crm.status+'\n'+(j.crm.response||''));load()}
+  if(d&&confirm('Delete this lead permanently?')){await call('/api/admin/leads/'+d.dataset.del,{method:'DELETE'});load()}}catch(err){$('#msg').textContent=err.message}};
+if(API&&TOK)load();
+})();
+</script>
+</body>
+</html>

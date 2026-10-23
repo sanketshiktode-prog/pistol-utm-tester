@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Landing Page Builder</title>
+<meta name="robots" content="noindex, nofollow">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%230e5a43'/%3E%3Cpath d='M8 22V12l8-5 8 5v10h-6v-6h-4v6z' fill='%23fff'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="builder/styles.css">
+</head>
+<body>
+<header class="top">
+  <div class="brand"><span class="mark">▲</span> LP Builder</div>
+  <div class="proj">
+    <select id="projSel" title="Switch project"></select>
+    <button class="b ghost" id="btnNew" title="New project">+ New</button>
+    <button class="b ghost" id="btnDup" title="Duplicate project">Duplicate</button>
+    <button class="b ghost danger" id="btnDel" title="Delete project">Delete</button>
+  </div>
+  <div class="acts">
+    <span class="saved" id="savedAt"></span>
+    <a class="b ghost" href="admin/" target="_blank" style="text-decoration:none">Leads Console ↗</a>
+    <button class="b ghost" id="btnSample">Load Sample</button>
+    <label class="b ghost">Import<input type="file" id="fileImport" accept=".json" hidden></label>
+    <button class="b ghost" id="btnSave">Save .json</button>
+    <button class="b ghost" id="btnHtml" title="Single file with images embedded">Export 1-file HTML</button>
+    <button class="b primary" id="btnZip">Export ZIP</button>
+  </div>
+</header>
+
+<div class="main">
+  <aside class="panel" id="panel">
+    <div class="score" id="score"></div>
+    <div id="form"></div>
+  </aside>
+  <section class="stage">
+    <div class="stagebar">
+      <div class="dev" id="devs">
+        <button data-w="1440" class="on">Desktop</button>
+        <button data-w="820">Tablet</button>
+        <button data-w="390">Mobile</button>
+      </div>
+      <button class="b ghost sm" id="btnOpen">Open preview in new tab ↗</button>
+    </div>
+    <div class="frame-wrap"><iframe id="pv" title="Live preview"></iframe></div>
+  </section>
+</div>
+<div class="toast" id="toast"></div>
+
+<script src="vendor/jszip.min.js"></script>
+<script src="builder/template.js"></script>
+<script src="builder/sample.js"></script>
+<script src="builder/crm-presets.js"></script>
+<script src="builder/php-bundle.js"></script>
+<script src="builder/app.js"></script>
+</body>
+</html>

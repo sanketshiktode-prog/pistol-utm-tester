@@ -153,6 +153,37 @@ textarea{resize:vertical;line-height:1.55;font-size:12px}
 .apg{display:grid;grid-template-columns:1fr auto;gap:8px;align-items:center;
   padding:7px 0;border-bottom:1px solid var(--line-soft);font-size:12.5px}
 .tblwrap{overflow-x:auto}
+
+/* CRM */
+.kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:14px}
+.kpi{border:1px solid var(--line-soft);border-radius:6px;padding:11px 13px;background:var(--surface)}
+.kpi b{display:block;font-family:var(--disp);font-size:26px;line-height:1.1;font-weight:800}
+.kpi span{font-size:10.5px;font-weight:600;letter-spacing:.07em;text-transform:uppercase;color:var(--ink-soft)}
+.kpi.good b{color:var(--ok)} .kpi.bad b{color:var(--bad)}
+.lt{width:100%;border-collapse:collapse;font-size:12.5px}
+.lt th{text-align:left;font-size:10px;letter-spacing:.07em;text-transform:uppercase;color:var(--ink-soft);
+  font-weight:600;padding:7px 8px;border-bottom:1px solid var(--line);white-space:nowrap}
+.lt td{padding:8px;border-bottom:1px solid var(--line-soft);vertical-align:top}
+.lt tr:hover td{background:rgba(0,0,0,.015)}
+.lt .nm{font-weight:600;cursor:pointer}
+.lt .nm:hover{color:var(--accent);text-decoration:underline}
+.lt .sub{color:var(--ink-soft);font-size:11px;margin-top:2px}
+.lt .mono{font-family:var(--mono);font-size:11.5px}
+.st{font-family:var(--mono);font-size:10.5px;font-weight:600;padding:3px 7px;border-radius:3px;
+  border:1px solid var(--line);background:var(--surface);cursor:pointer}
+.st-NEW{background:#eef2ff;color:#3730a3;border-color:#c7d2fe}
+.st-ATTEMPTED,.st-CONNECTED{background:#fef3c7;color:#92400e;border-color:#fde68a}
+.st-QUALIFIED,.st-SITE_VISIT,.st-VISIT_DONE{background:var(--ok-wash);color:var(--ok);border-color:transparent}
+.st-BOOKED{background:#064e3b;color:#fff;border-color:transparent}
+.st-JUNK,.st-NOT_INTERESTED,.st-DUPLICATE{background:rgba(0,0,0,.05);color:var(--ink-soft)}
+.cmt{border-left:2px solid var(--line);padding:7px 0 7px 11px;margin-bottom:9px}
+.cmt .who{font-size:10.5px;color:var(--ink-soft);font-family:var(--mono)}
+.cmt .txt{font-size:12.5px;margin-top:3px;white-space:pre-wrap}
+.dpair{display:grid;grid-template-columns:132px minmax(0,1fr);gap:4px 10px;font-size:12.5px;
+  padding:5px 0;border-bottom:1px solid var(--line-soft)}
+.dpair span:first-child{font-size:10.5px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-soft)}
+.dpair span:last-child{word-break:break-word}
+@media(max-width:760px){.kpis{grid-template-columns:repeat(2,1fr)}}
 code{font-family:var(--mono);background:rgba(0,0,0,.05);padding:1px 4px;border-radius:3px;font-size:.94em}
 
 /* strategy manager */
@@ -326,7 +357,7 @@ code{font-family:var(--mono);background:rgba(0,0,0,.05);padding:1px 4px;border-r
     <div class="subject">Google Ads</div>
     <div class="spacer"></div>
     <div class="badge-env" id="varCount">0 VARIANTS</div>
-    <span class="pill p-mute" id="buildTag" title="build">b-23oct-8</span>
+    <span class="pill p-mute" id="buildTag" title="build">b-23oct-9</span>
     <div id="userChip" class="hidden" style="display:flex;align-items:center;gap:9px">
       <div class="divider-v"></div>
       <span id="userName" style="font-size:12.5px;font-weight:500"></span>
@@ -348,6 +379,8 @@ code{font-family:var(--mono);background:rgba(0,0,0,.05);padding:1px 4px;border-r
   <button class="tab" role="tab" aria-selected="false" data-panel="p-mt"><span class="num">06</span>Meta ads</button>
   <button class="tab" role="tab" aria-selected="false" data-panel="p-api"><span class="num">07</span>Deploy to Google Ads</button>
   <button class="tab" role="tab" aria-selected="false" data-panel="p-cr"><span class="num">08</span>Creative studio</button>
+  <button class="tab" role="tab" aria-selected="false" data-panel="p-crm"><span class="num">09</span>CRM</button>
+  <button class="tab" role="tab" aria-selected="false" data-panel="p-lp"><span class="num">10</span>Landing page</button>
 </div></nav>
 
 <main class="wrap">
@@ -1547,6 +1580,109 @@ Static Square</textarea>
 </div>
 </section>
 
+<section class="panel" id="p-crm">
+<div class="split">
+
+  <div class="sticky-col">
+    <div class="card">
+      <div class="card-hd"><h2>Filters</h2><span class="hint" id="crmStat">not loaded</span></div>
+      <div class="card-bd">
+        <div class="f"><span class="f-lab">Search</span>
+          <input id="crmQ" placeholder="name, phone, email, campaign, keyword"></div>
+        <div class="row2" style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:10px">
+          <div class="f"><span class="f-lab">From</span><input id="crmFrom" type="date"></div>
+          <div class="f"><span class="f-lab">To</span><input id="crmTo" type="date"></div>
+        </div>
+        <div class="f" style="margin-top:10px"><span class="f-lab">Project</span>
+          <select id="crmProject"><option value="">Every project</option></select></div>
+        <div class="f" style="margin-top:10px"><span class="f-lab">Status</span>
+          <select id="crmStatus"><option value="">Every status</option></select></div>
+        <div class="f" style="margin-top:10px"><span class="f-lab">Source</span>
+          <select id="crmSource"><option value="">Every source</option></select></div>
+        <div class="f" style="margin-top:10px"><span class="f-lab">Campaign</span>
+          <select id="crmCampaign"><option value="">Every campaign</option></select></div>
+        <div class="btnrow" style="margin-top:14px">
+          <button class="btn btn-pri" id="crmLoad">Load leads</button>
+          <button class="btn" id="crmClear">Clear</button>
+          <button class="btn btn-navy" id="crmCsv">CSV</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-hd"><h2>Where leads come from</h2></div>
+      <div class="card-bd">
+        <div class="callout">Leads land here from any landing page built in the Landing page tab.
+          Paste this endpoint into the builder under <b>Leads, OTP &amp; CRM → Lead API URL</b>
+          and pick <b>Trigger CRM</b> as the hosting. There is no server to deploy.</div>
+        <div class="f" style="margin-top:12px"><span class="f-lab">Lead endpoint</span>
+          <input id="crmEndpoint" readonly></div>
+        <div class="btnrow" style="margin-top:10px">
+          <button class="btn" id="crmCopyEp">Copy endpoint</button>
+          <button class="btn" id="crmTest">Send a test lead</button>
+        </div>
+        <div class="f-note" style="margin-top:8px">A test lead is stored like any other and arrives
+          as <b>Junk</b>, so it can never be counted as real.</div>
+      </div>
+    </div>
+  </div>
+
+  <div>
+    <div class="kpis" id="crmKpis">
+      <div class="kpi"><b>—</b><span>Leads</span></div>
+      <div class="kpi good"><b>—</b><span>Qualified</span></div>
+      <div class="kpi"><b>—</b><span>Duplicates</span></div>
+      <div class="kpi bad"><b>—</b><span>Junk</span></div>
+    </div>
+
+    <div class="card">
+      <div class="card-hd"><h2>Leads</h2><span class="hint" id="crmCount"></span></div>
+      <div class="card-bd">
+        <div class="btnrow" id="crmBulkBar" style="margin-bottom:10px">
+          <select id="crmBulkStatus" style="max-width:220px"></select>
+          <button class="btn" id="crmBulkGo" disabled>Apply to selected</button>
+          <span class="hint" id="crmSelN">nothing selected</span>
+        </div>
+        <div class="tblwrap">
+          <table class="lt" id="crmTbl"><tbody>
+            <tr><td><div class="empty">Press <b>Load leads</b>.</div></td></tr>
+          </tbody></table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+</section>
+
+<section class="panel" id="p-lp">
+<div class="split">
+  <div class="sticky-col">
+    <div class="card">
+      <div class="card-hd"><h2>Landing page</h2><span class="hint">builder</span></div>
+      <div class="card-bd">
+        <div class="callout">The builder makes the project microsite — hero, pricing, plans,
+          amenities, gallery, location, FAQ — and exports a folder you upload to GitHub Pages or
+          cPanel. Every form on it posts straight to the CRM tab, with the tracking parameters
+          from the Tracking URLs tab carried through.</div>
+        <div class="btnrow" style="margin-top:14px">
+          <button class="btn btn-pri" id="lpOpen">Open the builder with this brief</button>
+          <button class="btn" id="lpPlain">Open it empty</button>
+        </div>
+        <div class="f-note" style="margin-top:10px">The brief is handed over in the link, so the
+          builder opens with the project already filled in. Nothing is uploaded anywhere.</div>
+      </div>
+    </div>
+  </div>
+  <div>
+    <div class="card">
+      <div class="card-hd"><h2>What gets handed across</h2><span class="hint" id="lpStat"></span></div>
+      <div class="card-bd" id="lpOut"><div class="empty">Fill the brief in the Tracking URLs tab first.</div></div>
+    </div>
+  </div>
+</div>
+</section>
+
+
 
 
 
@@ -1577,6 +1713,16 @@ Static Square</textarea>
       </div>
       <div class="f-note" style="margin-top:12px">The criterion ID is what Editor matches on. Find it by adding the segment by hand on one ad group, then reading it from the Audiences view. Without an ID the name alone will usually not resolve.</div>
     </div>
+  </div>
+</div>
+
+<div class="modal" id="mdWrap">
+  <div class="modal-box" style="max-width:720px">
+    <div class="modal-hd">
+      <h2 id="mdTitle">Lead</h2>
+      <button class="x" id="mdClose" aria-label="Close">&times;</button>
+    </div>
+    <div class="modal-bd" id="mdBody"></div>
   </div>
 </div>
 
@@ -8271,6 +8417,273 @@ document.addEventListener("keydown",e=>{
 on("#crOut","click",e=>{
   const img=e.target.closest("img[data-k]");
   if(img)lbShow(+img.dataset.k);
+});
+
+/* ═══════════ the mini CRM ═══════════════════════════════════════════════
+   The internal development team has not given us a POST API for the company
+   CRM, so a landing page that captures a lead has nowhere to send it. This
+   is that somewhere: the leads live in the same Google Sheet this toolkit
+   already logs to, and this tab is the working surface over them.
+
+   Nothing here deletes a lead. A bad one is marked Junk and stays, because a
+   lead that can vanish is a lead someone will argue about later. */
+
+let CRM_ROWS=[], CRM_SEL=new Set(), CRM_STATUSES=[], CRM_LOADED=false;
+
+const crmLabel=id=>{ const f=CRM_STATUSES.filter(s=>s[0]===id)[0]; return f?f[1]:(id||""); };
+function crmFilters(){
+  return { q:val("crmQ"), from:val("crmFrom"), to:val("crmTo"),
+           project:val("crmProject"), status:val("crmStatus"),
+           source:val("crmSource"), campaign:val("crmCampaign") };
+}
+function crmFill(sel,list,keep){
+  const el=$("#"+sel); if(!el)return;
+  const cur=keep||el.value, first=el.options[0]?el.options[0].outerHTML:"";
+  el.innerHTML=first+list.map(v=>`<option>${esc(v)}</option>`).join("");
+  if(cur&&list.indexOf(cur)>-1)el.value=cur;
+}
+function crmStatusSel(id,cur){
+  return `<select class="st st-${esc(cur||"NEW")}" data-st="${esc(id)}">`+
+    CRM_STATUSES.map(s=>`<option value="${s[0]}"${s[0]===cur?" selected":""}>${esc(s[1])}</option>`).join("")+
+    `</select>`;
+}
+
+async function crmLoad(){
+  const st=$("#crmStat");
+  st.innerHTML=`<span class="pill p-mute">loading…</span>`;
+  const r=await adsCall("crm-list",Object.assign({limit:500},crmFilters()));
+  if(r.error){ st.innerHTML=`<span class="pill p-bad">failed</span>`;
+    $("#crmTbl").querySelector("tbody").innerHTML=
+      `<tr><td><div class="empty">${esc(r.error)}</div></td></tr>`; return; }
+  CRM_ROWS=r.rows||[]; CRM_SEL.clear(); CRM_LOADED=true;
+  CRM_STATUSES=r.statuses||CRM_STATUSES;
+  crmFill("crmProject",r.projects||[]); crmFill("crmSource",r.sources||[]);
+  crmFill("crmCampaign",r.campaigns||[]);
+  if($("#crmStatus").options.length<2)
+    crmFill("crmStatus",[],""),$("#crmStatus").innerHTML='<option value="">Every status</option>'+
+      CRM_STATUSES.map(x=>`<option value="${x[0]}">${esc(x[1])}</option>`).join("");
+  $("#crmBulkStatus").innerHTML='<option value="">Set status to…</option>'+
+    CRM_STATUSES.map(x=>`<option value="${x[0]}">${esc(x[1])}</option>`).join("");
+  st.innerHTML=`<span class="pill p-ok">${r.total} found</span>`;
+  $("#crmCount").textContent=`${CRM_ROWS.length} shown of ${r.total}`;
+  crmDraw(); crmStats();
+}
+
+async function crmStats(){
+  const r=await adsCall("crm-stats",crmFilters());
+  if(r.error)return;
+  const k=$("#crmKpis").children;
+  k[0].querySelector("b").textContent=r.total;
+  k[1].querySelector("b").textContent=r.qualified;
+  k[2].querySelector("b").textContent=r.duplicates;
+  k[3].querySelector("b").textContent=r.junk;
+}
+
+function crmDraw(){
+  const tb=$("#crmTbl").querySelector("tbody");
+  if(!CRM_ROWS.length){
+    tb.innerHTML=`<tr><td><div class="empty">No lead matches these filters.</div></td></tr>`;
+    $("#crmSelN").textContent="nothing selected"; $("#crmBulkGo").disabled=true; return; }
+  tb.innerHTML=`<tr><th style="width:26px"><input type="checkbox" id="crmAll"></th>
+      <th>When</th><th>Lead</th><th>Project</th><th>Source</th><th>Campaign / keyword</th>
+      <th>Strategy</th><th>Status</th><th></th></tr>`+
+    CRM_ROWS.map(r=>`<tr data-id="${esc(r.id)}">
+      <td><input type="checkbox" class="crmck" data-id="${esc(r.id)}"${CRM_SEL.has(r.id)?" checked":""}></td>
+      <td class="mono">${esc(String(r.created_ist||"").slice(0,16))}</td>
+      <td><div class="nm" data-open="${esc(r.id)}">${esc(r.name||"—")}</div>
+          <div class="sub mono">${esc(r.full_phone||r.phone||"")}</div></td>
+      <td>${esc(r.project_name||r.project_code||"—")}
+          <div class="sub">${esc(r.form_source||"")}</div></td>
+      <td>${esc(r.source||"—")}${String(r.is_duplicate)==="1"?' <span class="pill p-mute">dup</span>':""}</td>
+      <td>${esc(r.campaign_name||r.utm_campaign||"—")}
+          <div class="sub">${esc(r.keyword||"")}</div></td>
+      <td class="mono">${esc(r.strategy||"")}</td>
+      <td>${crmStatusSel(r.id,r.status)}</td>
+      <td>${Number(r.comments||0)?`<span class="pill p-mute">${r.comments}</span>`:""}</td>
+    </tr>`).join("");
+  crmSelN();
+}
+function crmSelN(){
+  const n=CRM_SEL.size;
+  $("#crmSelN").textContent=n?`${n} selected`:"nothing selected";
+  $("#crmBulkGo").disabled=!n;
+}
+
+/* One lead, everything about it, and the thread of what was said. */
+async function crmOpen(id){
+  const r=await adsCall("crm-get",{id});
+  if(r.error)return toast(r.error);
+  const L=r.lead, rows=[
+    ["Received",L.created_ist],["Project",L.project_name||L.project_code],
+    ["Developer",L.developer],["Location",L.location],
+    ["Phone",L.full_phone||L.phone],["Email",L.email],
+    ["Interested in",L.config],["Form",L.form_source],
+    ["Source",L.source],["Medium",L.utm_medium],
+    ["Campaign",L.campaign_name||L.utm_campaign],["Campaign ID",L.campaign_id],
+    ["Ad group",L.adgroup],["Ad group ID",L.adgroup_id],
+    ["Keyword",L.keyword],["Match type",L.matchtype],
+    ["Strategy",L.strategy],["Device",L.device],
+    ["Network",L.network],["Placement",L.placement],
+    ["Location ID",L.loc_physical],["Click ID",L.gclid||L.fbclid||L.msclkid],
+    ["Landing URL",L.landing_url],["Referrer",L.referrer]
+  ].filter(x=>x[1]);
+  $("#mdTitle").textContent=L.name||"Lead";
+  $("#mdBody").innerHTML=
+    `<div class="btnrow" style="margin-bottom:12px">
+       ${crmStatusSel(L.id,L.status)}
+       <a class="btn" href="tel:${esc(L.full_phone||L.phone)}">Call</a>
+       <a class="btn" target="_blank" rel="noopener"
+          href="https://wa.me/${esc(String(L.full_phone||"").replace(/\D/g,""))}">WhatsApp</a>
+     </div>
+     ${rows.map(([k,v])=>`<div class="dpair"><span>${esc(k)}</span><span>${esc(v)}</span></div>`).join("")}
+     <div class="f" style="margin-top:16px"><span class="f-lab">Add a comment</span>
+       <textarea id="crmCmt" rows="3" placeholder="What happened on the call"></textarea></div>
+     <div class="btnrow" style="margin-top:10px">
+       <button class="btn btn-pri" id="crmCmtGo" data-id="${esc(L.id)}">Save comment</button></div>
+     <div style="margin-top:18px">
+       <span class="f-lab">History</span>
+       <div id="crmHist" style="margin-top:8px">${
+         (r.comments||[]).length
+           ? r.comments.map(c=>`<div class="cmt">
+               <div class="who">${esc(String(c.at||"").slice(0,16))} · ${esc(c.by||"")}${
+                 c.from_status&&c.to_status&&c.from_status!==c.to_status
+                   ? ` · ${esc(crmLabel(c.from_status))} → ${esc(crmLabel(c.to_status))}`:""}</div>
+               ${c.text?`<div class="txt">${esc(c.text)}</div>`:""}</div>`).join("")
+           : `<div class="empty">Nothing yet.</div>`}</div></div>`;
+  $("#mdWrap").classList.add("on");
+}
+
+async function crmSet(id,status,comment){
+  const r=await adsCall("crm-update",{id,status,comment:comment||""});
+  if(r.error||r.ok===false)return toast(r.error||"Could not save");
+  const row=CRM_ROWS.filter(x=>x.id===id)[0];
+  if(row&&status)row.status=status;
+  if(row&&comment)row.comments=Number(row.comments||0)+1;
+  crmStats();
+  return r;
+}
+
+on("#mdClose","click",()=>$("#mdWrap").classList.remove("on"));
+on("#mdWrap","click",e=>{ if(e.target.id==="mdWrap")$("#mdWrap").classList.remove("on"); });
+on("#crmLoad","click",()=>crmLoad());
+on("#crmClear","click",()=>{ ["crmQ","crmFrom","crmTo"].forEach(i=>{const e=$("#"+i);if(e)e.value="";});
+  ["crmProject","crmStatus","crmSource","crmCampaign"].forEach(i=>{const e=$("#"+i);if(e)e.value="";});
+  crmLoad(); });
+on("#crmCsv","click",()=>{
+  if(!CRM_ROWS.length)return toast("Load some leads first");
+  const cols=Object.keys(CRM_ROWS[0]).filter(k=>k!=="_row");
+  const q=v=>`"${String(v==null?"":v).replace(/"/g,'""')}"`;
+  const csv=[cols.join(",")].concat(CRM_ROWS.map(r=>cols.map(c=>q(r[c])).join(","))).join("\n");
+  const a=document.createElement("a");
+  a.href=URL.createObjectURL(new Blob(["﻿"+csv],{type:"text/csv;charset=utf-8"}));
+  a.download=`leads-${new Date().toISOString().slice(0,10)}.csv`;
+  document.body.append(a); a.click(); setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove();},1500);
+});
+on("#crmCopyEp","click",()=>{ const e=$("#crmEndpoint");
+  if(!e.value)return toast("No Apps Script URL is set");
+  navigator.clipboard.writeText(e.value).then(()=>toast("Endpoint copied"),()=>toast("Could not copy")); });
+on("#crmTest","click",async()=>{
+  if(!AUTH.logUrl)return toast("No Apps Script URL is set");
+  try{
+    const r=await fetch(AUTH.logUrl,{method:"POST",headers:{"Content-Type":"text/plain;charset=utf-8"},
+      body:JSON.stringify({action:"crm-lead",name:"Trigger test lead",phone:"9999999999",
+        country_code:"+91",project_code:"trigger-test",project_name:"Trigger test",
+        form_source:"crm-selftest",utm_source:"trigger",utm_campaign:"endpoint-test"})});
+    const j=await r.json();
+    if(j.ok){ toast("Test lead stored — load the leads to see it"); crmLoad(); }
+    else toast("The endpoint answered: "+(j.error||"something unexpected"));
+  }catch(e){ toast("Could not reach the endpoint: "+((e&&e.message)||e)); }
+});
+on("#crmBulkGo","click",async()=>{
+  const st=val("crmBulkStatus"); if(!st)return toast("Pick a status first");
+  const ids=[...CRM_SEL];
+  const r=await adsCall("crm-bulk",{ids,status:st});
+  if(r.error||r.ok===false)return toast(r.error||"Could not save");
+  toast(`${r.updated} lead${r.updated===1?"":"s"} set to ${crmLabel(st)}`);
+  CRM_SEL.clear(); crmLoad();
+});
+on("#crmTbl","change",e=>{
+  const sel=e.target.closest("select[data-st]");
+  if(sel){ const id=sel.dataset.st;
+    sel.className="st st-"+sel.value;
+    crmSet(id,sel.value,"").then(()=>toast("Status saved")); return; }
+  const all=e.target.closest("#crmAll");
+  if(all){ CRM_SEL.clear();
+    if(all.checked)CRM_ROWS.forEach(r=>CRM_SEL.add(r.id));
+    $$(".crmck").forEach(c=>c.checked=all.checked); crmSelN(); return; }
+  const ck=e.target.closest(".crmck");
+  if(ck){ ck.checked?CRM_SEL.add(ck.dataset.id):CRM_SEL.delete(ck.dataset.id); crmSelN(); }
+});
+on("#crmTbl","click",e=>{ const n=e.target.closest("[data-open]"); if(n)crmOpen(n.dataset.open); });
+on("#mdBody","click",async e=>{
+  const b=e.target.closest("#crmCmtGo");
+  if(b){ const t=val("crmCmt"); if(!t)return toast("Write something first");
+    const r=await crmSet(b.dataset.id,"",t);
+    if(r){ toast("Comment saved"); crmOpen(b.dataset.id); crmDraw(); } return; }
+  const sel=e.target.closest("select[data-st]");
+  if(sel){ sel.className="st st-"+sel.value;
+    await crmSet(sel.dataset.st,sel.value,""); toast("Status saved"); crmDraw(); }
+});
+
+/* ═══════════ the landing page builder ═══════════════════════════════════
+   The builder is served from /lp/ on this same site, so it shares the
+   sign-in and the domain. The brief travels in the link: nothing about an
+   unlaunched project is posted anywhere to make this work. */
+
+function lpBrief(){
+  const kw=(id,n)=>val(id).split("\n").map(x=>x.trim()).filter(Boolean).slice(0,n||20);
+  return {
+    v:1,
+    project:{ name:val("acProj"), developer:val("acDev"),
+              location:[val("acMicro"),val("acCity")].filter(Boolean).join(", "),
+              config:val("acCfg"), price:val("acPrice"), rera:val("crRera") },
+    usps:kw("acUsps",8), amenities:kw("acAmen",24), landmarks:kw("acMarks",12),
+    lead:{ apiUrl:AUTH.logUrl||"", hosting:"Trigger CRM (nothing to deploy)",
+           projectCode:(val("acProj")||"").toLowerCase().replace(/[^a-z0-9]+/g,"-").replace(/^-|-$/g,""),
+           countryCode:"+91" },
+    tracking:{ gadsId:"", ga4:"", gtm:"" }
+  };
+}
+function lpDraw(){
+  const b=lpBrief(), box=$("#lpOut");
+  if(!b.project.name){ box.innerHTML=`<div class="empty">Fill the brief in the Tracking URLs tab first.</div>`;
+    $("#lpStat").innerHTML=`<span class="pill p-warn">no project</span>`; return; }
+  const rows=[["Project",b.project.name],["Developer",b.project.developer],
+    ["Location",b.project.location],["Configuration",b.project.config],
+    ["Price",b.project.price],["RERA",b.project.rera],
+    ["Project code",b.lead.projectCode],
+    ["USPs",b.usps.join(" · ")],["Amenities",b.amenities.join(" · ")],
+    ["Landmarks",b.landmarks.join(" · ")],
+    ["Leads go to",b.lead.apiUrl?"the CRM tab":"nowhere — no Apps Script URL is set"]];
+  box.innerHTML=rows.filter(r=>r[1]).map(([k,v])=>
+    `<div class="dpair"><span>${esc(k)}</span><span>${esc(v)}</span></div>`).join("")+
+    `<div class="f-note" style="margin-top:12px">Images, plans and the gallery are added in the
+      builder — they are too large to carry across a link.</div>`;
+  $("#lpStat").innerHTML=`<span class="pill p-ok">ready</span>`;
+}
+function lpGo(withBrief){
+  const base=location.href.replace(/[^/]*$/,"")+"lp/";
+  if(!withBrief){ window.open(base,"_blank","noopener"); return; }
+  const b=lpBrief();
+  if(!b.project.name)return toast("Add a project name in the Tracking URLs tab first");
+  /* base64url so the brief survives a hash without being re-encoded */
+  const packed=btoa(unescape(encodeURIComponent(JSON.stringify(b))))
+    .replace(/\+/g,"-").replace(/\//g,"_").replace(/=+$/,"");
+  window.open(base+"#brief="+packed,"_blank","noopener");
+}
+on("#lpOpen","click",()=>lpGo(true));
+on("#lpPlain","click",()=>lpGo(false));
+
+/* Both new tabs only make sense once their inputs exist, so they refresh
+   when the tab is opened rather than on a timer. */
+document.addEventListener("click",e=>{
+  const t=e.target.closest('[data-panel]');
+  if(!t)return;
+  if(t.dataset.panel==="p-lp")setTimeout(lpDraw,0);
+  if(t.dataset.panel==="p-crm"){
+    const e2=$("#crmEndpoint"); if(e2)e2.value=AUTH.logUrl||"";
+    if(!CRM_LOADED)setTimeout(crmLoad,0);
+  }
 });
 
 drawProjects(); projectRestore(); drawSets();

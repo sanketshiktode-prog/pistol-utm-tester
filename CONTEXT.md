@@ -20,6 +20,9 @@ structure, and deploys straight into Google Ads through the API.
 - **`backend.gs`** — every bit of Google Ads logic. Fetched at runtime by a
   small loader in the user's Apps Script, so the script itself is never pasted
   again.
+- **`lp/`** — the landing page builder, served from `/lp/` on the same Pages
+  site so it shares the domain and the sign-in. It was a separate repository
+  until 23 Oct 2026.
 - **`Code.gs`** — NOT in this repo and must never be. It holds the developer
   token, client ID, Gemini key and account IDs, and lives only in Apps Script.
   This repo is public.
@@ -27,10 +30,11 @@ structure, and deploys straight into Google Ads through the API.
 Build stamp is in `#buildTag` near the top of `index.html`. Bump it with every
 push, or the user cannot tell whether a hard refresh picked up the change.
 
-## The eight tabs
+## The ten tabs
 
 1. Tracking URLs · 2. Keyword wrapper · 3. Ad copy · 4. Assets ·
-5. Full structure · 6. Meta ads · 7. Deploy to Google Ads · 8. Creative studio
+5. Full structure · 6. Meta ads · 7. Deploy to Google Ads · 8. Creative studio ·
+9. CRM · 10. Landing page
 
 ## Things learned the hard way — do not re-litigate
 
@@ -95,6 +99,62 @@ never dropped silently between the plan and what Google received.
   lockup out of that corner with `crReraW(W)`.
 - **The price is the strongest element on the creative.** The deck says it
   every time. It carries the palette accent on dark, the ink on light.
+
+## The mini CRM
+
+The internal development team has not given us a POST API for the company CRM,
+so a landing page that captures a lead had nowhere to send it. The CRM lives in
+`backend.gs` and stores leads in the same Spreadsheet this script is bound to,
+in two tabs it creates itself: **Leads** (one flat row per lead) and
+**Comments** (one row per comment or status change).
+
+- `crm-lead` and `crm-fields` are **public on purpose**: a visitor filling a
+  form has no Google account. They are guarded by field validation, a honeypot,
+  a 24-hour dedupe on phone + project, and a 2,000-a-day cap on the public
+  `/exec` URL. Everything that reads or changes a lead needs the session.
+- **Nothing deletes a lead.** A bad one is marked Junk and stays, because a
+  lead that can vanish is a lead someone will argue about later.
+- `CRM_HEAD` is the contract between the landing page, the sheet and the CRM
+  tab. **Append to it; never reorder**, or an existing sheet shifts under us.
+- The funnel is `CRM_STATUSES`. `QUALIFIED` is what CPQL is read off, so it is
+  not renamed without changing the reports.
+
+**The field mapping is the part that was actually hard.** Trigger's tracking
+templates do not use Google's ValueTrack names — they use PropertyPistol's SOP
+names: `ads_set_name`, `campaign_name`, `keyword_type`, `physical_location`,
+`ad_strategy`, `source_key`, `ads_group_id`. The landing page stores first-touch
+attribution in one `attribution` object keyed by the raw query parameter, and
+its capture regex matched almost none of those, so they were being dropped on
+the floor before anything saw them. Two fixes, and they only work together:
+
+- `lp/builder/template.js` widened its `adk` regex to catch PropertyPistol's
+  parameter names, and raised the cap from 40 parameters to 60 (that one
+  template alone sends 15).
+- `CRM_ALIAS` in `backend.gs` reconciles all three spellings — PropertyPistol's,
+  Google's, and the plain names a hand-built URL might use — into one column
+  each. Lookup is lowercased, so `{keyword}` arriving as `Keyword` still lands.
+  A field the page sent explicitly is never overwritten by attribution.
+
+`ad_strategy` carries the KB/KC/UB/UC/YB/YC code, which is why it matters: cost
+per qualified lead can be read by strategy, not just by campaign.
+
+## The landing page builder
+
+`lp/` builds the project microsite and exports a folder for GitHub Pages or
+cPanel. Three lead backends now, picked per project under **Leads, OTP & CRM**:
+
+- **Trigger CRM** — posts straight to the Apps Script `/exec`. Nothing to
+  deploy. `post()` in `template.js` detects `script.google.com` and sends
+  `text/plain` with the route inside the body as `action`, because Apps Script
+  cannot answer a CORS preflight. OTP is forced off: there is no SMS gateway
+  on this path.
+- **cPanel PHP** and **Cloudflare Worker** — unchanged, and still tested.
+
+Trigger's **Landing page** tab hands the brief over in the URL hash, base64url
+encoded: developer, project, location, configuration (split into pricing rows),
+price, RERA, USPs, amenities and landmarks. Images never travel — far too large
+for a URL. The builder clears the hash once it has read it, so a reload does not
+keep overwriting what has since been typed.
 
 ## The strategy codes
 
@@ -236,6 +296,10 @@ Every push should clear all of these:
 - 9 layouts × 4 sizes render, 0 failures, 0 page errors, with a logo loaded
   and again without one
 - Search ZIP still 11,512 bytes
+- The CRM routes against a fake Sheet, and the whole chain end to end: a real
+  Trigger tracking URL → the generated page's own attribution capture → its own
+  `post()` → `crmCapture`, with every tracking field landing in its own column
+- The builder opens from a handed-over brief and a reload does not re-apply it
 - Demand Gen plan builds; no demographic left as a criterion
 - Both-channel build returns to the channel it started on
 - Project save and reopen rebuilds the structure
