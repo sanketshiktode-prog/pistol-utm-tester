@@ -30,11 +30,11 @@ structure, and deploys straight into Google Ads through the API.
 Build stamp is in `#buildTag` near the top of `index.html`. Bump it with every
 push, or the user cannot tell whether a hard refresh picked up the change.
 
-## The ten tabs
+## The nine tabs
 
 1. Tracking URLs · 2. Keyword wrapper · 3. Ad copy · 4. Assets ·
 5. Full structure · 6. Meta ads · 7. Deploy to Google Ads · 8. Creative studio ·
-9. CRM · 10. Landing page
+9. Landing page
 
 ## Things learned the hard way — do not re-litigate
 
@@ -100,61 +100,84 @@ never dropped silently between the plan and what Google received.
 - **The price is the strongest element on the creative.** The deck says it
   every time. It carries the palette accent on dark, the ink on light.
 
-## The mini CRM
+## The mini CRM — removed
 
-The internal development team has not given us a POST API for the company CRM,
-so a landing page that captures a lead had nowhere to send it. The CRM lives in
-`backend.gs` and stores leads in the same Spreadsheet this script is bound to,
-in two tabs it creates itself: **Leads** (one flat row per lead) and
-**Comments** (one row per comment or status change).
+There was one, briefly, on 23 Oct 2026, because the internal development team
+had not given us a POST API for the company CRM. It was taken out the same day:
+the user does not want lead storage here. Do not bring it back without being
+asked. What survived the removal, and should stay:
 
-- `crm-lead` and `crm-fields` are **public on purpose**: a visitor filling a
-  form has no Google account. They are guarded by field validation, a honeypot,
-  a 24-hour dedupe on phone + project, and a 2,000-a-day cap on the public
-  `/exec` URL. Everything that reads or changes a lead needs the session.
-- **Nothing deletes a lead.** A bad one is marked Junk and stays, because a
-  lead that can vanish is a lead someone will argue about later.
-- `CRM_HEAD` is the contract between the landing page, the sheet and the CRM
-  tab. **Append to it; never reorder**, or an existing sheet shifts under us.
-- The funnel is `CRM_STATUSES`. `QUALIFIED` is what CPQL is read off, so it is
-  not renamed without changing the reports.
-
-**The field mapping is the part that was actually hard.** Trigger's tracking
-templates do not use Google's ValueTrack names — they use PropertyPistol's SOP
-names: `ads_set_name`, `campaign_name`, `keyword_type`, `physical_location`,
-`ad_strategy`, `source_key`, `ads_group_id`. The landing page stores first-touch
-attribution in one `attribution` object keyed by the raw query parameter, and
-its capture regex matched almost none of those, so they were being dropped on
-the floor before anything saw them. Two fixes, and they only work together:
-
-- `lp/builder/template.js` widened its `adk` regex to catch PropertyPistol's
-  parameter names, and raised the cap from 40 parameters to 60 (that one
-  template alone sends 15).
-- `CRM_ALIAS` in `backend.gs` reconciles all three spellings — PropertyPistol's,
-  Google's, and the plain names a hand-built URL might use — into one column
-  each. Lookup is lowercased, so `{keyword}` arriving as `Keyword` still lands.
-  A field the page sent explicitly is never overwritten by attribution.
-
-`ad_strategy` carries the KB/KC/UB/UC/YB/YC code, which is why it matters: cost
-per qualified lead can be read by strategy, not just by campaign.
+- `lp/builder/template.js` keeps the **widened attribution capture**. Trigger's
+  tracking templates use PropertyPistol's SOP parameter names — `ads_set_name`,
+  `campaign_name`, `keyword_type`, `physical_location`, `ad_strategy`,
+  `source_key`, `ads_group_id` — not Google's ValueTrack names, and the page's
+  original capture regex matched almost none of them. The PHP connector and the
+  Cloudflare Worker both flatten `attribution` on the way to TeleCRM, so
+  anything the page drops is lost to the real CRM too. The cap went from 40
+  parameters to 60: that one template alone sends 15.
 
 ## The landing page builder
 
 `lp/` builds the project microsite and exports a folder for GitHub Pages or
-cPanel. Three lead backends now, picked per project under **Leads, OTP & CRM**:
+cPanel. Two lead backends, picked per project under **Leads, OTP & CRM**:
+**cPanel PHP** and **Cloudflare Worker**. Both are tested on every change.
 
-- **Trigger CRM** — posts straight to the Apps Script `/exec`. Nothing to
-  deploy. `post()` in `template.js` detects `script.google.com` and sends
-  `text/plain` with the route inside the body as `action`, because Apps Script
-  cannot answer a CORS preflight. OTP is forced off: there is no SMS gateway
-  on this path.
-- **cPanel PHP** and **Cloudflare Worker** — unchanged, and still tested.
+The builder is **also still live at its old standalone URL**, from the
+`lpbuilder` repo. That copy is old code: no two-way link, no keyword FAQs, and
+the narrow attribution capture that drops PropertyPistol's own parameters.
+Anyone reaching for the builder should use `/lp/`.
 
-Trigger's **Landing page** tab hands the brief over in the URL hash, base64url
-encoded: developer, project, location, configuration (split into pricing rows),
-price, RERA, USPs, amenities and landmarks. Images never travel — far too large
-for a URL. The builder clears the hash once it has read it, so a reload does not
-keep overwriting what has since been typed.
+## Landing page relevance, and the link between the two tools
+
+Both apps are served from one GitHub Pages site — Trigger at the root, the
+builder at `/lp/` — so they **share an origin, and therefore localStorage**.
+That is the whole mechanism of the link between them. No server, nothing
+uploaded, and no URL length limit:
+
+- `pp_lp_handover` — Trigger → builder. Written when "Send this project to the
+  builder" is pressed; the builder reads it only when opened with
+  `#handover=1`, then deletes it. **Used once on purpose**: a plain reload must
+  not overwrite what has since been typed.
+- `pp_lp_fromBuilder` — builder → Trigger. Written on every save, so there is
+  nothing to press on that side. "Pull back from the builder" fills the
+  campaign brief from it, splitting `location` back into micro-market and city.
+
+Images never travel in either direction — far too large, and they belong in the
+builder anyway.
+
+**The FAQs are written from the keywords, not from the project.** Quality Score
+is three things, and landing page experience is the one the page can be made to
+earn: the page has to answer what was searched, in the words it was searched in.
+So `faqBuild` reads the keywords out of `PLAN` — what will actually deploy, not
+the wrapper output — matches each against `FAQ_INTENTS` (price, configurations,
+floor plans, location, amenities, offer, RERA, possession, developer, review,
+brochure, about), and writes one question per intent carrying the searcher's own
+terms.
+
+- **Answers come only from the brief.** A question the brief cannot answer is
+  listed as unanswered and left out, never filled with a guess. A wrong
+  possession date on a landing page is a legal problem, not a typo — and it is
+  the same house rule as everywhere else: never invent a price, a date or a
+  registration number.
+- `faqSubject` has to name the project. "3 bhk flats in vadgaon" leaves only
+  "vadgaon" once the intent words and filler go, and a question about Vadgaon is
+  a question about nothing in particular, so the project goes back in front:
+  "Vyana Vadgaon". An intent marked `fix:true` (the developer one) always names
+  the project outright — "kolte patil builder pune" is asking about the project,
+  not about the builder's own builder.
+- `FAQ_STOP` is for coverage, `FAQ_FILLER` only for naming the subject. A page
+  that says "flats" IS more relevant to "flats", so filler words still count
+  when coverage is measured.
+- **`faqCoverage` is the pre-deploy check.** It builds the text the page will
+  actually carry — brief, USPs, amenities, landmarks and the FAQs — and reports
+  which of each keyword's own words are missing from it. Those are the keywords
+  Google marks down for landing page experience, and the list is worth acting on
+  before the campaign goes live, by putting the term on the page or dropping the
+  keyword.
+
+Possession lives in two places now, because it belongs to the page rather than
+the campaign: `#lpPoss` on Trigger's Landing page tab, and `about.possession` in
+the builder. It travels both ways with everything else.
 
 ## The strategy codes
 
@@ -296,10 +319,13 @@ Every push should clear all of these:
 - 9 layouts × 4 sizes render, 0 failures, 0 page errors, with a logo loaded
   and again without one
 - Search ZIP still 11,512 bytes
-- The CRM routes against a fake Sheet, and the whole chain end to end: a real
-  Trigger tracking URL → the generated page's own attribution capture → its own
-  `post()` → `crmCapture`, with every tracking field landing in its own column
-- The builder opens from a handed-over brief and a reload does not re-apply it
+- The FAQ generator: one question per intent, answers only from the brief, a
+  missing field reported rather than invented, and coverage flagging a term the
+  page never says
+- The round trip in one browser context, both ways: Trigger → builder → Trigger,
+  with the handover used once and a reload keeping the edit
+- The page still captures PropertyPistol's own tracking template, all 15
+  parameters, as well as Google's auto-tagging
 - Demand Gen plan builds; no demographic left as a criterion
 - Both-channel build returns to the channel it started on
 - Project save and reopen rebuilds the structure

@@ -62,6 +62,7 @@
     clearTimeout(saveT);
     saveT = setTimeout(async () => {
       const ok = await DB.put(P);
+      pushBack();        /* keep what Trigger can pull in step with the form */
       $('#savedAt').textContent = ok ? 'Saved ' + new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Not saved (storage blocked) — use Save .json';
       try { localStorage.setItem('lpb_last', P.id); } catch (e) {}
       refreshProjects();
@@ -154,6 +155,7 @@
       { k: 'hero.video', l: 'Hero video (optional, replaces slider)', type: 'file', accept: 'video/mp4,video/webm', hint: 'MP4 under ~8 MB, or paste a URL.' }
     ] },
     { title: 'About Project', fields: [
+      { k: 'about.possession', l: 'Possession', ph: 'December 2028', hint: 'Answers the possession FAQ. Left empty, that question is dropped rather than guessed.' },
       { k: 'about.text', l: 'About text', type: 'textarea', rows: 7, hint: 'Blank line = new paragraph. Long text gets a "Read more".' },
       { k: 'about.image', l: 'About image', type: 'image', max: 1400 }
     ] },
@@ -194,10 +196,10 @@
       { k: 'agent.qr', l: 'Footer QR code', type: 'image', max: 400, contain: true, keepPng: true }
     ] },
     { title: 'Leads, OTP & CRM', hint: 'Where leads go', fields: [
-      { k: 'lead.hosting', l: 'Where will this page be hosted?', type: 'select', opts: ['Trigger CRM (nothing to deploy)', 'cPanel / PHP hosting', 'GitHub Pages + Cloudflare Worker', 'Test mode (no backend)'], hint: 'Trigger CRM: leads land straight in the Trigger CRM tab \u2014 paste the Apps Script /exec URL below and there is no server to set up. cPanel: ZIP includes api/lead.php \u2014 edit api/config.php on the server with the CRM keys. Nothing secret is stored in the builder.' },
+      { k: 'lead.hosting', l: 'Where will this page be hosted?', type: 'select', opts: ['cPanel / PHP hosting', 'GitHub Pages + Cloudflare Worker', 'Test mode (no backend)'], hint: 'cPanel: ZIP includes api/lead.php \u2014 edit api/config.php on the server with the CRM keys. Nothing secret is stored in the builder.' },
       { k: 'lead.crm', l: 'Send leads to CRM', type: 'select', opts: Object.keys(window.LP_CRM_PRESETS || {}), hint: 'Presets for TeleCRM, LeadSquared, Sell.Do, HubSpot, Salesforce, Zapier/Make webhooks. Any other CRM: "Custom" — see docs/CRM-INTEGRATION-GUIDE.md.' },
       { k: 'lead.sheetBackup', l: 'Also copy every lead to a Google Sheet', type: 'check' },
-      { k: 'lead.apiUrl', l: 'Lead API URL', ph: 'https://script.google.com/macros/s/..../exec', hint: 'Trigger CRM: the Apps Script /exec URL, the same one Trigger itself uses. Cloudflare: the Worker URL. cPanel: leave it empty.' },
+      { k: 'lead.apiUrl', l: 'Cloudflare Worker URL (only for GitHub Pages hosting)', ph: 'https://pp-leads.<you>.workers.dev' },
       { row: [{ k: 'lead.projectCode', l: 'Project code (CRM)', ph: 'godrej-rivershore-nagpur' }, { k: 'lead.countryCode', l: 'Default country code', type: 'select', opts: ['+91', '+971', '+974', '+966', '+968', '+973', '+965', '+1', '+44', '+65', '+61'] }] },
       { row: [{ k: 'lead.popupDelay', l: 'Auto-popup after (sec, 0=off)', type: 'number' }, { k: 'lead.brochureUrl', l: 'Brochure PDF', type: 'file', accept: 'application/pdf' }] },
       { k: 'lead.otp', l: 'OTP verification on mobile number', type: 'check', hint: 'Cloudflare Worker hosting only (needs SMS provider on the Worker).' },
@@ -420,7 +422,7 @@
       ['Amenities', (g('amenities') || []).length >= 4], ['Gallery', (g('gallery') || []).length >= 3],
       ['Connectivity', (g('location.items') || []).length >= 4], ['Call number', g('contact.phone')], ['WhatsApp number', g('contact.whatsapp') || g('contact.phone')],
       ['Project RERA No.', g('project.reraProject')], ['Agent RERA No.', g('agent.rera')],
-      ['Lead backend (Trigger CRM, cPanel or Worker URL)', /^cPanel/.test(g('lead.hosting') || '') || ((/Cloudflare/.test(g('lead.hosting') || '') || /^Trigger/.test(g('lead.hosting') || '')) && g('lead.apiUrl'))], ['GTM / GA4 / Ads tag', g('tracking.gtm') || g('tracking.ga4') || g('tracking.gadsId')],
+      ['Lead backend (cPanel or Worker URL)', /^cPanel/.test(g('lead.hosting') || '') || (/Cloudflare/.test(g('lead.hosting') || '') && g('lead.apiUrl'))], ['GTM / GA4 / Ads tag', g('tracking.gtm') || g('tracking.ga4') || g('tracking.gadsId')],
       ['FAQs (SEO)', (g('faq') || []).length], ['Brochure', g('lead.brochureUrl')]
     ];
     const ok = checks.filter(x => x[1]).length, pct = Math.round(ok / checks.length * 100);
@@ -466,22 +468,12 @@
   const slugName = () => LPTemplate.slug(getP(P.cfg, 'project.name') || 'landing-page');
   const b64ToU8 = (dataUrl) => { const b = atob(dataUrl.split(',')[1]); const u = new Uint8Array(b.length); for (let i = 0; i < b.length; i++) u[i] = b.charCodeAt(i); return u; };
   function download(blob, name) { const a = el('a', { href: URL.createObjectURL(blob), download: name }); document.body.append(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1500); }
-  const hosting = () => {
-    const h = getP(P.cfg, 'lead.hosting') || '';
-    if (/^Trigger/.test(h)) return 'trigger';
-    if (/^cPanel/.test(h)) return 'cpanel';
-    if (/Cloudflare/.test(h)) return 'cloudflare';
-    if (h) return 'test';
-    const u = getP(P.cfg, 'lead.apiUrl') || '';
-    if (/script\.google\.com/.test(u)) return 'trigger';
-    return u ? 'cloudflare' : 'cpanel';
-  };
+  const hosting = () => { const h = getP(P.cfg, 'lead.hosting') || ''; return /^cPanel/.test(h) ? 'cpanel' : /Cloudflare/.test(h) ? 'cloudflare' : (h ? 'test' : (getP(P.cfg, 'lead.apiUrl') ? 'cloudflare' : 'cpanel')); };
   function exportCfg() {
     const c = JSON.parse(JSON.stringify(P.cfg)); c.lead = c.lead || {};
     const h = hosting();
-    c.lead.apiUrl = h === 'cpanel' ? 'api/lead.php'
-                  : (h === 'cloudflare' || h === 'trigger') ? (c.lead.apiUrl || '') : '';
-    if (h === 'cpanel' || h === 'trigger') c.lead.otp = false;
+    c.lead.apiUrl = h === 'cpanel' ? 'api/lead.php' : h === 'cloudflare' ? (c.lead.apiUrl || '') : '';
+    if (h === 'cpanel') c.lead.otp = false;
     return c;
   }
   function previewCfg() { const c = exportCfg(); c.lead.apiUrl = ''; c.__preview = true; return c; }
@@ -490,12 +482,6 @@
     const h = hosting();
     if (h === 'test' && !confirm('Test mode — form submissions will NOT be stored anywhere. Export anyway?')) return false;
     if (h === 'cloudflare' && !getP(P.cfg, 'lead.apiUrl') && !confirm('Cloudflare Worker URL is empty — leads will NOT be stored. Export anyway?')) return false;
-    if (h === 'trigger') {
-      const u = getP(P.cfg, 'lead.apiUrl') || '';
-      if (!u && !confirm('Trigger CRM URL is empty \u2014 leads will NOT be stored. Export anyway?')) return false;
-      if (u && !/script\.google\.com\/macros\/s\/.+\/exec/.test(u) &&
-          !confirm('That does not look like an Apps Script /exec URL. Export anyway?')) return false;
-    }
     return true;
   }
   $('#btnZip').onclick = async () => {
@@ -586,63 +572,122 @@
   };
 
   /* ---------------- boot ---------------- */
-  /* ---- a brief handed over from Trigger ----------------------------------
-     Trigger opens this builder with the project it already has — developer,
-     project, location, configuration, price, RERA, USPs, amenities and
-     landmarks — packed into the URL hash. Nothing is uploaded anywhere to
-     make that work, and the hash is cleared as soon as it is read so a
-     reload does not keep overwriting the project.
-     Images are never carried: they are far too large for a URL. */
-  function readBrief() {
-    const m = (location.hash || '').match(/[#&]brief=([A-Za-z0-9_-]+)/);
-    if (!m) return null;
+  /* ---- the link with Trigger ---------------------------------------------
+     Trigger is served from the parent folder of this one, so the two share
+     an origin and can simply hand things to each other through
+     localStorage. Nothing is uploaded anywhere to make this work, and no
+     server is involved.
+
+     In: Trigger stages the project it already has — developer, project,
+     location, configuration, price, RERA, possession, USPs, amenities,
+     landmarks, and the FAQs it wrote from the campaign keywords.
+     Out: everything typed here is written back on every change, so the
+     campaign brief can pull the finished wording without anyone exporting
+     or pasting. Images never travel either way: far too large. */
+  const LP_KEY = 'pp_lp_handover';
+  const LP_BACK = 'pp_lp_fromBuilder';
+
+  function readHandover() {
+    const asked = /[#&]handover=1/.test(location.hash || '');
+    let raw = null;
+    try { raw = localStorage.getItem(LP_KEY); } catch (e) { return null; }
+    if (!raw) return null;
     try {
-      let b = m[1].replace(/-/g, '+').replace(/_/g, '/');
-      while (b.length % 4) b += '=';
-      const o = JSON.parse(decodeURIComponent(escape(atob(b))));
-      return (o && o.project && o.project.name) ? o : null;
-    } catch (e) { console.warn('Unreadable brief in the URL', e); return null; }
+      const o = JSON.parse(raw);
+      if (!o || !o.project || !o.project.name) return null;
+      /* only act on it when this tab was opened for it, and only once */
+      if (!asked) return null;
+      try { localStorage.removeItem(LP_KEY); } catch (e) {}
+      return o;
+    } catch (e) { console.warn('Unreadable handover from Trigger', e); return null; }
   }
+
   function applyBrief(o) {
     const p = newProject(o.project.name);
     const c = p.cfg;
-    c.project.name       = o.project.name || '';
-    c.project.developer  = o.project.developer || '';
-    c.project.location   = o.project.location || '';
-    c.project.price      = o.project.price || '';
+    c.project.name        = o.project.name || '';
+    c.project.developer   = o.project.developer || '';
+    c.project.location    = o.project.location || '';
+    c.project.price       = o.project.price || '';
+    c.project.offer       = o.project.offer || '';
     c.project.reraProject = o.project.rera || '';
-    c.project.usps       = (o.usps || []).slice(0, 8);
+    c.project.usps        = (o.usps || []).slice(0, 8);
     if (o.project.config)
       c.pricing.rows = String(o.project.config).split(/\s*(?:,|&|and)\s*/)
         .map(t => t.trim()).filter(Boolean)
-        .map(t => ({ type: /bhk|br\b/i.test(t) ? t : t + ' BHK', size: '', price: '' }));
+        .map(t => ({ type: /bhk|br\b|plot|villa|studio/i.test(t) ? t : t + ' BHK', size: '', price: '' }));
     c.amenities = (o.amenities || []).map(n => ({ name: n, image: '' }));
     c.location.items = (o.landmarks || []).map(l => {
       const m2 = String(l).split(/\s*[-:]\s*/);
       return { place: (m2[0] || '').trim(), distance: (m2[1] || '').trim() };
     }).filter(x => x.place);
+    /* the FAQs are the point of the handover: they were written from the
+       keywords this campaign will actually bid on */
+    if ((o.faq || []).length)
+      c.faq = o.faq.filter(f => f && f.q).map(f => ({ q: f.q, a: f.a || '' }));
+    if (o.project.possession) c.about = Object.assign({}, c.about,
+      { possession: o.project.possession });
     Object.assign(c.lead, o.lead || {});
     Object.assign(c.tracking, o.tracking || {});
     return p;
   }
 
+  /* What Trigger can pull back. Written on every change, so there is
+     nothing to press on this side. */
+  function pushBack() {
+    try {
+      const c = P && P.cfg; if (!c) return;
+      const name = getP(c, 'project.name') || '';
+      if (!name) return;
+      const loc = getP(c, 'project.location') || '';
+      const city = getP(c, 'project.city') || '';
+      /* "Vadgaon, Pune" splits back into the micro-market and the city the
+         campaign brief keeps apart */
+      const bits = loc.split(/\s*,\s*/);
+      localStorage.setItem(LP_BACK, JSON.stringify({
+        v: 2, at: Date.now(),
+        project: {
+          name: name,
+          developer: getP(c, 'project.developer') || '',
+          location: loc,
+          micro: bits.length > 1 ? bits[0] : loc,
+          city: city || (bits.length > 1 ? bits[bits.length - 1] : ''),
+          config: (getP(c, 'pricing.rows') || []).map(r => r && r.type).filter(Boolean).join(', '),
+          price: getP(c, 'project.price') || '',
+          offer: getP(c, 'project.offer') || '',
+          rera: getP(c, 'project.reraProject') || '',
+          possession: getP(c, 'about.possession') || ''
+        },
+        usps: (getP(c, 'project.usps') || []).filter(Boolean),
+        amenities: (getP(c, 'amenities') || []).map(a => a && a.name).filter(Boolean),
+        landmarks: (getP(c, 'location.items') || [])
+          .filter(x => x && x.place)
+          .map(x => x.place + (x.distance ? ' - ' + x.distance : '')),
+        faq: (getP(c, 'faq') || []).filter(f => f && f.q).map(f => ({ q: f.q, a: f.a || '' })),
+        lp: getP(c, 'meta.domain') || ''
+      }));
+    } catch (e) { /* a full or blocked localStorage must not break the builder */ }
+  }
+
   (async function boot() {
     await DB.open();
     const all = (await DB.all()).sort((a, b) => b.updated - a.updated);
-    const brief = readBrief();
-    if (brief) {
+    const handed = readHandover();
+    if (handed) {
       history.replaceState(null, '', location.pathname + location.search);
-      P = applyBrief(brief);
+      P = applyBrief(handed);
       await DB.put(P);
       try { localStorage.setItem('lpb_last', P.id); } catch (e) {}
-      renderForm(); renderPreview(); refreshProjects(); fitFrame();
-      toast('Brief loaded from Trigger — add the images and export', 5000);
+      renderForm(); renderPreview(); refreshProjects(); fitFrame(); pushBack();
+      toast((handed.faq || []).length
+        ? 'Loaded from Trigger with ' + handed.faq.length + ' keyword FAQs — add the images and export'
+        : 'Loaded from Trigger — add the images and export', 5000);
       return;
     }
     let last = null; try { last = localStorage.getItem('lpb_last'); } catch (e) {}
     P = all.find(p => p.id === last) || all[0] || newProject();
     P.cfg = Object.assign(blank(), P.cfg);
-    renderForm(); renderPreview(); refreshProjects(); fitFrame();
+    renderForm(); renderPreview(); refreshProjects(); fitFrame(); pushBack();
     if (!all.length) toast('Tip: click "Load Sample" to see a complete example', 4000);
   })();
 })();

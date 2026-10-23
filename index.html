@@ -154,8 +154,8 @@ textarea{resize:vertical;line-height:1.55;font-size:12px}
   padding:7px 0;border-bottom:1px solid var(--line-soft);font-size:12.5px}
 .tblwrap{overflow-x:auto}
 
-/* CRM */
-.kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:14px}
+/* landing page + FAQ panels */
+.kpis{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:14px}
 .kpi{border:1px solid var(--line-soft);border-radius:6px;padding:11px 13px;background:var(--surface)}
 .kpi b{display:block;font-family:var(--disp);font-size:26px;line-height:1.1;font-weight:800}
 .kpi span{font-size:10.5px;font-weight:600;letter-spacing:.07em;text-transform:uppercase;color:var(--ink-soft)}
@@ -164,26 +164,13 @@ textarea{resize:vertical;line-height:1.55;font-size:12px}
 .lt th{text-align:left;font-size:10px;letter-spacing:.07em;text-transform:uppercase;color:var(--ink-soft);
   font-weight:600;padding:7px 8px;border-bottom:1px solid var(--line);white-space:nowrap}
 .lt td{padding:8px;border-bottom:1px solid var(--line-soft);vertical-align:top}
-.lt tr:hover td{background:rgba(0,0,0,.015)}
-.lt .nm{font-weight:600;cursor:pointer}
-.lt .nm:hover{color:var(--accent);text-decoration:underline}
-.lt .sub{color:var(--ink-soft);font-size:11px;margin-top:2px}
 .lt .mono{font-family:var(--mono);font-size:11.5px}
-.st{font-family:var(--mono);font-size:10.5px;font-weight:600;padding:3px 7px;border-radius:3px;
-  border:1px solid var(--line);background:var(--surface);cursor:pointer}
-.st-NEW{background:#eef2ff;color:#3730a3;border-color:#c7d2fe}
-.st-ATTEMPTED,.st-CONNECTED{background:#fef3c7;color:#92400e;border-color:#fde68a}
-.st-QUALIFIED,.st-SITE_VISIT,.st-VISIT_DONE{background:var(--ok-wash);color:var(--ok);border-color:transparent}
-.st-BOOKED{background:#064e3b;color:#fff;border-color:transparent}
-.st-JUNK,.st-NOT_INTERESTED,.st-DUPLICATE{background:rgba(0,0,0,.05);color:var(--ink-soft)}
-.cmt{border-left:2px solid var(--line);padding:7px 0 7px 11px;margin-bottom:9px}
-.cmt .who{font-size:10.5px;color:var(--ink-soft);font-family:var(--mono)}
-.cmt .txt{font-size:12.5px;margin-top:3px;white-space:pre-wrap}
 .dpair{display:grid;grid-template-columns:132px minmax(0,1fr);gap:4px 10px;font-size:12.5px;
   padding:5px 0;border-bottom:1px solid var(--line-soft)}
 .dpair span:first-child{font-size:10.5px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-soft)}
 .dpair span:last-child{word-break:break-word}
 @media(max-width:760px){.kpis{grid-template-columns:repeat(2,1fr)}}
+
 code{font-family:var(--mono);background:rgba(0,0,0,.05);padding:1px 4px;border-radius:3px;font-size:.94em}
 
 /* strategy manager */
@@ -357,7 +344,7 @@ code{font-family:var(--mono);background:rgba(0,0,0,.05);padding:1px 4px;border-r
     <div class="subject">Google Ads</div>
     <div class="spacer"></div>
     <div class="badge-env" id="varCount">0 VARIANTS</div>
-    <span class="pill p-mute" id="buildTag" title="build">b-23oct-9</span>
+    <span class="pill p-mute" id="buildTag" title="build">b-23oct-10</span>
     <div id="userChip" class="hidden" style="display:flex;align-items:center;gap:9px">
       <div class="divider-v"></div>
       <span id="userName" style="font-size:12.5px;font-weight:500"></span>
@@ -379,8 +366,7 @@ code{font-family:var(--mono);background:rgba(0,0,0,.05);padding:1px 4px;border-r
   <button class="tab" role="tab" aria-selected="false" data-panel="p-mt"><span class="num">06</span>Meta ads</button>
   <button class="tab" role="tab" aria-selected="false" data-panel="p-api"><span class="num">07</span>Deploy to Google Ads</button>
   <button class="tab" role="tab" aria-selected="false" data-panel="p-cr"><span class="num">08</span>Creative studio</button>
-  <button class="tab" role="tab" aria-selected="false" data-panel="p-crm"><span class="num">09</span>CRM</button>
-  <button class="tab" role="tab" aria-selected="false" data-panel="p-lp"><span class="num">10</span>Landing page</button>
+  <button class="tab" role="tab" aria-selected="false" data-panel="p-lp"><span class="num">09</span>Landing page</button>
 </div></nav>
 
 <main class="wrap">
@@ -1580,103 +1566,56 @@ Static Square</textarea>
 </div>
 </section>
 
-<section class="panel" id="p-crm">
-<div class="split">
-
-  <div class="sticky-col">
-    <div class="card">
-      <div class="card-hd"><h2>Filters</h2><span class="hint" id="crmStat">not loaded</span></div>
-      <div class="card-bd">
-        <div class="f"><span class="f-lab">Search</span>
-          <input id="crmQ" placeholder="name, phone, email, campaign, keyword"></div>
-        <div class="row2" style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:10px">
-          <div class="f"><span class="f-lab">From</span><input id="crmFrom" type="date"></div>
-          <div class="f"><span class="f-lab">To</span><input id="crmTo" type="date"></div>
-        </div>
-        <div class="f" style="margin-top:10px"><span class="f-lab">Project</span>
-          <select id="crmProject"><option value="">Every project</option></select></div>
-        <div class="f" style="margin-top:10px"><span class="f-lab">Status</span>
-          <select id="crmStatus"><option value="">Every status</option></select></div>
-        <div class="f" style="margin-top:10px"><span class="f-lab">Source</span>
-          <select id="crmSource"><option value="">Every source</option></select></div>
-        <div class="f" style="margin-top:10px"><span class="f-lab">Campaign</span>
-          <select id="crmCampaign"><option value="">Every campaign</option></select></div>
-        <div class="btnrow" style="margin-top:14px">
-          <button class="btn btn-pri" id="crmLoad">Load leads</button>
-          <button class="btn" id="crmClear">Clear</button>
-          <button class="btn btn-navy" id="crmCsv">CSV</button>
-        </div>
-      </div>
-    </div>
-
-    <div class="card">
-      <div class="card-hd"><h2>Where leads come from</h2></div>
-      <div class="card-bd">
-        <div class="callout">Leads land here from any landing page built in the Landing page tab.
-          Paste this endpoint into the builder under <b>Leads, OTP &amp; CRM → Lead API URL</b>
-          and pick <b>Trigger CRM</b> as the hosting. There is no server to deploy.</div>
-        <div class="f" style="margin-top:12px"><span class="f-lab">Lead endpoint</span>
-          <input id="crmEndpoint" readonly></div>
-        <div class="btnrow" style="margin-top:10px">
-          <button class="btn" id="crmCopyEp">Copy endpoint</button>
-          <button class="btn" id="crmTest">Send a test lead</button>
-        </div>
-        <div class="f-note" style="margin-top:8px">A test lead is stored like any other and arrives
-          as <b>Junk</b>, so it can never be counted as real.</div>
-      </div>
-    </div>
-  </div>
-
-  <div>
-    <div class="kpis" id="crmKpis">
-      <div class="kpi"><b>—</b><span>Leads</span></div>
-      <div class="kpi good"><b>—</b><span>Qualified</span></div>
-      <div class="kpi"><b>—</b><span>Duplicates</span></div>
-      <div class="kpi bad"><b>—</b><span>Junk</span></div>
-    </div>
-
-    <div class="card">
-      <div class="card-hd"><h2>Leads</h2><span class="hint" id="crmCount"></span></div>
-      <div class="card-bd">
-        <div class="btnrow" id="crmBulkBar" style="margin-bottom:10px">
-          <select id="crmBulkStatus" style="max-width:220px"></select>
-          <button class="btn" id="crmBulkGo" disabled>Apply to selected</button>
-          <span class="hint" id="crmSelN">nothing selected</span>
-        </div>
-        <div class="tblwrap">
-          <table class="lt" id="crmTbl"><tbody>
-            <tr><td><div class="empty">Press <b>Load leads</b>.</div></td></tr>
-          </tbody></table>
-        </div>
-      </div>
-    </div>
-  </div>
-</div>
-</section>
-
 <section class="panel" id="p-lp">
 <div class="split">
+
   <div class="sticky-col">
     <div class="card">
-      <div class="card-hd"><h2>Landing page</h2><span class="hint">builder</span></div>
+      <div class="card-hd"><h2>Landing page</h2><span class="hint" id="lpStat">no project</span></div>
       <div class="card-bd">
-        <div class="callout">The builder makes the project microsite — hero, pricing, plans,
-          amenities, gallery, location, FAQ — and exports a folder you upload to GitHub Pages or
-          cPanel. Every form on it posts straight to the CRM tab, with the tracking parameters
-          from the Tracking URLs tab carried through.</div>
+        <div class="callout">The builder makes the project microsite and exports a folder for
+          GitHub Pages or cPanel. It sits on this same site, so the brief travels both ways:
+          send this project into it, or pull back whatever has been typed there.</div>
+
+        <div class="f" style="margin-top:12px"><span class="f-lab">Possession
+          <span class="pill p-mute">for the FAQ</span></span>
+          <input id="lpPoss" placeholder="December 2028" spellcheck="false">
+          <span class="f-note">Only used to answer a possession question. Left empty, that
+            question is dropped rather than answered with a guess.</span></div>
+
         <div class="btnrow" style="margin-top:14px">
-          <button class="btn btn-pri" id="lpOpen">Open the builder with this brief</button>
+          <button class="btn btn-pri" id="lpOpen">Send this project to the builder</button>
+          <button class="btn" id="lpPull">Pull back from the builder</button>
           <button class="btn" id="lpPlain">Open it empty</button>
         </div>
-        <div class="f-note" style="margin-top:10px">The brief is handed over in the link, so the
-          builder opens with the project already filled in. Nothing is uploaded anywhere.</div>
+        <div class="f-note" style="margin-top:10px">Both tools share this site, so nothing is
+          uploaded anywhere to pass the brief between them. Images stay in the builder — they are
+          far too large to carry across.</div>
       </div>
     </div>
+
+    <div class="card">
+      <div class="card-hd"><h2>What travels across</h2></div>
+      <div class="card-bd" id="lpOut"><div class="empty">Fill the brief on the Ad copy tab first.</div></div>
+    </div>
   </div>
+
   <div>
     <div class="card">
-      <div class="card-hd"><h2>What gets handed across</h2><span class="hint" id="lpStat"></span></div>
-      <div class="card-bd" id="lpOut"><div class="empty">Fill the brief in the Tracking URLs tab first.</div></div>
+      <div class="card-hd"><h2>FAQs from your keywords</h2>
+        <span class="hint">landing page experience</span></div>
+      <div class="card-bd">
+        <div class="callout">Quality Score is three things, and landing page experience is the one
+          the page itself can earn. These FAQs are written <b>from the deployed keywords</b>, so the
+          page answers what was searched, in the words it was searched in. Answers come only from
+          the brief — a question the brief cannot answer is reported, never invented.</div>
+        <div class="btnrow" style="margin-top:12px">
+          <button class="btn btn-pri" id="faqBuild">Build FAQs from the keywords</button>
+          <button class="btn" id="faqCopy">Copy</button>
+        </div>
+        <div id="faqOut" style="margin-top:14px">
+          <div class="empty">Build the structure on tab 05, then press the button.</div></div>
+      </div>
     </div>
   </div>
 </div>
@@ -1713,16 +1652,6 @@ Static Square</textarea>
       </div>
       <div class="f-note" style="margin-top:12px">The criterion ID is what Editor matches on. Find it by adding the segment by hand on one ad group, then reading it from the Audiences view. Without an ID the name alone will usually not resolve.</div>
     </div>
-  </div>
-</div>
-
-<div class="modal" id="mdWrap">
-  <div class="modal-box" style="max-width:720px">
-    <div class="modal-hd">
-      <h2 id="mdTitle">Lead</h2>
-      <button class="x" id="mdClose" aria-label="Close">&times;</button>
-    </div>
-    <div class="modal-bd" id="mdBody"></div>
   </div>
 </div>
 
@@ -8419,271 +8348,371 @@ on("#crOut","click",e=>{
   if(img)lbShow(+img.dataset.k);
 });
 
-/* ═══════════ the mini CRM ═══════════════════════════════════════════════
-   The internal development team has not given us a POST API for the company
-   CRM, so a landing page that captures a lead has nowhere to send it. This
-   is that somewhere: the leads live in the same Google Sheet this toolkit
-   already logs to, and this tab is the working surface over them.
+/* ═══════════ FAQs built from the keywords ═══════════════════════════════
+   Quality Score is three things, and landing page experience is the one a
+   page can actually be made to earn: the page has to answer what the
+   keyword asked, in the words it was asked in. So these FAQs are not
+   written from the project and hoped to match the keywords — they are
+   written FROM the keywords, one question per intent, each carrying the
+   searcher's own terms.
 
-   Nothing here deletes a lead. A bad one is marked Junk and stays, because a
-   lead that can vanish is a lead someone will argue about later. */
+   Answers come only from the brief. Nothing is invented: a keyword asking
+   about possession when no possession date was entered produces a question
+   that is reported as unanswered rather than a date someone made up. That
+   is the house rule, and it is also the only safe way to do this — a wrong
+   possession date on a landing page is a legal problem, not a typo. */
 
-let CRM_ROWS=[], CRM_SEL=new Set(), CRM_STATUSES=[], CRM_LOADED=false;
+const FAQ_STOP=new Set(["in","at","near","the","a","an","for","of","on","by","to",
+  "is","are","with","and","or","my","your","best","top","new","latest","list",
+  "india","project","projects","property","properties","real","estate"]);
 
-const crmLabel=id=>{ const f=CRM_STATUSES.filter(s=>s[0]===id)[0]; return f?f[1]:(id||""); };
-function crmFilters(){
-  return { q:val("crmQ"), from:val("crmFrom"), to:val("crmTo"),
-           project:val("crmProject"), status:val("crmStatus"),
-           source:val("crmSource"), campaign:val("crmCampaign") };
+/* Words that are never part of a name. Stripped only when naming the
+   subject of a question — "vyana pune possession date" is about Vyana Pune,
+   not about "Vyana Pune Date". They still count for coverage, because a
+   page that says "flats" is more relevant to "flats" than one that does
+   not. */
+const FAQ_FILLER=new Set(["date","dates","details","detail","number","numbers",
+  "download","pdf","sheet","flats","flat","apartments","apartment","homes","home",
+  "house","houses","booking","buy","sale","resale","today","now","online","info",
+  "information","contact","enquiry","enquire","available","availability"]);
+
+/* Each intent: how to spot it, how to ask it, how to answer it from the
+   brief, and which brief field it needs. Order matters — the first match
+   wins, so the specific ones come before the general. */
+const FAQ_INTENTS=[
+  { id:"price", lab:"Price",
+    re:/\b(price|prices|pricing|cost|costs|rate|rates|budget|psf|per\s*sq\.?\s*ft|sq\.?ft\s*rate)\b/i,
+    q:(sub)=>`What is the price of ${sub}?`,
+    need:"price",
+    a:(b)=>`${b.proj} starts at ${b.price}${b.cfg?` for ${b.cfg}`:""}${
+      b.loc?`, ${b.loc}`:""}. The complete cost sheet, including all charges, is shared on request.` },
+
+  { id:"config", lab:"Configurations",
+    re:/\b(\d+(\.\d+)?\s*(bhk|br|bed|bedroom|bedrooms)|studio|villa|villas|plot|plots|penthouse|duplex)\b/i,
+    q:(sub)=>`What configurations are available at ${sub}?`,
+    need:"cfg",
+    a:(b)=>`${b.proj} offers ${b.cfg}${b.loc?` at ${b.loc}`:""}${
+      b.price?`, starting at ${b.price}`:""}.` },
+
+  { id:"floorplan", lab:"Floor plans",
+    re:/\b(floor\s*plan|floorplan|layout|unit\s*plan|master\s*plan|masterplan|site\s*plan)\b/i,
+    q:(sub)=>`What floor plans are available at ${sub}?`,
+    need:"cfg",
+    a:(b)=>`Floor plans at ${b.proj} cover ${b.cfg}. The unit plans and the master layout are available on request.` },
+
+  { id:"location", lab:"Location",
+    re:/\b(location|address|where|map|connectivity|distance|nearby|metro|airport|station|road)\b/i,
+    q:(sub)=>`Where is ${sub} located?`,
+    need:"loc",
+    a:(b)=>`${b.proj} is at ${b.loc}.${b.marks.length?` ${b.marks.slice(0,4).join(", ")}.`:""}` },
+
+  { id:"amenities", lab:"Amenities",
+    re:/\b(amenit\w*|facilit\w*|clubhouse|club\s*house|swimming|pool|gym|garden|sports|lifestyle)\b/i,
+    q:(sub)=>`What amenities does ${sub} offer?`,
+    need:"amen",
+    a:(b)=>`${b.proj} offers ${b.amen.slice(0,8).join(", ")}.` },
+
+  { id:"offer", lab:"Offer",
+    re:/\b(offer|offers|discount|deal|booking|eoi|token|pre\s*launch|prelaunch|launch\s*price)\b/i,
+    q:(sub)=>`What offers are running at ${sub}?`,
+    need:"offer",
+    a:(b)=>`${b.offer} Terms apply — the current offer is confirmed at the time of booking.` },
+
+  { id:"rera", lab:"RERA",
+    re:/\b(rera|maharera|registration|registered|approval|approved|legal)\b/i,
+    q:(sub)=>`Is ${sub} RERA registered?`,
+    need:"rera",
+    a:(b)=>`Yes. ${b.proj} is registered under RERA number ${b.rera}.` },
+
+  { id:"possession", lab:"Possession",
+    re:/\b(possession|ready\s*to\s*move|rtm|completion|handover|delivery|occupancy)\b/i,
+    q:(sub)=>`When is possession at ${sub}?`,
+    need:"possession",
+    a:(b)=>`Possession at ${b.proj} is scheduled for ${b.possession}.` },
+
+  { id:"developer", lab:"Developer",
+    re:/\b(builder|developer|group|developers|reputation|track\s*record)\b/i,
+    q:(sub)=>`Who is the developer of ${sub}?`,
+    /* "kolte patil builder pune" is asking about the project, not about the
+       builder's own builder — so this one always names the project. */
+    fix:true, need:"dev",
+    a:(b)=>`${b.proj} is developed by ${b.dev}${b.loc?` at ${b.loc}`:""}.` },
+
+  { id:"review", lab:"Is it worth it",
+    re:/\b(review|reviews|rating|ratings|worth|good|genuine|should\s*i|invest\w*)\b/i,
+    q:(sub)=>`Is ${sub} a good project to buy?`,
+    need:"usps",
+    a:(b)=>`${b.proj}${b.loc?` at ${b.loc}`:""}: ${b.usps.slice(0,4).join(", ")}.${
+      b.price?` Pricing starts at ${b.price}.`:""} Book a site visit to judge it for yourself.` },
+
+  { id:"brochure", lab:"Brochure",
+    re:/\b(brochure|pdf|download|cost\s*sheet|price\s*list|details)\b/i,
+    q:(sub)=>`How do I get the ${sub} brochure?`,
+    need:"",
+    a:(b)=>`Fill the enquiry form on this page and the ${b.proj} brochure, floor plans and full cost sheet are sent across straight away.` },
+
+  { id:"about", lab:"About",
+    re:/.*/,
+    q:(sub)=>`What should I know about ${sub}?`,
+    need:"usps",
+    a:(b)=>`${b.proj} is ${b.dev?`a ${b.dev} development `:""}${b.loc?`at ${b.loc}`:""}${
+      b.cfg?`, offering ${b.cfg}`:""}${b.price?` from ${b.price}`:""}. ${b.usps.slice(0,3).join(", ")}.` }
+];
+
+/* The brief as the FAQ writer needs it: everything it may quote, and
+   nothing it may not. possession and rera are not on the campaign brief, so
+   they come from the creative tab, where they are already typed. */
+function faqBrief(){
+  const b=brief();
+  return {
+    proj:b.proj, dev:b.dev, cfg:b.cfg, price:b.price, offer:b.offer,
+    loc:b.loc||[b.micro,b.city].filter(Boolean).join(", "),
+    micro:b.micro, city:b.city,
+    usps:b.usps.filter(Boolean), amen:b.amen.filter(Boolean), marks:b.marks.filter(Boolean),
+    rera:val("crRera"), possession:val("lpPoss")
+  };
 }
-function crmFill(sel,list,keep){
-  const el=$("#"+sel); if(!el)return;
-  const cur=keep||el.value, first=el.options[0]?el.options[0].outerHTML:"";
-  el.innerHTML=first+list.map(v=>`<option>${esc(v)}</option>`).join("");
-  if(cur&&list.indexOf(cur)>-1)el.value=cur;
-}
-function crmStatusSel(id,cur){
-  return `<select class="st st-${esc(cur||"NEW")}" data-st="${esc(id)}">`+
-    CRM_STATUSES.map(s=>`<option value="${s[0]}"${s[0]===cur?" selected":""}>${esc(s[1])}</option>`).join("")+
-    `</select>`;
+const faqHas=(b,need)=>{
+  if(!need)return true;
+  const v=b[need];
+  return Array.isArray(v)?v.length>0:!!String(v||"").trim();
+};
+
+/* The subject of the question is the searcher's own phrase with the intent
+   word taken out — "kolte patil vyana price" asks about "Kolte Patil Vyana".
+   If that leaves nothing to name, the project name stands in. */
+function faqSubject(kw,re,b){
+  const left=String(kw||"").replace(re," ")
+    .split(/\s+/).map(w=>w.replace(/[^\w.&-]/g,"")).filter(Boolean)
+    .filter(w=>{ const L=w.toLowerCase(); return !FAQ_STOP.has(L)&&!FAQ_FILLER.has(L); });
+  const sub=left.join(" ").trim();
+  if(sub.length<3)return b.proj;
+  if(sub.toLowerCase()===String(b.proj||"").toLowerCase())return b.proj;
+  /* The subject has to name the project. "3 bhk flats in vadgaon" leaves
+     only "vadgaon", and a question about Vadgaon is a question about
+     nothing in particular — so the project is put back in front of it. */
+  const known=(String(b.proj||"")+" "+String(b.dev||"")).toLowerCase()
+    .split(/\s+/).filter(Boolean);
+  const names=known.length&&left.some(w=>known.indexOf(w.toLowerCase())>-1);
+  return tc(names?sub:((b.proj?b.proj+" ":"")+sub)).slice(0,70).trim();
 }
 
-async function crmLoad(){
-  const st=$("#crmStat");
-  st.innerHTML=`<span class="pill p-mute">loading…</span>`;
-  const r=await adsCall("crm-list",Object.assign({limit:500},crmFilters()));
-  if(r.error){ st.innerHTML=`<span class="pill p-bad">failed</span>`;
-    $("#crmTbl").querySelector("tbody").innerHTML=
-      `<tr><td><div class="empty">${esc(r.error)}</div></td></tr>`; return; }
-  CRM_ROWS=r.rows||[]; CRM_SEL.clear(); CRM_LOADED=true;
-  CRM_STATUSES=r.statuses||CRM_STATUSES;
-  crmFill("crmProject",r.projects||[]); crmFill("crmSource",r.sources||[]);
-  crmFill("crmCampaign",r.campaigns||[]);
-  if($("#crmStatus").options.length<2)
-    crmFill("crmStatus",[],""),$("#crmStatus").innerHTML='<option value="">Every status</option>'+
-      CRM_STATUSES.map(x=>`<option value="${x[0]}">${esc(x[1])}</option>`).join("");
-  $("#crmBulkStatus").innerHTML='<option value="">Set status to…</option>'+
-    CRM_STATUSES.map(x=>`<option value="${x[0]}">${esc(x[1])}</option>`).join("");
-  st.innerHTML=`<span class="pill p-ok">${r.total} found</span>`;
-  $("#crmCount").textContent=`${CRM_ROWS.length} shown of ${r.total}`;
-  crmDraw(); crmStats();
+function faqBuild(keywords,b){
+  const seen=new Map(), unanswered=[];
+  (keywords||[]).forEach(raw=>{
+    const kw=String(raw||"").replace(/^[+\[\]"]+|[+\[\]"]+$/g,"").trim();
+    if(!kw)return;
+    const hit=FAQ_INTENTS.filter(x=>x.re.test(kw))[0];
+    if(!hit)return;
+    if(!seen.has(hit.id)){
+      const sub=faqSubject(kw,hit.re,b);
+      seen.set(hit.id,{intent:hit.id,lab:hit.lab,need:hit.need,
+        q:hit.q(hit.fix?b.proj:sub),a:faqHas(b,hit.need)?hit.a(b):"",kws:[]});
+    }
+    seen.get(hit.id).kws.push(kw);
+  });
+  const faqs=[...seen.values()];
+  faqs.forEach(f=>{ if(!f.a)unanswered.push(f); });
+  return { faqs:faqs.filter(f=>f.a), unanswered };
 }
 
-async function crmStats(){
-  const r=await adsCall("crm-stats",crmFilters());
-  if(r.error)return;
-  const k=$("#crmKpis").children;
-  k[0].querySelector("b").textContent=r.total;
-  k[1].querySelector("b").textContent=r.qualified;
-  k[2].querySelector("b").textContent=r.duplicates;
-  k[3].querySelector("b").textContent=r.junk;
+/* What the finished page will actually say, so a keyword can be checked
+   against it rather than against a hope. */
+function faqPageText(b,faqs){
+  return [b.proj,b.dev,b.loc,b.micro,b.city,b.cfg,b.price,b.offer,b.rera,b.possession]
+    .concat(b.usps,b.amen,b.marks)
+    .concat(faqs.map(f=>f.q+" "+f.a))
+    .join(" ").toLowerCase();
+}
+/* A keyword earns landing page relevance when its own words are on the
+   page. This reports the ones that are not, which is the list worth acting
+   on before the campaign goes live. */
+function faqCoverage(keywords,b,faqs){
+  const page=faqPageText(b,faqs);
+  const out=[];
+  (keywords||[]).forEach(raw=>{
+    const kw=String(raw||"").replace(/^[+\[\]"]+|[+\[\]"]+$/g,"").trim();
+    if(!kw)return;
+    const words=kw.toLowerCase().split(/\s+/).map(w=>w.replace(/[^\w.&-]/g,""))
+      .filter(w=>w&&!FAQ_STOP.has(w));
+    if(!words.length)return;
+    const miss=words.filter(w=>page.indexOf(w)===-1);
+    out.push({kw,total:words.length,miss,
+      pct:Math.round(((words.length-miss.length)/words.length)*100)});
+  });
+  return out.sort((x,y)=>x.pct-y.pct);
 }
 
-function crmDraw(){
-  const tb=$("#crmTbl").querySelector("tbody");
-  if(!CRM_ROWS.length){
-    tb.innerHTML=`<tr><td><div class="empty">No lead matches these filters.</div></td></tr>`;
-    $("#crmSelN").textContent="nothing selected"; $("#crmBulkGo").disabled=true; return; }
-  tb.innerHTML=`<tr><th style="width:26px"><input type="checkbox" id="crmAll"></th>
-      <th>When</th><th>Lead</th><th>Project</th><th>Source</th><th>Campaign / keyword</th>
-      <th>Strategy</th><th>Status</th><th></th></tr>`+
-    CRM_ROWS.map(r=>`<tr data-id="${esc(r.id)}">
-      <td><input type="checkbox" class="crmck" data-id="${esc(r.id)}"${CRM_SEL.has(r.id)?" checked":""}></td>
-      <td class="mono">${esc(String(r.created_ist||"").slice(0,16))}</td>
-      <td><div class="nm" data-open="${esc(r.id)}">${esc(r.name||"—")}</div>
-          <div class="sub mono">${esc(r.full_phone||r.phone||"")}</div></td>
-      <td>${esc(r.project_name||r.project_code||"—")}
-          <div class="sub">${esc(r.form_source||"")}</div></td>
-      <td>${esc(r.source||"—")}${String(r.is_duplicate)==="1"?' <span class="pill p-mute">dup</span>':""}</td>
-      <td>${esc(r.campaign_name||r.utm_campaign||"—")}
-          <div class="sub">${esc(r.keyword||"")}</div></td>
-      <td class="mono">${esc(r.strategy||"")}</td>
-      <td>${crmStatusSel(r.id,r.status)}</td>
-      <td>${Number(r.comments||0)?`<span class="pill p-mute">${r.comments}</span>`:""}</td>
-    </tr>`).join("");
-  crmSelN();
-}
-function crmSelN(){
-  const n=CRM_SEL.size;
-  $("#crmSelN").textContent=n?`${n} selected`:"nothing selected";
-  $("#crmBulkGo").disabled=!n;
+/* Every keyword in the plan, deduplicated. The plan is the truth here, not
+   the wrapper output: what matters is what will actually be deployed. */
+function faqKeywords(){
+  const out=[], seen=new Set();
+  (PLAN||[]).forEach(c=>(c.groups||[]).forEach(g=>(g.kws||[]).forEach(k=>{
+    const L=String(k||"").toLowerCase().replace(/^[+\[\]"]+|[+\[\]"]+$/g,"").trim();
+    if(L&&!seen.has(L)){ seen.add(L); out.push(k); }
+  })));
+  if(out.length)return out;
+  /* nothing built yet — fall back to whatever is pasted in the wrapper */
+  return val("kwIn").split("\n").map(x=>x.trim()).filter(Boolean);
 }
 
-/* One lead, everything about it, and the thread of what was said. */
-async function crmOpen(id){
-  const r=await adsCall("crm-get",{id});
-  if(r.error)return toast(r.error);
-  const L=r.lead, rows=[
-    ["Received",L.created_ist],["Project",L.project_name||L.project_code],
-    ["Developer",L.developer],["Location",L.location],
-    ["Phone",L.full_phone||L.phone],["Email",L.email],
-    ["Interested in",L.config],["Form",L.form_source],
-    ["Source",L.source],["Medium",L.utm_medium],
-    ["Campaign",L.campaign_name||L.utm_campaign],["Campaign ID",L.campaign_id],
-    ["Ad group",L.adgroup],["Ad group ID",L.adgroup_id],
-    ["Keyword",L.keyword],["Match type",L.matchtype],
-    ["Strategy",L.strategy],["Device",L.device],
-    ["Network",L.network],["Placement",L.placement],
-    ["Location ID",L.loc_physical],["Click ID",L.gclid||L.fbclid||L.msclkid],
-    ["Landing URL",L.landing_url],["Referrer",L.referrer]
-  ].filter(x=>x[1]);
-  $("#mdTitle").textContent=L.name||"Lead";
-  $("#mdBody").innerHTML=
-    `<div class="btnrow" style="margin-bottom:12px">
-       ${crmStatusSel(L.id,L.status)}
-       <a class="btn" href="tel:${esc(L.full_phone||L.phone)}">Call</a>
-       <a class="btn" target="_blank" rel="noopener"
-          href="https://wa.me/${esc(String(L.full_phone||"").replace(/\D/g,""))}">WhatsApp</a>
-     </div>
-     ${rows.map(([k,v])=>`<div class="dpair"><span>${esc(k)}</span><span>${esc(v)}</span></div>`).join("")}
-     <div class="f" style="margin-top:16px"><span class="f-lab">Add a comment</span>
-       <textarea id="crmCmt" rows="3" placeholder="What happened on the call"></textarea></div>
-     <div class="btnrow" style="margin-top:10px">
-       <button class="btn btn-pri" id="crmCmtGo" data-id="${esc(L.id)}">Save comment</button></div>
-     <div style="margin-top:18px">
-       <span class="f-lab">History</span>
-       <div id="crmHist" style="margin-top:8px">${
-         (r.comments||[]).length
-           ? r.comments.map(c=>`<div class="cmt">
-               <div class="who">${esc(String(c.at||"").slice(0,16))} · ${esc(c.by||"")}${
-                 c.from_status&&c.to_status&&c.from_status!==c.to_status
-                   ? ` · ${esc(crmLabel(c.from_status))} → ${esc(crmLabel(c.to_status))}`:""}</div>
-               ${c.text?`<div class="txt">${esc(c.text)}</div>`:""}</div>`).join("")
-           : `<div class="empty">Nothing yet.</div>`}</div></div>`;
-  $("#mdWrap").classList.add("on");
+let FAQ_OUT={faqs:[],unanswered:[],cov:[]};
+function faqRun(){
+  const b=faqBrief();
+  if(!b.proj){ toast("Fill the project name on the Ad copy tab first"); return null; }
+  const kws=faqKeywords();
+  if(!kws.length){ toast("Build the structure on tab 05, or paste keywords on tab 02"); return null; }
+  const r=faqBuild(kws,b);
+  FAQ_OUT={faqs:r.faqs,unanswered:r.unanswered,cov:faqCoverage(kws,b,r.faqs),kws};
+  faqDraw();
+  return FAQ_OUT;
 }
+function faqDraw(){
+  const box=$("#faqOut");
+  if(!box)return;
+  const {faqs,unanswered,cov,kws}=FAQ_OUT;
+  if(!faqs.length&&!unanswered.length){
+    box.innerHTML=`<div class="empty">Press <b>Build FAQs from the keywords</b>.</div>`;
+    return;
+  }
+  const weak=cov.filter(c=>c.pct<100);
+  let h=`<div class="kpis" style="grid-template-columns:repeat(3,1fr)">
+    <div class="kpi"><b>${faqs.length}</b><span>FAQs written</span></div>
+    <div class="kpi ${weak.length?"bad":"good"}"><b>${kws.length-weak.length}/${kws.length}</b>
+      <span>keywords fully on page</span></div>
+    <div class="kpi ${unanswered.length?"bad":"good"}"><b>${unanswered.length}</b>
+      <span>questions unanswered</span></div></div>`;
 
-async function crmSet(id,status,comment){
-  const r=await adsCall("crm-update",{id,status,comment:comment||""});
-  if(r.error||r.ok===false)return toast(r.error||"Could not save");
-  const row=CRM_ROWS.filter(x=>x.id===id)[0];
-  if(row&&status)row.status=status;
-  if(row&&comment)row.comments=Number(row.comments||0)+1;
-  crmStats();
-  return r;
+  if(unanswered.length)
+    h+=`<div class="callout" style="border-left:3px solid var(--bad)">
+      <b>These questions have no answer in the brief, so they are left out.</b>
+      Nothing here is invented — fill the field and build again.
+      ${unanswered.map(u=>`<div style="margin-top:6px">${esc(u.q)}
+        <span class="pill p-bad">needs ${esc(u.need)}</span></div>`).join("")}</div>`;
+
+  h+=faqs.map(f=>`<div style="padding:11px 0;border-bottom:1px solid var(--line-soft)">
+      <div style="font-weight:600;font-size:13.5px">${esc(f.q)}</div>
+      <div style="font-size:12.5px;color:var(--ink-soft);margin-top:4px">${esc(f.a)}</div>
+      <div class="sub mono" style="font-size:10.5px;color:var(--ink-soft);margin-top:5px">
+        covers: ${f.kws.slice(0,6).map(esc).join(" · ")}${f.kws.length>6?` +${f.kws.length-6}`:""}</div>
+    </div>`).join("");
+
+  h+=`<div class="f-lab" style="margin-top:18px">Keyword coverage on the page</div>
+    <div class="tblwrap"><table class="lt"><tbody>
+    <tr><th>Keyword</th><th>On page</th><th>Words still missing</th></tr>`+
+    cov.slice(0,60).map(c=>`<tr>
+      <td class="mono">${esc(c.kw)}</td>
+      <td><span class="pill ${c.pct===100?"p-ok":c.pct>=60?"p-warn":"p-bad"}">${c.pct}%</span></td>
+      <td class="mono">${c.miss.map(esc).join(", ")||"—"}</td></tr>`).join("")+
+    `</tbody></table></div>
+    <div class="f-note" style="margin-top:8px">A keyword whose words are missing from the page is
+      the one Google marks down for landing page experience. Add the term to a USP, an amenity or
+      the About copy in the builder, or drop the keyword.</div>`;
+  box.innerHTML=h;
 }
-
-on("#mdClose","click",()=>$("#mdWrap").classList.remove("on"));
-on("#mdWrap","click",e=>{ if(e.target.id==="mdWrap")$("#mdWrap").classList.remove("on"); });
-on("#crmLoad","click",()=>crmLoad());
-on("#crmClear","click",()=>{ ["crmQ","crmFrom","crmTo"].forEach(i=>{const e=$("#"+i);if(e)e.value="";});
-  ["crmProject","crmStatus","crmSource","crmCampaign"].forEach(i=>{const e=$("#"+i);if(e)e.value="";});
-  crmLoad(); });
-on("#crmCsv","click",()=>{
-  if(!CRM_ROWS.length)return toast("Load some leads first");
-  const cols=Object.keys(CRM_ROWS[0]).filter(k=>k!=="_row");
-  const q=v=>`"${String(v==null?"":v).replace(/"/g,'""')}"`;
-  const csv=[cols.join(",")].concat(CRM_ROWS.map(r=>cols.map(c=>q(r[c])).join(","))).join("\n");
-  const a=document.createElement("a");
-  a.href=URL.createObjectURL(new Blob(["﻿"+csv],{type:"text/csv;charset=utf-8"}));
-  a.download=`leads-${new Date().toISOString().slice(0,10)}.csv`;
-  document.body.append(a); a.click(); setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove();},1500);
-});
-on("#crmCopyEp","click",()=>{ const e=$("#crmEndpoint");
-  if(!e.value)return toast("No Apps Script URL is set");
-  navigator.clipboard.writeText(e.value).then(()=>toast("Endpoint copied"),()=>toast("Could not copy")); });
-on("#crmTest","click",async()=>{
-  if(!AUTH.logUrl)return toast("No Apps Script URL is set");
-  try{
-    const r=await fetch(AUTH.logUrl,{method:"POST",headers:{"Content-Type":"text/plain;charset=utf-8"},
-      body:JSON.stringify({action:"crm-lead",name:"Trigger test lead",phone:"9999999999",
-        country_code:"+91",project_code:"trigger-test",project_name:"Trigger test",
-        form_source:"crm-selftest",utm_source:"trigger",utm_campaign:"endpoint-test"})});
-    const j=await r.json();
-    if(j.ok){ toast("Test lead stored — load the leads to see it"); crmLoad(); }
-    else toast("The endpoint answered: "+(j.error||"something unexpected"));
-  }catch(e){ toast("Could not reach the endpoint: "+((e&&e.message)||e)); }
-});
-on("#crmBulkGo","click",async()=>{
-  const st=val("crmBulkStatus"); if(!st)return toast("Pick a status first");
-  const ids=[...CRM_SEL];
-  const r=await adsCall("crm-bulk",{ids,status:st});
-  if(r.error||r.ok===false)return toast(r.error||"Could not save");
-  toast(`${r.updated} lead${r.updated===1?"":"s"} set to ${crmLabel(st)}`);
-  CRM_SEL.clear(); crmLoad();
-});
-on("#crmTbl","change",e=>{
-  const sel=e.target.closest("select[data-st]");
-  if(sel){ const id=sel.dataset.st;
-    sel.className="st st-"+sel.value;
-    crmSet(id,sel.value,"").then(()=>toast("Status saved")); return; }
-  const all=e.target.closest("#crmAll");
-  if(all){ CRM_SEL.clear();
-    if(all.checked)CRM_ROWS.forEach(r=>CRM_SEL.add(r.id));
-    $$(".crmck").forEach(c=>c.checked=all.checked); crmSelN(); return; }
-  const ck=e.target.closest(".crmck");
-  if(ck){ ck.checked?CRM_SEL.add(ck.dataset.id):CRM_SEL.delete(ck.dataset.id); crmSelN(); }
-});
-on("#crmTbl","click",e=>{ const n=e.target.closest("[data-open]"); if(n)crmOpen(n.dataset.open); });
-on("#mdBody","click",async e=>{
-  const b=e.target.closest("#crmCmtGo");
-  if(b){ const t=val("crmCmt"); if(!t)return toast("Write something first");
-    const r=await crmSet(b.dataset.id,"",t);
-    if(r){ toast("Comment saved"); crmOpen(b.dataset.id); crmDraw(); } return; }
-  const sel=e.target.closest("select[data-st]");
-  if(sel){ sel.className="st st-"+sel.value;
-    await crmSet(sel.dataset.st,sel.value,""); toast("Status saved"); crmDraw(); }
+on("#faqBuild","click",()=>faqRun());
+on("#faqCopy","click",()=>{
+  if(!FAQ_OUT.faqs.length)return toast("Build the FAQs first");
+  const t=FAQ_OUT.faqs.map(f=>f.q+"\n"+f.a).join("\n\n");
+  navigator.clipboard.writeText(t).then(()=>toast("FAQs copied"),()=>toast("Could not copy"));
 });
 
 /* ═══════════ the landing page builder ═══════════════════════════════════
-   The builder is served from /lp/ on this same site, so it shares the
-   sign-in and the domain. The brief travels in the link: nothing about an
-   unlaunched project is posted anywhere to make this work. */
+   The builder is served from /lp/ on this same site, so the two share an
+   origin. That is what makes the link between them work with no server at
+   all: whatever either side writes to localStorage, the other can read.
+
+   It goes both ways on purpose. The campaign is usually started first, so
+   the project is pushed into the builder; but the page is where possession,
+   the real USP wording and the amenity list get finished, so that comes
+   back. Neither side overwrites the other without being asked. */
+
+const LP_KEY="pp_lp_handover";      /* Trigger  → builder */
+const LP_BACK="pp_lp_fromBuilder";  /* builder  → Trigger */
 
 function lpBrief(){
   const kw=(id,n)=>val(id).split("\n").map(x=>x.trim()).filter(Boolean).slice(0,n||20);
+  const b=faqBrief();
+  const faq=(FAQ_OUT.faqs||[]).map(f=>({q:f.q,a:f.a}));
   return {
-    v:1,
-    project:{ name:val("acProj"), developer:val("acDev"),
-              location:[val("acMicro"),val("acCity")].filter(Boolean).join(", "),
-              config:val("acCfg"), price:val("acPrice"), rera:val("crRera") },
+    v:2, at:Date.now(),
+    project:{ name:b.proj, developer:b.dev,
+              location:b.loc, config:b.cfg, price:b.price,
+              rera:b.rera, possession:b.possession, offer:b.offer },
     usps:kw("acUsps",8), amenities:kw("acAmen",24), landmarks:kw("acMarks",12),
-    lead:{ apiUrl:AUTH.logUrl||"", hosting:"Trigger CRM (nothing to deploy)",
-           projectCode:(val("acProj")||"").toLowerCase().replace(/[^a-z0-9]+/g,"-").replace(/^-|-$/g,""),
+    faq:faq,
+    lead:{ projectCode:(b.proj||"").toLowerCase().replace(/[^a-z0-9]+/g,"-").replace(/^-|-$/g,""),
            countryCode:"+91" },
-    tracking:{ gadsId:"", ga4:"", gtm:"" }
+    tracking:{}
   };
 }
 function lpDraw(){
   const b=lpBrief(), box=$("#lpOut");
-  if(!b.project.name){ box.innerHTML=`<div class="empty">Fill the brief in the Tracking URLs tab first.</div>`;
+  if(!b.project.name){
+    box.innerHTML=`<div class="empty">Fill the brief on the Ad copy tab first.</div>`;
     $("#lpStat").innerHTML=`<span class="pill p-warn">no project</span>`; return; }
   const rows=[["Project",b.project.name],["Developer",b.project.developer],
     ["Location",b.project.location],["Configuration",b.project.config],
-    ["Price",b.project.price],["RERA",b.project.rera],
+    ["Price",b.project.price],["Offer",b.project.offer],
+    ["RERA",b.project.rera],["Possession",b.project.possession],
     ["Project code",b.lead.projectCode],
     ["USPs",b.usps.join(" · ")],["Amenities",b.amenities.join(" · ")],
     ["Landmarks",b.landmarks.join(" · ")],
-    ["Leads go to",b.lead.apiUrl?"the CRM tab":"nowhere — no Apps Script URL is set"]];
+    ["FAQs",b.faq.length?`${b.faq.length} written from the keywords`:"none built yet"]];
   box.innerHTML=rows.filter(r=>r[1]).map(([k,v])=>
-    `<div class="dpair"><span>${esc(k)}</span><span>${esc(v)}</span></div>`).join("")+
-    `<div class="f-note" style="margin-top:12px">Images, plans and the gallery are added in the
-      builder — they are too large to carry across a link.</div>`;
+    `<div class="dpair"><span>${esc(k)}</span><span>${esc(v)}</span></div>`).join("");
   $("#lpStat").innerHTML=`<span class="pill p-ok">ready</span>`;
 }
+
 function lpGo(withBrief){
   const base=location.href.replace(/[^/]*$/,"")+"lp/";
   if(!withBrief){ window.open(base,"_blank","noopener"); return; }
   const b=lpBrief();
-  if(!b.project.name)return toast("Add a project name in the Tracking URLs tab first");
-  /* base64url so the brief survives a hash without being re-encoded */
-  const packed=btoa(unescape(encodeURIComponent(JSON.stringify(b))))
-    .replace(/\+/g,"-").replace(/\//g,"_").replace(/=+$/,"");
-  window.open(base+"#brief="+packed,"_blank","noopener");
+  if(!b.project.name)return toast("Add a project name on the Ad copy tab first");
+  try{ localStorage.setItem(LP_KEY,JSON.stringify(b)); }
+  catch(e){ console.warn("Could not stage the brief",e); }
+  window.open(base+"#handover=1","_blank","noopener");
+  toast(b.faq.length?`Sent with ${b.faq.length} FAQs`:"Sent — build the FAQs to send those too");
 }
+
+/* Whatever the builder last had open. It writes this on every change, so
+   there is nothing to press on that side. */
+function lpPull(){
+  let d=null;
+  try{ d=JSON.parse(localStorage.getItem(LP_BACK)||"null"); }catch(e){}
+  if(!d||!d.project||!d.project.name)
+    return toast("Nothing from the builder yet — open a project there first");
+  const put=(id,v)=>{ const el=$("#"+id);
+    if(el&&v&&el.value!==String(v)){ el.value=String(v);
+      el.dispatchEvent(new Event("input",{bubbles:true}));
+      el.dispatchEvent(new Event("change",{bubbles:true})); return 1; } return 0; };
+  let n=0;
+  n+=put("acProj",d.project.name);
+  n+=put("acDev",d.project.developer);
+  n+=put("acMicro",d.project.micro);
+  n+=put("acCity",d.project.city);
+  n+=put("acCfg",d.project.config);
+  n+=put("acPrice",d.project.price);
+  n+=put("acOffer",d.project.offer);
+  n+=put("crRera",d.project.rera);
+  n+=put("lpPoss",d.project.possession);
+  if((d.usps||[]).length)       n+=put("acUsps",d.usps.join("\n"));
+  if((d.amenities||[]).length)  n+=put("acAmen",d.amenities.join("\n"));
+  if((d.landmarks||[]).length)  n+=put("acMarks",d.landmarks.join("\n"));
+  if(d.lp)                      n+=put("inLp",d.lp);
+  lpDraw();
+  toast(n?`Pulled ${n} field${n===1?"":"s"} from the builder`:"Everything already matches the builder");
+}
+
 on("#lpOpen","click",()=>lpGo(true));
 on("#lpPlain","click",()=>lpGo(false));
+on("#lpPull","click",()=>lpPull());
 
-/* Both new tabs only make sense once their inputs exist, so they refresh
-   when the tab is opened rather than on a timer. */
+/* The tab only makes sense once its inputs exist, so it refreshes when it
+   is opened rather than on a timer. */
 document.addEventListener("click",e=>{
   const t=e.target.closest('[data-panel]');
-  if(!t)return;
-  if(t.dataset.panel==="p-lp")setTimeout(lpDraw,0);
-  if(t.dataset.panel==="p-crm"){
-    const e2=$("#crmEndpoint"); if(e2)e2.value=AUTH.logUrl||"";
-    if(!CRM_LOADED)setTimeout(crmLoad,0);
-  }
+  if(t&&t.dataset.panel==="p-lp")setTimeout(lpDraw,0);
 });
 
 drawProjects(); projectRestore(); drawSets();
