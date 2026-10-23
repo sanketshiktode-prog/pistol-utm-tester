@@ -176,11 +176,19 @@ The split is the whole point and must not drift:
   the landing-page reader — one key, one bill. Renders go up as `inline_data`
   JPEG parts, the brief goes in `system_instruction`, and
   `generationConfig.responseMimeType` is `application/json` so the answer parses.
-  A model name this key cannot reach falls through to `gemini-2.0-flash`; a 403
-  or a 429 does not retry, because retrying cannot help.
+- **No model name is hard-coded, ever.** `gemini-2.0-flash` and `gemini-2.5-flash`
+  were both retired under us and the 404 in the browser was the first anyone
+  heard of it. `aiModels_()` asks `v1beta/models` what this key can actually run,
+  ranks the answers (newest stable flash first; preview, lite, embedding, gemma,
+  aqa and image models lose or are excluded), caches the pick in
+  `GEMINI_MODEL_CACHE` for a day, and on a 404 forgets the cache and
+  re-discovers once. Both the design agent and the landing-page reader go
+  through it. A 403 or a 429 does not retry, because retrying cannot help.
+- **Every failed attempt is reported, not just the last.** The first version
+  kept only the final error, so a retired model two rungs up was invisible.
 - The key is read from a `GEMINI_KEY` Script Property first, then from the
   `GEMINI_KEY` in `Code.gs`. Never in this repository, which is public.
-  `GEMINI_MODEL` overrides the default.
+  `GEMINI_MODEL` pins one model and skips discovery.
 - Renders are shrunk to a 1024px long edge before they are sent — about a
   quarter of the tokens, and no worse at spotting a collision.
 

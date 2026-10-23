@@ -202,25 +202,37 @@ function extract(text) {
     'Use "" or [] for anything not stated. Do not invent anything.\n\nPAGE TEXT:\n' +
     String(text).slice(0, 26000);
 
-  const models = ['gemini-2.0-flash', 'gemini-1.5-flash'];
+  const models = aiModels_();
+  if (!models.length)
+    return { error: 'Could not list the Gemini models for this key. Check GEMINI_KEY, ' +
+      'or set GEMINI_MODEL in Script Properties to a model name it can use.' };
+
+  var fails = [];
   for (let i = 0; i < models.length; i++) {
     try {
       const res = UrlFetchApp.fetch(
-        'https://generativelanguage.googleapis.com/v1beta/models/' + models[i] +
-        ':generateContent?key=' + encodeURIComponent(GEMINI_KEY),
+        'https://generativelanguage.googleapis.com/v1beta/models/' +
+        encodeURIComponent(models[i]) + ':generateContent?key=' + encodeURIComponent(aiKey_()),
         { method: 'post', contentType: 'application/json', muteHttpExceptions: true,
           payload: JSON.stringify({
             contents: [{ parts: [{ text: prompt }] }],
             generationConfig: { temperature: 0, maxOutputTokens: 1200,
                                 responseMimeType: 'application/json' }
           }) });
-      if (res.getResponseCode() !== 200) continue;
+      const code = res.getResponseCode();
+      if (code !== 200) {
+        var e1 = {}; try { e1 = JSON.parse(res.getContentText()); } catch (e) {}
+        fails.push(models[i] + ': ' + code + ' ' +
+                   (((e1.error || {}).message) || '').slice(0, 160));
+        if (code === 404) aiForget_();          /* this name has been retired */
+        continue;
+      }
       const j = JSON.parse(res.getContentText());
       const t = j.candidates[0].content.parts[0].text.replace(/```json|```/g, '').trim();
       return JSON.parse(t);
-    } catch (err) { /* try the next model */ }
+    } catch (err) { fails.push(models[i] + ': ' + err); }
   }
-  return { error: 'Gemini did not answer' };
+  return { error: 'Gemini did not answer. Tried — ' + fails.join(' | ') };
 }
 
 /** Ask Google whether the token is genuine, then apply our own rules. */
@@ -1541,10 +1553,71 @@ function aiKey_() {
   catch (e) { return ''; }
 }
 function aiModel_() {
+  const m = aiModels_();
+  return m.length ? m[0] : '';
+}
+
+/* Model names get retired — gemini-2.0-flash went away under us and the 404
+   was the first anyone heard of it. So the name is not hard-coded: the API is
+   asked what this key can actually run, the answer is cached for a day, and a
+   GEMINI_MODEL Script Property pins one when a specific model is wanted. */
+function aiProp_(k) {
+  try { return PropertiesService.getScriptProperties().getProperty(k) || ''; }
+  catch (e) { return ''; }
+}
+function aiForget_() {
+  try { PropertiesService.getScriptProperties().deleteProperty('GEMINI_MODEL_CACHE'); }
+  catch (e) {}
+}
+
+function aiModels_() {
+  const pinned = aiProp_('GEMINI_MODEL');
+  if (pinned) return [pinned];
+  const cached = aiProp_('GEMINI_MODEL_CACHE').split('|');
+  if (cached[0] && (Date.now() - Number(cached[1] || 0)) < 86400000) return [cached[0]];
+  const found = aiDiscover_();
+  if (found.length) {
+    try {
+      PropertiesService.getScriptProperties()
+        .setProperty('GEMINI_MODEL_CACHE', found[0] + '|' + Date.now());
+    } catch (e) {}
+  }
+  return found;
+}
+
+function aiDiscover_() {
+  var res;
   try {
-    return PropertiesService.getScriptProperties().getProperty('GEMINI_MODEL') ||
-           'gemini-2.5-flash';
-  } catch (e) { return 'gemini-2.5-flash'; }
+    res = UrlFetchApp.fetch(
+      'https://generativelanguage.googleapis.com/v1beta/models?pageSize=200&key=' +
+      encodeURIComponent(aiKey_()), { muteHttpExceptions: true });
+  } catch (e) { return []; }
+  if (res.getResponseCode() !== 200) return [];
+  var b = {};
+  try { b = JSON.parse(res.getContentText()); } catch (e) { return []; }
+  const usable = (b.models || []).filter(function (m) {
+    return (m.supportedGenerationMethods || []).indexOf('generateContent') > -1;
+  }).map(function (m) {
+    return String(m.name || '').replace(/^models\//, '');
+  }).filter(function (n) {
+    /* these cannot do what the reviewer needs, whatever their version */
+    return n && !/embedding|aqa|tts|audio|image-generation|gemma|learnlm/i.test(n);
+  });
+  usable.sort(function (a, b2) { return aiRank_(b2) - aiRank_(a); });
+  return usable.slice(0, 3);
+}
+
+/* Prefer the newest stable flash model: cheap, fast, and quite enough to spot a
+   collision or unreadable type. A preview or lite build loses to a stable one. */
+function aiRank_(n) {
+  const v = parseFloat((n.match(/gemini-([0-9]+(?:\.[0-9]+)?)/) || [])[1] || '0');
+  var s = v * 100;
+  if (/flash/i.test(n)) s += 40;
+  else if (/pro/i.test(n)) s += 20;
+  if (/lite/i.test(n)) s -= 15;
+  if (/preview|[-_]exp|experimental|thinking/i.test(n)) s -= 25;
+  if (/latest/i.test(n)) s += 5;
+  return s;
 }
 
 function aiRoute(body, v) {
@@ -1556,13 +1629,29 @@ function aiRoute(body, v) {
   return null;
 }
 
-/* One call to Gemini with whatever renders were sent. A newer model name that
-   this key cannot reach falls through to the next one rather than failing the
-   review; a bad key or a quota wall does not, because retrying cannot help. */
+/* One call to Gemini with whatever renders were sent. Every attempt that fails
+   is reported, not just the last — the retired-model 404 was invisible because
+   only the final error survived. A cached name that has since been retired is
+   forgotten and discovery is run again, once. */
 function aiCall_(system, parts, maxTokens) {
+  var models = aiModels_();
+  if (!models.length)
+    return { error: 'Could not list the Gemini models for this key. Check the key, ' +
+      'or set GEMINI_MODEL in Script Properties to a model name it can use.' };
+
+  var r = aiCall1_(system, parts, maxTokens, models);
+  if (r.error && r._retired && !aiProp_('GEMINI_MODEL')) {
+    aiForget_();
+    const fresh = aiModels_();
+    if (fresh.length && fresh.join() !== models.join())
+      r = aiCall1_(system, parts, maxTokens, fresh);
+  }
+  return r;
+}
+
+function aiCall1_(system, parts, maxTokens, models) {
   const key = aiKey_();
-  const models = [aiModel_(), 'gemini-2.0-flash'];
-  var last = '';
+  var fails = [], retired = false;
   for (var i = 0; i < models.length; i++) {
     var res;
     try {
@@ -1580,16 +1669,18 @@ function aiCall_(system, parts, maxTokens) {
             }
           })
         });
-    } catch (err) { last = 'Could not reach Gemini: ' + err; continue; }
+    } catch (err) { fails.push(models[i] + ': could not be reached (' + err + ')'); continue; }
 
     var code = res.getResponseCode(), text = res.getContentText(), b = {};
     try { b = JSON.parse(text); }
-    catch (e) { last = 'Gemini returned something that is not JSON: ' + text.slice(0, 300); continue; }
+    catch (e) { fails.push(models[i] + ': answered with something that is not JSON'); continue; }
 
     if (code !== 200) {
-      last = 'Gemini ' + code + ': ' + (((b.error || {}).message) || text.slice(0, 300));
-      if (code === 403 || code === 429) break;
-      if (code === 400 && /API key|API_KEY/i.test(last)) break;
+      const why = ((b.error || {}).message) || text.slice(0, 200);
+      fails.push(models[i] + ': ' + code + ' ' + why);
+      if (code === 404) { retired = true; continue; }
+      if (code === 403 || code === 429) break;          /* retrying cannot help */
+      if (code === 400 && /API key|API_KEY/i.test(why)) break;
       continue;
     }
 
@@ -1597,8 +1688,8 @@ function aiCall_(system, parts, maxTokens) {
     var msg  = ((cand.content || {}).parts || [])
                  .map(function (p) { return p.text || ''; }).join('');
     if (!msg) {
-      last = 'Gemini answered with nothing' +
-             (cand.finishReason ? ' (' + cand.finishReason + ')' : '');
+      fails.push(models[i] + ': answered with nothing' +
+                 (cand.finishReason ? ' (' + cand.finishReason + ')' : ''));
       continue;
     }
 
@@ -1615,7 +1706,7 @@ function aiCall_(system, parts, maxTokens) {
     out._model = models[i];
     return out;
   }
-  return { error: last || 'Gemini did not answer.' };
+  return { error: 'Gemini did not answer. Tried — ' + fails.join(' | '), _retired: retired };
 }
 
 function aiReview(body, v) {
