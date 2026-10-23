@@ -316,7 +316,7 @@ code{font-family:var(--mono);background:rgba(0,0,0,.05);padding:1px 4px;border-r
     <div class="wordmark">Search Ops Toolkit <span>· Google Ads</span></div>
     <div class="spacer"></div>
     <div class="badge-env" id="varCount">0 VARIANTS</div>
-    <span class="pill p-mute" id="buildTag" title="build">b-23oct-2</span>
+    <span class="pill p-mute" id="buildTag" title="build">b-23oct-3</span>
     <div id="userChip" class="hidden" style="display:flex;align-items:center;gap:9px">
       <div class="divider-v"></div>
       <span id="userName" style="font-size:12.5px;font-weight:500"></span>
@@ -1497,31 +1497,16 @@ Static Square</textarea>
         <div class="callout">One ad per hero image, all under the same ad groups with the same copy —
           which is how Elevation, Interior and Amenities get tested against each other instead of
           replacing one another. Rename an ad by renaming its hero on the left.</div>
+        <div class="ticket" style="grid-template-columns:1fr 190px;margin-top:12px">
+          <input type="text" id="setName" placeholder="Name this one — Elevation Gold, Clubhouse Dark">
+          <button class="btn btn-sm btn-pri" id="setKeep">Keep this render too</button>
+        </div>
+        <div class="f-note" style="margin-top:6px">Rendering already makes one ad per hero image. <b>Keep</b>
+          holds on to what is on screen as an extra ad, so the same hero can run twice with a different
+          layout or palette: render, keep, change the look, render, keep.</div>
         <div id="setList" style="margin-top:12px"></div>
         <div class="f-note" style="margin-top:8px">These live for this browser session only — far too
           large for a saved project, so render again next time.</div>
-      </div>
-    </div>
-
-    <div class="card">
-      <div class="card-hd"><h2>Design agent</h2><span class="hint" id="aiStat">not checked</span></div>
-      <div class="card-bd">
-        <div class="callout">The split is deliberate. The <b>RERA number, the QR, the price, the
-          configuration and your logo</b> are drawn here and never leave — a model cannot reproduce
-          an uploaded logo, cannot be trusted with a digit of a registration number and cannot draw
-          a QR that scans. What it <i>is</i> good at is the part that is taste: it looks at the
-          finished picture and says what collides, what is cut off, what cannot be read, and which
-          layout and palette suit this particular render. It can only pick settings this toolkit
-          already offers; it never writes a word and never draws a pixel.</div>
-        <div class="btnrow" style="margin-top:12px">
-          <button class="btn btn-sm btn-pri" id="aiReview">Review these creatives</button>
-          <button class="btn btn-sm" id="aiApply" disabled>Apply what it suggests</button>
-          <button class="btn btn-sm" id="aiLoop">Review, adjust, repeat ×3</button>
-        </div>
-        <div id="aiOut" style="margin-top:12px"><div class="empty">Render, then ask for a review.</div></div>
-        <div class="f-note" style="margin-top:10px">The key lives in the Apps Script, under
-          <b>Project Settings → Script Properties → OPENAI_KEY</b>. Nothing to paste into any code,
-          and it never goes near the repository, which is public.</div>
       </div>
     </div>
 
@@ -5546,7 +5531,8 @@ function apPlan(){
   if(!PLAN.length)return null;
   const lp=PROJ.url||$("#inLp").value.trim();
   return {
-    channel:CH, finalUrl:lp, path1:PROJ.p1||"", path2:PROJ.p2||"",
+    /* the paths ride inside the ad, so the same spacing rule applies */
+    channel:CH, finalUrl:lp, path1:adText(PROJ.p1), path2:adText(PROJ.p2),
     settings:apSettings(),
     campaigns:PLAN.map(p=>({
       name:p.campaign,
@@ -5624,8 +5610,8 @@ function dgCreatives(){
    something on screen means he rendered and went straight to deploy, so what
    is on screen is used as the single set rather than refusing. */
 function dgCreativeSets(){
-  if(typeof CR_SETS!=="undefined"&&CR_SETS.length)
-    return CR_SETS.map(s=>({name:s.name,images:s.images}));
+  const all=(typeof allSets==="function")?allSets():[];
+  if(all.length)return all.map(s=>({name:s.name,images:s.images}));
   const one=dgCreatives();
   return Object.keys(one).length?[{name:"Creative",images:one}]:[];
 }
@@ -7840,32 +7826,60 @@ on("#aiLoop","click",async()=>{
    logo, and each becomes its own Demand Gen ad under the same ad groups.
    They are held in memory, not localStorage: four JPEGs come to a couple of
    megabytes and the whole store is about five. */
-let CR_SETS=[];
+let CR_SETS=[];      /* rebuilt on every render, one per hero image */
+let CR_KEPT=[];      /* held by hand, across renders */
+function allSets(){ return CR_KEPT.concat(CR_SETS); }
 function drawSets(){
-  const st=$("#setStat");
-  if(st)st.innerHTML=CR_SETS.length
-    ? `<span class="pill p-ok">${CR_SETS.length} set${CR_SETS.length===1?"":"s"} · ${CR_SETS.length} ad${CR_SETS.length===1?"":"s"} per ad group</span>`
-    : `<span class="pill p-mute">no creatives kept</span>`;
+  const all=allSets(), st=$("#setStat");
+  if(st)st.innerHTML=all.length
+    ? `<span class="pill p-ok">${all.length} ad${all.length===1?"":"s"} per ad group${
+        CR_KEPT.length?` · ${CR_KEPT.length} kept`:""}</span>`
+    : `<span class="pill p-mute">nothing rendered</span>`;
   const box=$("#setList"); if(!box)return;
-  box.innerHTML=CR_SETS.length?CR_SETS.map((s,i)=>`
-    <div class="tgt-row">
+  box.innerHTML=all.length?all.map((s,i)=>{
+    const kept=i<CR_KEPT.length;
+    return `<div class="tgt-row">
       ${s.thumb?`<img src="${s.thumb}" alt="" style="width:34px;height:34px;object-fit:cover;border-radius:4px;flex:0 0 auto">`:""}
-      <span class="tgt-kind k-city">AD ${i+1}</span>
+      <span class="tgt-kind ${kept?"k-rad":"k-city"}">AD ${i+1}</span>
       <span class="nm">${esc(s.name)}</span>
-      <span class="cid">${s.sizes.length} size${s.sizes.length===1?"":"s"} · ${esc(s.layout||"")}</span>
-      <button class="x" data-sx="${i}" title="Remove">✕</button>
-    </div>`).join(""):`<div class="empty">Nothing kept. Render, then press Keep.</div>`;
+      <span class="cid">${s.sizes.length} size${s.sizes.length===1?"":"s"} · ${esc(s.layout||"")}${
+        kept?" · kept":""}</span>
+      ${kept?`<button class="x" data-sk="${i}" title="Remove">✕</button>`
+            :`<span class="cid">from the hero</span>`}
+    </div>`;}).join(""):`<div class="empty">Upload a hero and render.</div>`;
   /* the whole plan travels to the Apps Script as one request, pictures and
      all, so the size is worth saying out loud before a deploy fails on it */
-  const mb=CR_SETS.reduce((a,s)=>a+Object.keys(s.images)
+  const mb=allSets().reduce((a,s)=>a+Object.keys(s.images)
     .reduce((b,k)=>b+(s.images[k].data||"").length,0),0)/1048576;
   if(mb>9)box.innerHTML+=`<div class="check c-warn" style="margin-top:8px"><span class="ic">!</span><span>
     <b>${mb.toFixed(0)} MB of artwork.</b> Everything travels to the script in one request. Four sets
     is comfortable; past that, deploy in two runs.</span></div>`;
 }
+on("#setKeep","click",()=>{
+  if(!CR_OUT.length)return toast("Render first");
+  /* whatever is on screen, held as an extra ad — so one hero can run twice
+     under two different looks */
+  const first=CR_OUT[0].hero;
+  const mine=CR_OUT.filter(o=>o.hero===first);
+  const im={};
+  mine.forEach(o=>{ const d=String(o.url||"").split(",")[1]; if(d)im[o.name]={data:d}; });
+  const lg=dgLogo(); if(lg)im.logo=lg;
+  const auto=`${first||"Creative"} · ${crLayoutId()}`;
+  let nm=($("#setName").value||"").trim()||auto;
+  if(allSets().some(x=>x.name.toLowerCase()===nm.toLowerCase())){
+    let n=2; while(allSets().some(x=>x.name.toLowerCase()===`${nm} ${n}`.toLowerCase()))n++;
+    nm=`${nm} ${n}`;
+  }
+  CR_KEPT.push({name:nm,images:im,
+    thumb:(mine.find(o=>o.name==="square")||mine[0]||{}).url||"",
+    sizes:mine.map(o=>o.name),layout:crLayoutId()});
+  $("#setName").value="";
+  drawSets(); drawApSettings(); drawApPlan();
+  toast(`"${nm}" kept — ${allSets().length} ads per ad group`);
+});
 on("#setList","click",e=>{
-  const x=e.target.closest("[data-sx]"); if(!x)return;
-  const [s]=CR_SETS.splice(+x.dataset.sx,1);
+  const x=e.target.closest("[data-sk]"); if(!x)return;
+  const [s]=CR_KEPT.splice(+x.dataset.sk,1);
   drawSets(); drawApSettings(); drawApPlan();
   toast(`"${s.name}" removed`);
 });
