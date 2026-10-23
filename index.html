@@ -344,7 +344,7 @@ code{font-family:var(--mono);background:rgba(0,0,0,.05);padding:1px 4px;border-r
     <div class="subject">Google Ads</div>
     <div class="spacer"></div>
     <div class="badge-env" id="varCount">0 VARIANTS</div>
-    <span class="pill p-mute" id="buildTag" title="build">b-23oct-12</span>
+    <span class="pill p-mute" id="buildTag" title="build">b-23oct-13</span>
     <div id="userChip" class="hidden" style="display:flex;align-items:center;gap:9px">
       <div class="divider-v"></div>
       <span id="userName" style="font-size:12.5px;font-weight:500"></span>
@@ -463,7 +463,9 @@ code{font-family:var(--mono);background:rgba(0,0,0,.05);padding:1px 4px;border-r
           <label class="btn" for="impPdfFile" style="cursor:pointer;display:inline-flex;align-items:center">
             Read a brochure PDF</label>
           <input type="file" id="impPdfFile" accept="application/pdf" class="hidden">
+          <button class="btn" id="impKey">Check the AI key</button>
         </div>
+        <div id="impKeyOut" style="margin-top:10px"></div>
         <textarea id="impPaste" class="hidden" rows="9" style="margin-top:12px"
           placeholder="Paste the whole WhatsApp announcement here, footer and all — the sender's own lines are ignored."></textarea>
         <div class="f-note" style="margin-top:8px">A prelaunch with no released name and no RERA
@@ -4075,6 +4077,38 @@ async function runPdf(file){
      okLabel:"read the brochure",prelaunch:flag});
   logEvent("pdf-read",file.name);
 }
+/* Four things can be wrong and guessing between them wastes an afternoon:
+   no key, a key the models endpoint rejects, an old deployment that does not
+   have these routes yet, or a signed-out session. This asks the server a
+   question it must answer and prints exactly what came back. */
+on("#impKey","click",async()=>{
+  const box=$("#impKeyOut");
+  const line=(l,ic,h)=>`<div class="check c-${l}"><span class="ic">${ic}</span><span>${h}</span></div>`;
+  box.innerHTML=line("warn","\u2026","Asking the Apps Script\u2026");
+  if(!AUTH.logUrl)return box.innerHTML=line("bad","\u2715","No Apps Script URL is set in <code>AUTH.logUrl</code>.");
+  if(!USER)return box.innerHTML=line("bad","\u2715","Sign in first \u2014 the key is read on the server, as you.");
+
+  const chk=await adsCall("ai-check",{});
+  if(chk.error)
+    return box.innerHTML=line("bad","\u2715",`<b>The server said:</b> <code>${esc(chk.error)}</code>`)+
+      line("warn","!","If that mentions an unknown action, the deployment is older than these routes. <b>Deploy \u2192 Manage deployments \u2192 pencil \u2192 Version: New version \u2192 Deploy.</b>");
+  if(!chk.ready)
+    return box.innerHTML=line("bad","\u2715","<b>No Gemini key on the server.</b> Apps Script \u2192 Project Settings \u2192 Script Properties \u2192 add <code>GEMINI_KEY</code>. Never put it in the repository \u2014 it is public.");
+
+  box.innerHTML=line("ok","\u2713",`Key present. It will use <code>${esc(chk.model||"\u2014")}</code>.`)+
+    line("warn","\u2026","Now sending it a real message\u2026");
+  const probe=await adsCall("extract-wa",{text:
+    "NEW LAUNCH\nTESTWELL HEIGHTS by Testwell Group\nBavdhan, Pune\n2 & 3 BHK\nStarting 90 L onwards\nMahaRERA: P52100099999"});
+  if(probe.error)
+    return box.innerHTML=line("ok","\u2713",`Key present, model <code>${esc(chk.model||"\u2014")}</code>.`)+
+      line("bad","\u2715",`<b>But the call failed:</b> <code>${esc(probe.error)}</code>`)+
+      line("warn","!","A <b>403</b> or <b>API key not valid</b> means the key is the wrong kind \u2014 an AI Studio key looks like <code>AIza\u2026</code>. A <b>404 on the model</b> fixes itself on the next try.");
+  box.innerHTML=line("ok","\u2713",`<b>Working.</b> Model <code>${esc(chk.model||"\u2014")}</code> read the test message as `+
+    `<b>${esc(probe.proj||"(no project)")}</b>${probe.dev?` by <b>${esc(probe.dev)}</b>`:""}`+
+    `${probe.price?`, ${esc(probe.price)}`:""}.`)+
+    line("ok","\u2713","Paste a real WhatsApp message or drop a brochure \u2014 it is ready.");
+});
+
 on("#impPdfFile","change",e=>{
   const f=e.target.files&&e.target.files[0];
   e.target.value="";
