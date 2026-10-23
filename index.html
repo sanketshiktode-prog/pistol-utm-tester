@@ -316,7 +316,7 @@ code{font-family:var(--mono);background:rgba(0,0,0,.05);padding:1px 4px;border-r
     <div class="wordmark">Search Ops Toolkit <span>· Google Ads</span></div>
     <div class="spacer"></div>
     <div class="badge-env" id="varCount">0 VARIANTS</div>
-    <span class="pill p-mute" id="buildTag" title="build">b-22oct-7</span>
+    <span class="pill p-mute" id="buildTag" title="build">b-23oct-1</span>
     <div id="userChip" class="hidden" style="display:flex;align-items:center;gap:9px">
       <div class="divider-v"></div>
       <span id="userName" style="font-size:12.5px;font-weight:500"></span>
@@ -5687,6 +5687,21 @@ function explainErr(raw){
     plain=`<b>These campaigns already exist in this account.</b> Nothing was created again \u2014 Google will not
       allow two campaigns with the same name. Check the account first: if the earlier deploy worked, you are done.
       To build them again, rename them (change the enquiry name or ticket size on tab 01) or remove the old ones.`;
+  else if(/policy summary includes policy topics|disapproved since the policy/i.test(first)){
+    /* The campaign, the ad group and the keywords were all fine — Google
+       refused the AD, on policy. The operation is all-or-nothing, so the
+       campaign was rolled back with it. */
+    const topics=/POLICY:/.test(first)?first.split("POLICY:")[1].trim():"";
+    plain=`<b>Google refused the ad on policy grounds, not the toolkit.</b> Everything up to the ad was
+      accepted; a campaign is all or nothing, so it was rolled back with the ad.`+
+      (topics?`<br><br><b>The policy topic:</b> <code>${esc(topics)}</code>`
+            :`<br><br>Google did not name the topic in this answer. The build below surfaces it when
+              Google sends it — hard refresh and run <b>Validate</b> again to see which one.`)+
+      `<br><br>A <b>PROHIBITED</b> topic cannot be appealed away from here; the copy, the landing page or
+      the account has to change. The usual three on Indian real estate are the landing page being
+      unreachable or redirecting from the domain in the ad, a trademark the account is not cleared to
+      use, and a claim that reads as a guarantee. The landing page is the one to check first.`;
+  }
   else if(/RESOURCE_EXHAUSTED|quota/i.test(first))
     plain=`<b>Daily operation limit reached.</b> A Test or Basic developer token allows 15,000 operations a day.`;
   else if(/CUSTOMER_NOT_ENABLED|account is not active/i.test(first))

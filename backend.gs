@@ -362,7 +362,35 @@ function adsError(code, body) {
               return f.fieldName + (f.index === undefined ? '' : '[' + f.index + ']');
             }).join(' > ')
           : '';
-        out.push((where ? where + ': ' : '') + (x.message || JSON.stringify(x.errorCode || {})));
+        var line = (where ? where + ': ' : '') + (x.message || JSON.stringify(x.errorCode || {}));
+        /* "The resource has been disapproved since the policy summary includes
+           policy topics of type PROHIBITED" does not say WHICH policy, and
+           without that it is unactionable. Google does send the topics, one
+           level further down in the error details, and they were being thrown
+           away here. They are the whole answer, so they are pulled out. */
+        const pf = x.details && (x.details.policyFindingDetails || x.details.policy_finding_details);
+        const entries = pf && (pf.policyTopicEntries || pf.policy_topic_entries);
+        if (entries && entries.length) {
+          const topics = entries.map(function (t) {
+            const name = t.topic || '(unnamed)';
+            const type = t.type || '';
+            const bits = [];
+            (t.evidences || []).forEach(function (ev) {
+              const tl = ev.textList || ev.text_list;
+              if (tl && tl.texts) bits.push(tl.texts.join(', '));
+              const site = ev.websiteList || ev.website_list;
+              if (site && site.websites) bits.push(site.websites.join(', '));
+              if (ev.text) bits.push(String(ev.text));
+              const dest = ev.destinationNotWorking || ev.destination_not_working;
+              if (dest) bits.push(String(dest.expandedUrl || dest.expanded_url || '') + ' ' +
+                                  String(dest.reason || dest.dnsErrorType || ''));
+            });
+            return name + (type ? ' (' + type + ')' : '') +
+                   (bits.length ? ' — ' + bits.join('; ').slice(0, 200) : '');
+          });
+          line += ' → POLICY: ' + topics.join(' | ');
+        }
+        out.push(line);
       });
     });
   }
