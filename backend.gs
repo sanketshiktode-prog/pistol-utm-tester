@@ -692,11 +692,27 @@ function adsDeploy(body, v) {
   }
 
   const results = [];
+  const isDGPlan = String(plan.channel || '') === 'demandgen';
+
+  /* The pictures are uploaded ONCE, before the campaigns, and every campaign
+     then points at the assets that came back. Eight Demand Gen campaigns used
+     to carry the same four images eight times over — thirty-two uploads of
+     the same bytes in one deploy, and Google refusing all but the first. */
+  var assetRn = {}, assetNote = '';
+  if (isDGPlan && !dry) {
+    const up = dgUploadAssets(cid, plan);
+    if (up.error) return { error: 'The images could not be uploaded, so nothing was created. ' + up.error };
+    assetRn = up.map;
+    if (up.count) assetNote = up.count + ' image' + (up.count === 1 ? '' : 's') +
+      ' uploaded once and shared by every campaign.';
+  }
+
   for (var i = 0; i < plan.campaigns.length; i++) {
     const c = plan.campaigns[i];
     var ops, notes = [];
-    const isDG = String(plan.channel || '') === 'demandgen';
-    try { ops = isDG ? buildDgOps(cid, plan, c, notes) : buildOps(cid, plan, c); }
+    const isDG = isDGPlan;
+    if (assetNote) notes.push(assetNote);
+    try { ops = isDG ? buildDgOps(cid, plan, c, notes, assetRn) : buildOps(cid, plan, c); }
     catch (err) { results.push({ campaign: c.name, error: 'Could not build the request: ' + err }); continue; }
 
     const req = { mutateOperations: ops, validateOnly: dry, responseContentType: 'RESOURCE_NAME_ONLY' };
@@ -1086,7 +1102,61 @@ const DG_IMAGE_SLOTS = [
   ['logo',      'logoImages',                 'Logo']
 ];
 
-function buildDgOps(cid, plan, c, notes) {
+/* Upload every distinct picture in the plan in one call and hand back the
+   resource names, keyed by the same deterministic name the campaign builder
+   will ask for. */
+function dgUploadAssets(cid, plan) {
+  var SETS = plan.creativeSets;
+  if (!SETS || !SETS.length) SETS = [{ name: 'Creative', images: plan.creatives || {} }];
+  const ops = [], keys = [], seen = {};
+  SETS.forEach(function (st, i) {
+    const src = st.images || {};
+    DG_IMAGE_SLOTS.forEach(function (slot) {
+      const img = src[slot[0]];
+      if (!img || !img.data) return;
+      const key = assetName_(slot[0] === 'logo' ? 'Logo' : slot[2], img.data);
+      if (seen[key]) return;
+      seen[key] = 1; keys.push(key);
+      ops.push({ assetOperation: { create: {
+        resourceName: 'customers/' + cid + '/assets/-' + keys.length,
+        name: key, imageAsset: { data: img.data }
+      }}});
+    });
+  });
+  if (!ops.length) return { map: {}, count: 0 };
+  const r = adsCall('customers/' + cid + '/googleAds:mutate',
+    { mutateOperations: ops, responseContentType: 'RESOURCE_NAME_ONLY' });
+  if (r.error) return { error: r.error };
+  const map = {};
+  (r.body.mutateOperationResponses || []).forEach(function (res, i) {
+    const rn = ((res.assetResult || {}).resourceName) || '';
+    if (rn && keys[i]) map[keys[i]] = rn;
+  });
+  return { map: map, count: keys.length };
+}
+
+/* Real resource names for images already created in this deploy, keyed by
+   the deterministic name. Filled once before the campaign loop. */
+var ASSET_RN = {};
+/* A short, stable fingerprint of the bytes. The whole base64 string is far
+   too long to walk for every campaign, so it is sampled: length, plus a
+   rolling hash over an even spread of the characters. Two different images
+   agreeing on all of that is not a thing that happens here. */
+function assetHash_(data) {
+  const s = String(data || '');
+  var h = 2166136261, step = Math.max(1, Math.floor(s.length / 4096));
+  for (var i = 0; i < s.length; i += step) {
+    h ^= s.charCodeAt(i);
+    h = (h * 16777619) >>> 0;
+  }
+  return s.length.toString(36) + '-' + h.toString(36);
+}
+function assetName_(label, data) {
+  return 'PP ' + label + ' ' + assetHash_(data);
+}
+
+function buildDgOps(cid, plan, c, notes, assetRn) {
+  ASSET_RN = assetRn || {};
   var S = plan.settings || {};
   const base = 'customers/' + cid + '/';
   var tmp = 0;
@@ -1193,15 +1263,25 @@ function buildDgOps(cid, plan, c, notes) {
   var SETS = plan.creativeSets;
   if (!SETS || !SETS.length)
     SETS = [{ name: 'Creative', images: plan.creatives || {} }];
-  const stamp = new Date().getTime();
+  /* Google identifies an image asset by its CONTENT. Every campaign used to
+     build its own asset operations for the same four pictures, each with a
+     name carrying a timestamp and a running index, so the second campaign
+     asked Google to create bytes it already had under a different name:
+     "Duplicate assets across mutates cannot have different asset level
+     fields", and the campaign was lost. The name is derived from the bytes
+     now, so every campaign asks for exactly the same asset and Google hands
+     back the one it already has. */
   var logoRn = '';
+  const seenAsset = {};
   const upload = function (data, label) {
+    const key = assetName_(label, data);
+    if (seenAsset[key]) return seenAsset[key];
+    if (ASSET_RN[key]) { seenAsset[key] = ASSET_RN[key]; return ASSET_RN[key]; }
     const rn = base + 'assets/' + next();
     ops.push({ assetOperation: { create: {
-      resourceName: rn,
-      name: label + ' ' + stamp + '-' + Math.abs(tmp),
-      imageAsset: { data: data }
+      resourceName: rn, name: key, imageAsset: { data: data }
     }}});
+    seenAsset[key] = rn;
     return rn;
   };
   (function () {
@@ -1225,7 +1305,10 @@ function buildDgOps(cid, plan, c, notes) {
     DG_IMAGE_SLOTS.forEach(function (slot) {
       if (slot[0] === 'logo') { if (logoRn) out.logo = logoRn; return; }
       const s = src[slot[0]];
-      if (s && s.data) out[slot[0]] = upload(s.data, slot[2] + ' · ' + (st.name || ('Set ' + (i + 1))));
+      /* the asset IS the picture, so its name must not carry the set's name
+         as well — that made a campaign ask for a name the pre-upload had
+         never created, and every campaign uploaded its own copy again */
+      if (s && s.data) out[slot[0]] = upload(s.data, slot[2]);
     });
     return { name: st.name || ('Creative ' + (i + 1)), img: out };
   });
