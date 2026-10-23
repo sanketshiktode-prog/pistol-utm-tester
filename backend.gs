@@ -1757,20 +1757,24 @@ function aiProp_(k) {
   catch (e) { return ''; }
 }
 function aiForget_() {
-  try { PropertiesService.getScriptProperties().deleteProperty('GEMINI_MODEL_CACHE'); }
+  try { PropertiesService.getScriptProperties().deleteProperty('GEMINI_MODELS'); }
   catch (e) {}
 }
 
 function aiModels_() {
   const pinned = aiProp_('GEMINI_MODEL');
   if (pinned) return [pinned];
-  const cached = aiProp_('GEMINI_MODEL_CACHE').split('|');
-  if (cached[0] && (Date.now() - Number(cached[1] || 0)) < 86400000) return [cached[0]];
+  /* The whole shortlist is cached, not just the winner. A single name left
+     nowhere to go when Google answered 503 on it, which is a thing that
+     happens to the newest flash model several times a day. */
+  const cached = aiProp_('GEMINI_MODELS').split('|');
+  if (cached[0] && (Date.now() - Number(cached[1] || 0)) < 86400000)
+    return cached[0].split(',').filter(String);
   const found = aiDiscover_();
   if (found.length) {
     try {
       PropertiesService.getScriptProperties()
-        .setProperty('GEMINI_MODEL_CACHE', found[0] + '|' + Date.now());
+        .setProperty('GEMINI_MODELS', found.join(',') + '|' + Date.now());
     } catch (e) {}
   }
   return found;
@@ -1842,9 +1846,10 @@ function aiCall_(system, parts, maxTokens) {
 
 function aiCall1_(system, parts, maxTokens, models) {
   const key = aiKey_();
-  var fails = [], retired = false;
+  var fails = [], retired = false, busy = false;
   for (var i = 0; i < models.length; i++) {
-    var res;
+    var res, attempt = 0;
+    while (true) {
     try {
       res = UrlFetchApp.fetch(
         'https://generativelanguage.googleapis.com/v1beta/models/' +
@@ -1860,19 +1865,31 @@ function aiCall1_(system, parts, maxTokens, models) {
             }
           })
         });
-    } catch (err) { fails.push(models[i] + ': could not be reached (' + err + ')'); continue; }
+    } catch (err) { fails.push(models[i] + ': could not be reached (' + err + ')'); break; }
 
     var code = res.getResponseCode(), text = res.getContentText(), b = {};
     try { b = JSON.parse(text); }
-    catch (e) { fails.push(models[i] + ': answered with something that is not JSON'); continue; }
+    catch (e) { fails.push(models[i] + ': answered with something that is not JSON'); break; }
 
     if (code !== 200) {
       const why = ((b.error || {}).message) || text.slice(0, 200);
+
+      /* Google saying it is busy is not a failure yet. The model is tried
+         once more after a pause before moving on, because that is usually
+         all a spike in demand needs. */
+      if ((code === 503 || code === 500 || code === 502 || code === 504) && attempt < 1) {
+        attempt++;
+        try { Utilities.sleep(2500); } catch (e) {}
+        continue;
+      }
+
       fails.push(models[i] + ': ' + code + ' ' + why);
-      if (code === 404) { retired = true; continue; }
-      if (code === 403 || code === 429) break;          /* retrying cannot help */
-      if (code === 400 && /API key|API_KEY/i.test(why)) break;
-      continue;
+      if (code === 503 || code === 500 || code === 502 || code === 504) busy = true;
+      if (code === 404) retired = true;
+      /* a wrong key or a blocked project cannot be fixed by another model */
+      if (code === 403 || (code === 400 && /API key|API_KEY/i.test(why))) return {
+        error: 'Gemini refused the key: ' + why, _fatal: true };
+      break;                                   /* otherwise try the next model */
     }
 
     var cand = (b.candidates || [])[0] || {};
@@ -1881,7 +1898,7 @@ function aiCall1_(system, parts, maxTokens, models) {
     if (!msg) {
       fails.push(models[i] + ': answered with nothing' +
                  (cand.finishReason ? ' (' + cand.finishReason + ')' : ''));
-      continue;
+      break;
     }
 
     var out = null;
@@ -1896,7 +1913,13 @@ function aiCall1_(system, parts, maxTokens, models) {
     out._usage = u ? { total_tokens: u.totalTokenCount, prompt_tokens: u.promptTokenCount } : null;
     out._model = models[i];
     return out;
+    }                                          /* end retry loop */
   }
+  /* Busy is worth saying plainly: there is nothing to fix, only to redo. */
+  if (busy && fails.length === models.length)
+    return { error: 'Google is busy right now — every model it offered answered ' +
+             '"high demand". Nothing is wrong with the key or the setup. ' +
+             'Press the button again in a few seconds.', _busy: true, _retired: retired };
   return { error: 'Gemini did not answer. Tried — ' + fails.join(' | '), _retired: retired };
 }
 

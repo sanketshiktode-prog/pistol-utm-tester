@@ -327,6 +327,17 @@ The split is the whole point and must not drift:
   the landing-page reader — one key, one bill. Renders go up as `inline_data`
   JPEG parts, the brief goes in `system_instruction`, and
   `generationConfig.responseMimeType` is `application/json` so the answer parses.
+- **Google answers 503 on the newest flash model several times a day.** That
+  is not a failure: the model is tried once more after a 2.5s pause, then the
+  next model on the shortlist, and only when every one of them is busy does it
+  come back — saying plainly that Google is busy and nothing is wrong with the
+  setup. A 429 also moves to the next model, because a different model is a
+  different quota bucket. A 403 or an invalid key stops at once and is marked
+  `_fatal`: no other model can fix a wrong key.
+- **The cache keeps the whole shortlist, not the winner.** It held one name
+  once, which left nowhere to go the first time 503 came back. The property is
+  `GEMINI_MODELS` (the old `GEMINI_MODEL_CACHE` is ignored, so a single-name
+  cache from before cannot linger).
 - **No model name is hard-coded, ever.** `gemini-2.0-flash` and `gemini-2.5-flash`
   were both retired under us and the 404 in the browser was the first anyone
   heard of it. `aiModels_()` asks `v1beta/models` what this key can actually run,
