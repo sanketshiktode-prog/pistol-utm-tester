@@ -141,6 +141,31 @@ agent's, again, and it is the point:
   `pattern` or `Gemini` tag per field, editable before Apply. Possession goes
   to `#lpPoss`, RERA to `#crRera`.
 
+**A prelaunch has no name and no RERA, and that is not a failed read.** Lodha
+Wakad, Mahindra Mahalunge: the developer and the locality ARE the identity, and
+the account's naming already works that way at this stage. `waPrelaunch()`
+composes the name from developer + locality, flips `#inStage` to prelaunch, and
+leaves the registration number empty rather than reaching for one.
+
+## Reading a brochure PDF
+
+**Read a brochure PDF**, same card. A developer's brochure is a design file
+exported to PDF, so the text is usually outlines and there is nothing to copy.
+Two passes, cheapest first, the same shape as the image sorter:
+
+- The **text layer first**, through pdf.js from cdnjs (loaded on demand, the
+  same CDN the map already uses). Items come out in reading order with no line
+  breaks, so they are regrouped by baseline — otherwise the whole page is one
+  sentence. The pattern pass runs over whatever text was recovered, so a price
+  or registration number that WAS selectable is still copied, not interpreted.
+- **Only when that comes back empty** are up to six pages rendered to canvas at
+  ~1600px and sent to `read-brochure`, which reads them as pictures.
+
+That one-long-run shape is also why `waFacts` judges each RERA candidate by the
+60 characters before it rather than by its line: a whole-line footer test reads
+an entire brochure page as a sign-off and throws the project's own number away
+with the agency's. The line-by-line pass stays as a fallback.
+
 ## Sorting a folder of photographs
 
 The developer sends a folder: `IMG_2043.jpg`, `DJI_0094.jpg`, `WhatsApp Image

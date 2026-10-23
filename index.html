@@ -344,7 +344,7 @@ code{font-family:var(--mono);background:rgba(0,0,0,.05);padding:1px 4px;border-r
     <div class="subject">Google Ads</div>
     <div class="spacer"></div>
     <div class="badge-env" id="varCount">0 VARIANTS</div>
-    <span class="pill p-mute" id="buildTag" title="build">b-23oct-11</span>
+    <span class="pill p-mute" id="buildTag" title="build">b-23oct-12</span>
     <div id="userChip" class="hidden" style="display:flex;align-items:center;gap:9px">
       <div class="divider-v"></div>
       <span id="userName" style="font-size:12.5px;font-weight:500"></span>
@@ -451,21 +451,42 @@ code{font-family:var(--mono);background:rgba(0,0,0,.05);padding:1px 4px;border-r
     </div>
 
     <div class="card">
+      <div class="card-hd"><h2>Start from what you were sent</h2>
+        <span class="hint" id="startStat">—</span></div>
+      <div class="card-bd">
+        <div class="callout">A project almost never arrives as a brief. It arrives as a WhatsApp
+          blast from the sales team, or a brochure PDF from the developer. Drop either one here and
+          the brief fills itself. The price, configuration and RERA number are copied out by
+          pattern, not reworded, and nothing that is missing is invented.</div>
+        <div class="btnrow" style="margin-top:14px">
+          <button class="btn btn-pri" id="impWa">Paste a WhatsApp message</button>
+          <label class="btn" for="impPdfFile" style="cursor:pointer;display:inline-flex;align-items:center">
+            Read a brochure PDF</label>
+          <input type="file" id="impPdfFile" accept="application/pdf" class="hidden">
+        </div>
+        <textarea id="impPaste" class="hidden" rows="9" style="margin-top:12px"
+          placeholder="Paste the whole WhatsApp announcement here, footer and all — the sender's own lines are ignored."></textarea>
+        <div class="f-note" style="margin-top:8px">A prelaunch with no released name and no RERA
+          number is normal: the developer and the locality become the name, and the launch stage is
+          set for you.</div>
+        <div id="impFound" style="margin-top:10px"></div>
+      </div>
+    </div>
+
+    <div class="card">
       <div class="card-hd"><h2>Landing page import</h2><span class="hint" id="impStat">—</span></div>
       <div class="card-bd">
         <div id="expWarn" class="hidden" style="margin-bottom:12px"></div>
         <label class="chk"><input type="checkbox" id="impOverwrite"> Overwrite fields I already filled</label>
         <div class="btnrow">
           <button class="btn btn-pri btn-sm" id="impFetch">Read the landing page</button>
-          <button class="btn btn-sm" id="impWa">Paste a WhatsApp message</button>
           <button class="btn btn-sm" id="impPasteBtn">Paste page text</button>
           <button class="btn btn-sm" id="impManual">Fill it in myself</button>
           <button class="btn btn-sm" id="impTest">Test the AI reader</button>
         </div>
         <div id="impDiag" style="margin-top:10px"></div>
-        <div class="f-note" style="margin-top:8px">Reads the URL above through a public text-extraction service, then reads it with AI and fills the brief. <b>Or paste the WhatsApp announcement the sales team forwarded</b> — the price, configuration and RERA number are pulled out by pattern and the rest is read by Gemini. Always check what it pulled before generating.</div>
-        <textarea id="impPaste" class="hidden" rows="8" style="margin-top:10px" placeholder="Select the whole landing page (Ctrl+A, Ctrl+C) and paste it here, then press Read again."></textarea>
-        <div id="impFound" style="margin-top:10px"></div>
+        <div class="f-note" style="margin-top:8px">Reads the URL above through a public text-extraction service, then reads it with AI and fills the brief. Always check what it pulled before generating.</div>
+        <textarea id="impPageText" class="hidden" rows="8" style="margin-top:10px" placeholder="Select the whole landing page (Ctrl+A, Ctrl+C) and paste it here, then press Read again."></textarea>
       </div>
     </div>
 
@@ -3831,12 +3852,27 @@ function waFacts(raw){
   const out={}, txt=String(raw||"");
   const lines=txt.split(/\n/);
 
-  /* RERA: the project's, not the sender's. A line that is signing off is
-     skipped, which is what keeps the agency number out of the brief. */
-  for(const ln of lines){
-    if(WA_FOOTER.test(ln))continue;
-    const m=ln.match(/(?:maha\s*rera|k[\s-]?rera|up\s*rera|rera|registration|reg)\b[^A-Za-z0-9]{0,4}(?:no\.?|number|#|id)?[^A-Za-z0-9]{0,6}([A-Z0-9][A-Z0-9\/\-]{6,32})/i);
-    if(m){ out.rera=m[1].replace(/[.,;]+$/,""); break; }
+  /* RERA: the project's, not the sender's. Every candidate is judged by the
+     words immediately before it rather than by its line, because a brochure's
+     text comes out of the PDF as one long run with no line breaks at all —
+     and a whole-line test then reads the entire page as a sign-off and throws
+     the project's own number away with the agency's. */
+  const RERA=/(?:maha\s*rera|k[\s-]?rera|up\s*rera|rera|registration|reg)\b[^A-Za-z0-9]{0,4}(?:no\.?|number|#|id)?[^A-Za-z0-9]{0,6}([A-Z0-9][A-Z0-9\/\-]{6,32})/ig;
+  const SIGNER=/\b(agent|agency|broker|channel\s*partner|marketed\s*by|cp)\b[^.]{0,40}$/i;
+  let m2;
+  while((m2=RERA.exec(txt))!==null){
+    const before=txt.slice(Math.max(0,m2.index-60),m2.index);
+    if(SIGNER.test(before))continue;
+    out.rera=m2[1].replace(/[.,;]+$/,"");
+    break;
+  }
+  if(!out.rera){
+    /* nothing survived the filter — a line-by-line pass is the fallback */
+    for(const ln of lines){
+      if(WA_FOOTER.test(ln))continue;
+      const m=ln.match(new RegExp(RERA.source,"i"));
+      if(m){ out.rera=m[1].replace(/[.,;]+$/,""); break; }
+    }
   }
 
   /* Configuration, as written. "2, 2.5 & 3 BHK" and "2/3 BR" both survive. */
@@ -3881,11 +3917,53 @@ function waClean(list){
   }).map(x=>String(x).replace(/\s{2,}/g," ").trim()).slice(0,14);
 }
 
+/* A prelaunch has no released name and no registration number. Lodha Wakad,
+   Mahindra Mahalunge — the developer and the locality ARE the identity, and
+   that is what the account's naming already does for this stage. So an
+   unnamed project is not a failed read: it is a prelaunch, and it is marked
+   as one rather than left blank for someone to puzzle over. */
+const WA_PRE=/\b(pre[\s-]?launch|prelaunch|name\s*(?:yet\s*)?to\s*be\s*(?:revealed|announced)|coming\s*soon|name\s*not\s*revealed|under\s*approval|rera\s*(?:applied|awaited|in\s*process))\b/i;
+
+function waPrelaunch(g,txt,flag){
+  const named=!!String(g.proj||"").trim();
+  const pre=flag||WA_PRE.test(txt||"")||(!named&&!!String(g.dev||"").trim());
+  if(!pre)return false;
+  if(!named){
+    const where=g.micro||g.city||"";
+    g.proj=[g.dev,where].filter(Boolean).join(" ").trim();
+  }
+  const st=$("#inStage");
+  if(st&&st.value!=="prelaunch"){ st.value="prelaunch";
+    st.dispatchEvent(new Event("change",{bubbles:true})); }
+  return true;
+}
+
+/* Both readers end the same way, so the review table, the tags and the
+   prelaunch handling cannot drift apart between them. */
+function readDone(g,src,lists,meta){
+  ["rera","cfg","price","possession","allIn"].forEach(k=>{
+    if(meta.facts&&meta.facts[k]){ g[k]=meta.facts[k]; src[k]="pattern"; } });
+  const pre=waPrelaunch(g,meta.raw,meta.prelaunch);
+  if(pre&&!src.proj)src.proj="prelaunch";
+  if(!g.loc)g.loc=[g.micro,g.city].filter(Boolean).join(", ");
+  LAST_READ={g,src,usps:lists.usps,amen:lists.amen,marks:lists.marks,
+    chars:(meta.raw||"").length||meta.chars||0,via:meta.via,
+    aiUsed:meta.aiUsed,aiNote:meta.aiNote,template:false,rawSample:meta.raw||""};
+  drawFound();
+  const tag=meta.aiUsed?meta.okLabel:"pattern read only";
+  $("#startStat").innerHTML=`<span class="pill ${meta.aiUsed?"p-ok":"p-warn"}">${esc(tag)}</span>`;
+  const bits=[tag];
+  if(pre)bits.push("prelaunch \u2014 named from the developer and locality");
+  if(meta.facts&&meta.facts.pin)bits.push("pincode "+meta.facts.pin);
+  toast(bits.join(" \u00b7 ")+" \u2014 check the fields, then Apply");
+  return pre;
+}
+
 async function runWa(){
   const txt=$("#impPaste").value.trim();
   if(txt.length<20){ $("#impPaste").classList.remove("hidden"); $("#impPaste").focus();
     return toast("Paste the WhatsApp message first"); }
-  $("#impStat").innerHTML='<span class="pill p-mute">reading the message\u2026</span>';
+  $("#startStat").innerHTML='<span class="pill p-mute">reading the message\u2026</span>';
 
   const facts=waFacts(txt);
   const g={proj:"",dev:"",micro:"",city:"",cfg:"",price:"",loc:"",possession:"",rera:"",allIn:""};
@@ -3900,19 +3978,112 @@ async function runWa(){
     aiUsed=true;
   } else aiNote=(ai&&ai.error)||"Gemini did not answer.";
 
-  /* the pattern wins on anything that must be copied exactly */
-  ["rera","cfg","price","possession","allIn"].forEach(k=>{
-    if(facts[k]){ g[k]=facts[k]; src[k]="pattern"; } });
-  if(!g.loc)g.loc=[g.micro,g.city].filter(Boolean).join(", ");
-
-  LAST_READ={g,src,usps,amen,marks,chars:txt.length,via:"WhatsApp message",
-    aiUsed,aiNote,template:false,rawSample:txt};
-  drawFound();
-  const how=aiUsed?"read the message":"pattern read only";
-  $("#impStat").innerHTML=`<span class="pill ${aiUsed?"p-ok":"p-warn"}">${how}</span>`;
+  readDone(g,src,{usps,amen,marks},
+    {facts,raw:txt,via:"WhatsApp message",aiUsed,aiNote,
+     okLabel:"read the message",prelaunch:false});
   logEvent("wa-read",g.proj||"");
-  toast(`${how}${facts.pin?` \u00b7 pincode ${facts.pin}`:""} \u2014 check the fields, then Apply`);
 }
+
+/* ── reading a brochure PDF ───────────────────────────────────────────────
+   A developer's brochure is a design file exported to PDF. Sometimes the
+   text is real and can simply be copied out, for nothing; far more often it
+   is outlines, and there is no text at all. So the text layer is tried
+   first, and only when it comes back empty are the pages themselves rendered
+   and read. The pattern pass runs over whatever text was recovered, so a
+   price or a registration number that WAS selectable is still copied rather
+   than interpreted. */
+let PDFJS=null;
+async function pdfLib(){
+  if(PDFJS)return PDFJS;
+  const base="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174";
+  await new Promise((res,rej)=>{
+    const sc=document.createElement("script");
+    sc.src=base+"/pdf.min.js"; sc.onload=res;
+    sc.onerror=()=>rej(new Error("Could not load the PDF reader"));
+    document.head.appendChild(sc);
+  });
+  PDFJS=window.pdfjsLib;
+  if(!PDFJS)throw new Error("The PDF reader did not load");
+  PDFJS.GlobalWorkerOptions.workerSrc=base+"/pdf.worker.min.js";
+  return PDFJS;
+}
+
+async function runPdf(file){
+  if(!file)return;
+  if(file.size>25e6)return toast("That brochure is over 25 MB \u2014 send a smaller export");
+  $("#startStat").innerHTML='<span class="pill p-mute">opening the brochure\u2026</span>';
+  const lib=await pdfLib();
+  const buf=await file.arrayBuffer();
+  const doc=await lib.getDocument({data:new Uint8Array(buf)}).promise;
+  const n=Math.min(doc.numPages,6);
+
+  /* Items come out in reading order but with no line breaks. Their baseline
+     is in the transform, so a change in it is a new line — which is what
+     makes the brochure read like a brochure rather than one long sentence. */
+  let txt="";
+  for(let i=1;i<=n;i++){
+    const pg=await doc.getPage(i);
+    const c=await pg.getTextContent();
+    let lastY=null, line=[];
+    const flush=()=>{ if(line.length){ txt+=line.join(" ").replace(/\s{2,}/g," ").trim()+"\n"; line=[]; } };
+    c.items.forEach(it=>{
+      const y=it.transform&&it.transform[5];
+      if(lastY!==null&&y!==null&&Math.abs(y-lastY)>3)flush();
+      if(it.str&&it.str.trim())line.push(it.str);
+      if(y!==null)lastY=y;
+    });
+    flush();
+  }
+  txt=txt.replace(/[ \t]{2,}/g," ").replace(/\n{3,}/g,"\n\n").trim();
+
+  const g={proj:"",dev:"",micro:"",city:"",cfg:"",price:"",loc:"",possession:"",rera:"",allIn:""};
+  const src={}; let usps=[],amen=[],marks=[],aiUsed=false,aiNote="",flag=false;
+  const facts=txt.length>40?waFacts(txt):{};
+  let via="brochure text", ai=null;
+
+  if(txt.length>200){
+    $("#startStat").innerHTML='<span class="pill p-mute">reading the text\u2026</span>';
+    ai=await adsCall("extract-wa",{text:txt.slice(0,12000)});
+  }
+  if(!ai||ai.error){
+    /* the pages are pictures — render them and have them read */
+    $("#startStat").innerHTML=`<span class="pill p-mute">reading ${n} page${n===1?"":"s"}\u2026</span>`;
+    const pages=[];
+    for(let i=1;i<=n;i++){
+      const pg=await doc.getPage(i);
+      const vp0=pg.getViewport({scale:1});
+      const scale=Math.min(1600/vp0.width,2);
+      const vp=pg.getViewport({scale});
+      const cv=document.createElement("canvas");
+      cv.width=Math.round(vp.width); cv.height=Math.round(vp.height);
+      await pg.render({canvasContext:cv.getContext("2d"),viewport:vp}).promise;
+      pages.push({data:cv.toDataURL("image/jpeg",0.78).split(",")[1]});
+    }
+    via=`brochure pages (${n})`;
+    ai=await adsCall("read-brochure",{pages,name:file.name});
+  }
+
+  if(ai&&!ai.error){
+    ["proj","dev","micro","city","cfg","price","possession","rera","allIn"]
+      .forEach(k=>{ if(ai[k]){ g[k]=String(ai[k]).trim(); src[k]="Gemini"; } });
+    usps=waClean(ai.usps); amen=waClean(ai.amenities); marks=waClean(ai.landmarks);
+    aiUsed=true; flag=!!ai.prelaunch;
+  } else aiNote=(ai&&ai.error)||"Gemini did not answer.";
+
+  readDone(g,src,{usps,amen,marks},
+    {facts,raw:txt,via,aiUsed,aiNote,chars:txt.length,
+     okLabel:"read the brochure",prelaunch:flag});
+  logEvent("pdf-read",file.name);
+}
+on("#impPdfFile","change",e=>{
+  const f=e.target.files&&e.target.files[0];
+  e.target.value="";
+  if(!f)return;
+  runPdf(f).catch(err=>{
+    $("#startStat").innerHTML='<span class="pill p-bad">failed</span>';
+    toast("Could not read the brochure: "+((err&&err.message)||err));
+  });
+});
 on("#impWa","click",()=>{
   const ta=$("#impPaste");
   ta.placeholder="Paste the whole WhatsApp announcement here, footer and all \u2014 the sender's own lines are ignored.";
@@ -3921,7 +4092,7 @@ on("#impWa","click",()=>{
     if(!ta.value.trim())return toast("Paste the message, then press this again");
   }
   runWa().catch(e=>{
-    $("#impStat").innerHTML='<span class="pill p-bad">failed</span>';
+    $("#startStat").innerHTML='<span class="pill p-bad">failed</span>';
     toast("Could not read it: "+((e&&e.message)||e));
   });
 });
@@ -3935,7 +4106,7 @@ async function readLp(){
   }
 }
 async function runRead(){
-  const url=$("#inLp").value.trim(), pasted=$("#impPaste").value.trim();
+  const url=$("#inLp").value.trim(), pasted=$("#impPageText").value.trim();
   let txt=pasted, via=pasted?"pasted text":"";
   let server=null;
   if(!txt&&url&&AUTH.logUrl&&USER){
@@ -3962,7 +4133,7 @@ async function runRead(){
   }
   if(!txt||txt.length<200){
     $("#impStat").innerHTML='<span class="pill p-bad">blocked</span>';
-    $("#impPaste").classList.remove("hidden");
+    $("#impPageText").classList.remove("hidden");
     $("#impFound").innerHTML=`<div class="callout warn">Every reader was blocked by the site. Open the page, select all, copy, and paste it into the box above \u2014 the parser treats pasted HTML and plain text the same way.</div>`;
     return;
   }
@@ -4005,10 +4176,8 @@ async function runRead(){
 
 
 on("#impFetch","click",readLp);
-on("#impPasteBtn","click",()=>{
-  const ta=$("#impPaste"); ta.classList.toggle("hidden");
-  if(!ta.classList.contains("hidden"))ta.focus();
-});
+on("#impPasteBtn","click",()=>{ const t=$("#impPageText");
+  t.classList.toggle("hidden"); if(!t.classList.contains("hidden"))t.focus(); });
 on("#impManual","click",()=>{
   $("#impStat").innerHTML='<span class="pill p-mute">manual</span>';
   $("#impFound").innerHTML='<div class="callout">Type the brief into the fields below. Project name is the only one really needed \u2014 the more you fill, the better the generated copy.</div>';

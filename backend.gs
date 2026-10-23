@@ -132,6 +132,17 @@ function handlePost(e) {
     return json(out);
   }
 
+  /* A brochure whose pages are pictures — most of them are — has no text to
+     pull, so the pages themselves are read. */
+  if (body.action === 'read-brochure') {
+    if (!v.ok) return json({ error: 'Sign in again \u2014 ' + v.reason });
+    if (!aiKey_()) return json({ error: 'Gemini key not set in the Apps Script' });
+    const out = readBrochure(body);
+    write([new Date(), v.email, v.name, role(v.email), 'pdf-read',
+           String(body.name || '').slice(0, 60), out.error || '']);
+    return json(out);
+  }
+
   /* Photographs arrive as a folder with names like IMG_2043.jpg, so the file
      name usually says nothing. The model is shown each picture and asked only
      which section of a landing page it belongs in. */
@@ -301,6 +312,58 @@ function extractWa(text) {
     .forEach(function (k) { if (typeof out[k] !== 'string') out[k] = ''; });
   ['usps', 'amenities', 'landmarks']
     .forEach(function (k) { if (!Array.isArray(out[k])) out[k] = []; });
+  return out;
+}
+
+/* ── the brochure reader ─────────────────────────────────────────────────
+   A developer's brochure is a design file exported to PDF: the text is
+   usually outlines, so there is nothing to copy out. The browser tries the
+   text layer first and only sends page images when that comes back empty.
+   Here they are read the same way the WhatsApp message is, and with the same
+   rule: nothing is invented. A prelaunch brochure genuinely has no project
+   name and no registration number, and must be allowed to say so. */
+function readBrochure(body) {
+  const pages = (body.pages || []).slice(0, 6);   /* [{data}] base64 JPEG */
+  if (!pages.length) return { error: 'No pages were sent.' };
+
+  const system =
+    'You read Indian and UAE real estate project brochures and return the ' +
+    'project facts as JSON. Read only what is printed on these pages. Never ' +
+    'invent a value and never carry one over from another project you know: ' +
+    'if a page does not state something, return an empty string or an empty ' +
+    'array. Copy a price and a registration number exactly as printed, without ' +
+    'rounding or converting. Many brochures are for a prelaunch, where the ' +
+    'project has no released name and no registration number yet — that is ' +
+    'normal, and the developer and locality are then the only identity there ' +
+    'is. Ignore the agency or channel partner footer.';
+
+  const schema =
+    'Reply with ONLY this JSON object:\n' +
+    '{"proj":"","dev":"","micro":"","city":"","cfg":"","price":"","allIn":"",' +
+    '"possession":"","rera":"","usps":[],"amenities":[],"landmarks":[],' +
+    '"prelaunch":false}\n' +
+    'proj is the project name alone, empty if the brochure does not name one. ' +
+    'dev is the developer. micro is the locality, city is the city.\n' +
+    'cfg is the configuration as printed. price is the starting price as ' +
+    'printed. rera is the project registration number, never the agency\'s.\n' +
+    'usps are selling points under 30 characters each. amenities are single ' +
+    'amenity names. landmarks are "Name - 15 Mins" style entries.\n' +
+    'prelaunch is true when the brochure names no project or states that the ' +
+    'name is yet to be revealed.';
+
+  const parts = [{ text: schema }];
+  pages.forEach(function (p, i) {
+    parts.push({ text: 'Page ' + (i + 1) });
+    parts.push({ inline_data: { mime_type: 'image/jpeg', data: p.data } });
+  });
+
+  const out = aiCall_(system, parts, 1600);
+  if (out.error) return out;
+  ['proj', 'dev', 'micro', 'city', 'cfg', 'price', 'allIn', 'possession', 'rera']
+    .forEach(function (k) { if (typeof out[k] !== 'string') out[k] = ''; });
+  ['usps', 'amenities', 'landmarks']
+    .forEach(function (k) { if (!Array.isArray(out[k])) out[k] = []; });
+  out.prelaunch = !!out.prelaunch;
   return out;
 }
 
