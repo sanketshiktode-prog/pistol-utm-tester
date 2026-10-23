@@ -13,6 +13,28 @@ lockup and on the sign-in screen, not in every sentence.
 The name is the pistol's trigger. That is the only joke in the brand and it
 does not need explaining anywhere in the product.
 
+## The line
+
+**Lock. Load. Trigger.**
+
+Three beats, and it lands on the product's own name — which is the point of
+calling it Trigger. This is the line that goes under the wordmark, on the
+sign-in screen, on a deck's title slide. Set in Archivo 600, letter-spaced,
+upper case, in Pistol Orange.
+
+The long form, where there is room to breathe — a deck body, an email
+signature, a landing page:
+
+> **Lock the strategy, load the campaign, aim for the best results.**
+
+Use one or the other, never both in the same eyeline. The long form is a
+sentence and takes a full stop; the short form is three sentences and takes
+three.
+
+PropertyPistol's own line is *"No one targets your need better."* Trigger's
+line must not compete with it — that one is the company's, this one is the
+product's, and the endorsement keeps them apart.
+
 ## The mark
 
 A crosshair: a ring, four ticks, a solid centre. It says targeting, which is
@@ -29,9 +51,15 @@ mud at 16px. Do not add a shadow, a gradient, an outline or a fifth element.
 | `trigger-mark.svg` | The mark on its navy tile. The default. |
 | `trigger-mark-glyph.svg` | The mark with no tile, for your own background. |
 | `trigger-mark-mono.svg` | One colour, inherits `currentColor`. Embroidery, stamps, single-ink print. |
-| `trigger-lockup.svg` | Mark + wordmark + endorsement, horizontal. |
+| `trigger-lockup.svg` | Mark + wordmark + line + endorsement, horizontal. |
+| `trigger-lockup-stacked.svg` | The same, stacked, for a square space. |
 | `trigger-mark-{16,32,64,192,512}.png` | Favicon and app icon sizes. |
-| `trigger-lockup-{760,1520}.png` | The lockup, raster. Use these anywhere the font cannot be guaranteed. |
+| `trigger-lockup-{820,1640}.png` | The horizontal lockup, raster. Use these anywhere the font cannot be guaranteed. |
+| `trigger-lockup-stacked-{520,1040}.png` | The stacked lockup, raster. |
+
+The PropertyPistol logo inside the lockups is the 225x50 raster that was to
+hand. Swap it for their vector before anything goes to print or above this
+size — at 225px wide it will not hold.
 
 ## Colour
 
@@ -77,8 +105,8 @@ the Trigger mark inside the PropertyPistol logo or the other way round.
 - Do not rotate it. A tilted crosshair reads as an error state.
 - Do not place it on a busy photograph without its navy tile.
 - Do not outline the wordmark or set it in another face.
-- Do not add a tagline to the lockup. If you need one, it goes beside the
-  lockup, not inside it.
+- Do not write a second tagline. There is one: *Lock. Load. Trigger.*
+- Do not put PropertyPistol's line and Trigger's line together.
 
 ## If you would rather generate your own
 
