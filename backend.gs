@@ -120,6 +120,27 @@ function handlePost(e) {
     return json(out);
   }
 
+  /* A sales WhatsApp blast is where most projects actually arrive. It is not
+     a landing page: no headings, emoji for bullets, the broker's own footer
+     mixed in with the project's facts. It gets its own reader. */
+  if (body.action === 'extract-wa') {
+    if (!v.ok) return json({ error: 'Sign in again \u2014 ' + v.reason });
+    if (!aiKey_()) return json({ error: 'Gemini key not set in the Apps Script' });
+    const out = extractWa(body.text || '');
+    write([new Date(), v.email, v.name, role(v.email), 'wa-read',
+           (body.text || '').slice(0, 60), out.error || '']);
+    return json(out);
+  }
+
+  /* Photographs arrive as a folder with names like IMG_2043.jpg, so the file
+     name usually says nothing. The model is shown each picture and asked only
+     which section of a landing page it belongs in. */
+  if (body.action === 'classify-images') {
+    if (!v.ok) return json({ error: 'Sign in again \u2014 ' + v.reason });
+    if (!aiKey_()) return json({ error: 'Gemini key not set in the Apps Script' });
+    return json(classifyImages(body));
+  }
+
   if (body.action === 'extract') {
     if (!v.ok) return json({ error: 'Sign in again — ' + v.reason });
     if (!GEMINI_KEY) return json({ error: 'Gemini key not set in the Apps Script' });
@@ -233,6 +254,113 @@ function extract(text) {
     } catch (err) { fails.push(models[i] + ': ' + err); }
   }
   return { error: 'Gemini did not answer. Tried — ' + fails.join(' | ') };
+}
+
+/* ── the WhatsApp reader ──────────────────────────────────────────────────
+   Everything that has to be EXACT — the RERA number, the price, the
+   configuration — is pulled by the browser with a pattern before this is
+   called, and overrides whatever the model says. The model is here for the
+   judgement a pattern cannot make: which line is the project name and which
+   is the developer, what is a selling point and what is the broker's own
+   sign-off, which "5 mins" belongs to which landmark. Same split as the
+   design agent: exact things by code, reading by the model. */
+function extractWa(text) {
+  const t = String(text || '').slice(0, 12000);
+  if (t.trim().length < 20) return { error: 'That message is too short to read.' };
+
+  const system =
+    'You read WhatsApp announcements that Indian and UAE real estate sales teams ' +
+    'forward to each other, and return the project facts as JSON. These are not ' +
+    'web pages: lines are short, emoji are used as bullets, and the message often ' +
+    'ends with the sender\'s own footer — their name, phone number, agency, "call ' +
+    'now", "site visit booking", RERA of the AGENCY rather than the project. That ' +
+    'footer is never project information: ignore it entirely. Never invent a ' +
+    'value. If the message does not say it, return an empty string or an empty ' +
+    'array. Do not round, convert or tidy a price or a registration number — ' +
+    'copy it exactly as written.';
+
+  const schema =
+    'Reply with ONLY this JSON object:\n' +
+    '{"proj":"","dev":"","micro":"","city":"","cfg":"","price":"","allIn":"",' +
+    '"possession":"","rera":"","usps":[],"amenities":[],"landmarks":[]}\n' +
+    'proj is the project name alone, without the developer. dev is the developer ' +
+    'or builder. micro is the locality or micro-market, city is the city.\n' +
+    'cfg is the configuration as written, e.g. "2, 2.5 & 3 BHK" or "Studio, 1 & 2 BR".\n' +
+    'price is the starting price exactly as written, e.g. "88 L" or "\u20b91.2 Cr".\n' +
+    'allIn is "yes" if it says all inclusive, "no" if charges are extra, else "".\n' +
+    'possession is what it says, e.g. "Dec 2028". rera is the PROJECT registration ' +
+    'number, never the agency\'s.\n' +
+    'usps are selling points under 30 characters each, in the message\'s own words, ' +
+    'with the emoji stripped. amenities are single amenity names. landmarks are ' +
+    '"Name - 15 Mins" style entries.\n' +
+    'Leave out anything that is about the sender rather than the project.\n\nMESSAGE:\n';
+
+  const out = aiCall_(system, [{ text: schema + t }], 1200);
+  if (out.error) return out;
+  ['proj', 'dev', 'micro', 'city', 'cfg', 'price', 'allIn', 'possession', 'rera']
+    .forEach(function (k) { if (typeof out[k] !== 'string') out[k] = ''; });
+  ['usps', 'amenities', 'landmarks']
+    .forEach(function (k) { if (!Array.isArray(out[k])) out[k] = []; });
+  return out;
+}
+
+/* ── the image sorter ─────────────────────────────────────────────────────
+   One call for the whole batch: the model sees every picture in order and
+   answers with one row each. It may only choose a section this builder
+   actually has — anything else it says is dropped before the answer reaches
+   the page, exactly like the design agent's whitelist. */
+const IMG_SECTIONS = ['hero', 'amenity', 'exterior', 'interior',
+                      'masterplan', 'floorplan', 'logo', 'other'];
+
+function classifyImages(body) {
+  const shots = (body.images || []).slice(0, 20);   /* [{name,data}] base64 JPEG */
+  if (!shots.length) return { error: 'No images were sent.' };
+
+  const system =
+    'You sort photographs for a real estate project landing page. For each ' +
+    'image, say which section it belongs in and give it a short caption. ' +
+    'hero: the building exterior or elevation, a render or drone shot of the ' +
+    'whole project — what belongs at the top of the page. amenity: a single ' +
+    'facility such as a pool, gym, clubhouse, play area or jogging track. ' +
+    'exterior: grounds, landscaping, entrance, podium. interior: a room, ' +
+    'kitchen, bathroom or show flat. masterplan: a site layout drawing. ' +
+    'floorplan: a unit plan drawing. logo: a brand mark on a plain background. ' +
+    'other: anything that does not belong on the page, including price lists, ' +
+    'screenshots, photographs of people and WhatsApp forwards. Judge only what ' +
+    'you can see; never guess a project or developer name.';
+
+  const schema =
+    'Reply with ONLY this JSON object:\n' +
+    '{"images":[{"i":0,"section":"","caption":"","confident":true}]}\n' +
+    'One entry per image, in the order given, with i as its position starting ' +
+    'at 0. section must be one of: ' + IMG_SECTIONS.join(', ') + '. caption is ' +
+    'two or three words describing what is shown, e.g. "Swimming Pool" or ' +
+    '"Tower Elevation". confident is false when the picture is unclear.';
+
+  const parts = [{ text: schema }];
+  shots.forEach(function (s, i) {
+    parts.push({ text: 'Image ' + i + (s.name ? ' (file name: ' + s.name + ')' : '') });
+    parts.push({ inline_data: { mime_type: 'image/jpeg', data: s.data } });
+  });
+
+  const out = aiCall_(system, parts, 1600);
+  if (out.error) return out;
+
+  const rows = Array.isArray(out.images) ? out.images : [];
+  const clean = [];
+  rows.forEach(function (r) {
+    const i = Number(r && r.i);
+    if (!isFinite(i) || i < 0 || i >= shots.length) return;
+    const sec = String((r && r.section) || '').toLowerCase().trim();
+    clean.push({
+      i: i,
+      section: IMG_SECTIONS.indexOf(sec) > -1 ? sec : 'other',
+      caption: String((r && r.caption) || '').replace(/[^\w &'.-]/g, ' ')
+                 .replace(/\s{2,}/g, ' ').trim().slice(0, 40),
+      confident: r && r.confident !== false
+    });
+  });
+  return { ok: true, images: clean, model: out._model || '', _usage: out._usage || null };
 }
 
 /** Ask Google whether the token is genuine, then apply our own rules. */

@@ -344,7 +344,7 @@ code{font-family:var(--mono);background:rgba(0,0,0,.05);padding:1px 4px;border-r
     <div class="subject">Google Ads</div>
     <div class="spacer"></div>
     <div class="badge-env" id="varCount">0 VARIANTS</div>
-    <span class="pill p-mute" id="buildTag" title="build">b-23oct-10</span>
+    <span class="pill p-mute" id="buildTag" title="build">b-23oct-11</span>
     <div id="userChip" class="hidden" style="display:flex;align-items:center;gap:9px">
       <div class="divider-v"></div>
       <span id="userName" style="font-size:12.5px;font-weight:500"></span>
@@ -457,12 +457,13 @@ code{font-family:var(--mono);background:rgba(0,0,0,.05);padding:1px 4px;border-r
         <label class="chk"><input type="checkbox" id="impOverwrite"> Overwrite fields I already filled</label>
         <div class="btnrow">
           <button class="btn btn-pri btn-sm" id="impFetch">Read the landing page</button>
+          <button class="btn btn-sm" id="impWa">Paste a WhatsApp message</button>
           <button class="btn btn-sm" id="impPasteBtn">Paste page text</button>
           <button class="btn btn-sm" id="impManual">Fill it in myself</button>
           <button class="btn btn-sm" id="impTest">Test the AI reader</button>
         </div>
         <div id="impDiag" style="margin-top:10px"></div>
-        <div class="f-note" style="margin-top:8px">Reads the URL above through a public text-extraction service, then reads it with AI and fills the brief. Always check what it pulled before generating.</div>
+        <div class="f-note" style="margin-top:8px">Reads the URL above through a public text-extraction service, then reads it with AI and fills the brief. <b>Or paste the WhatsApp announcement the sales team forwarded</b> — the price, configuration and RERA number are pulled out by pattern and the rest is read by Gemini. Always check what it pulled before generating.</div>
         <textarea id="impPaste" class="hidden" rows="8" style="margin-top:10px" placeholder="Select the whole landing page (Ctrl+A, Ctrl+C) and paste it here, then press Read again."></textarea>
         <div id="impFound" style="margin-top:10px"></div>
       </div>
@@ -3763,7 +3764,8 @@ let LAST_READ=null;
 const FOUND_ROWS=[["proj","Project","acProj"],["dev","Developer","acDev"],
   ["micro","Micro-market","acMicro"],["city","City","acCity"],
   ["cfg","Configuration","acCfg"],["price","Price","acPrice"],
-  ["loc","Location line","acLoc"],["possession","Possession",""]];
+  ["loc","Location line","acLoc"],["possession","Possession","lpPoss"],
+  ["rera","RERA number","crRera"]];
 const FOUND_LISTS=[["usps","USPs","acUsps"],["amen","Amenities","acAmen"],["marks","Landmarks","acMarks"]];
 function drawFound(){
   const r=LAST_READ; if(!r)return;
@@ -3808,6 +3810,122 @@ on("#impFound","click",e=>{
     e2.value=LAST_READ.g.allIn; e2.dispatchEvent(new Event("change",{bubbles:true})); } }
   toast("Brief updated");
 });
+/* ── reading a WhatsApp announcement ──────────────────────────────────────
+   This is how a project actually arrives: a sales person forwards the
+   builder's blast. It is not a landing page. There are no headings, emoji
+   stand in for bullets, and the last few lines are the sender's own footer —
+   their name, their number, their agency's RERA — which is not project
+   information at all.
+
+   The split is the same one the design agent uses. Anything that has to be
+   EXACT is pulled here by pattern and overrides the model: the price, the
+   configuration and the registration number are copied, never interpreted.
+   The model is left with the judgement a pattern cannot make — which line is
+   the project and which is the developer, what is a selling point and what is
+   the broker signing off. */
+
+const WA_PHONE=/(?:\+?91[\s-]?)?[6-9]\d{9}\b/g;
+const WA_FOOTER=/\b(agent|agency|broker|channel partner|cp\b|rera reg\w* of|our rera|propertypistol|call now|whatsapp now|site visit booking|regards|thanks)\b/i;
+
+function waFacts(raw){
+  const out={}, txt=String(raw||"");
+  const lines=txt.split(/\n/);
+
+  /* RERA: the project's, not the sender's. A line that is signing off is
+     skipped, which is what keeps the agency number out of the brief. */
+  for(const ln of lines){
+    if(WA_FOOTER.test(ln))continue;
+    const m=ln.match(/(?:maha\s*rera|k[\s-]?rera|up\s*rera|rera|registration|reg)\b[^A-Za-z0-9]{0,4}(?:no\.?|number|#|id)?[^A-Za-z0-9]{0,6}([A-Z0-9][A-Z0-9\/\-]{6,32})/i);
+    if(m){ out.rera=m[1].replace(/[.,;]+$/,""); break; }
+  }
+
+  /* Configuration, as written. "2, 2.5 & 3 BHK" and "2/3 BR" both survive. */
+  const cfg=txt.match(/((?:\d(?:\.\d)?\s*(?:,|&|\/|\+|and|to)\s*)*\d(?:\.\d)?)\s*(bhk|br|rk)\b/i);
+  if(cfg)out.cfg=(cfg[1].replace(/\s+/g," ").trim()+" "+cfg[2].toUpperCase())
+    .replace(/\s*,\s*/g,", ").replace(/\s*&\s*/g," & ").replace(/\s*\/\s*/g,"/");
+
+  /* Price: the one that is actually the asking price, so a figure next to
+     "starting", "onwards" or "from" wins over any other number in the text. */
+  const P="(?:\\u20b9|rs\\.?|inr)?\\s*(\\d+(?:\\.\\d+)?)\\s*(l|lac|lacs|lakh|lakhs|cr|crore|crores|mn|m)\\b";
+  const near=txt.match(new RegExp("(?:start\\w*|onward\\w*|from|just|only)[^\\n]{0,24}?"+P,"i"))
+          ||txt.match(new RegExp(P+"[^\\n]{0,20}?(?:onward\\w*|\\*)","i"))
+          ||txt.match(new RegExp(P,"i"));
+  if(near){
+    const n=near[near.length-2], u=near[near.length-1].toLowerCase();
+    const unit=/^c/.test(u)?"Cr":/^(mn|m)$/.test(u)?"Mn":"L";
+    out.price=n+" "+unit;
+  }
+  if(/all[\s-]?inclusive/i.test(txt))out.allIn="yes";
+  else if(/\b(plus|extra|excl\w*)\b[^\n]{0,24}(gst|charges|stamp)/i.test(txt))out.allIn="no";
+
+  const pos=txt.match(/possession[^A-Za-z0-9]{0,14}((?:[A-Za-z]{3,9}[\s'-]*)?(?:20)?\d{2})/i);
+  if(pos)out.possession=pos[1].trim();
+  else if(/ready\s*to\s*move/i.test(txt))out.possession="Ready to move";
+
+  const pin=txt.match(/(?:^|[^\d])([1-9]\d{5})(?![\d])/);
+  if(pin)out.pin=pin[1];
+  return out;
+}
+
+/* The sender's sign-off is not a selling point. */
+function waClean(list){
+  return (list||[]).filter(x=>{
+    const raw=String(x||"");
+    /* judged before the number is stripped: "Call Rahul 98765 43210" with the
+       digits removed still reads like a selling point, and is not one */
+    WA_PHONE.lastIndex=0;
+    if(WA_PHONE.test(raw))return false;
+    if(WA_FOOTER.test(raw))return false;
+    if(/^\s*(call|contact|visit|book|dm|ping|for\s+(details|booking|site))\b/i.test(raw))return false;
+    return raw.trim().length>2;
+  }).map(x=>String(x).replace(/\s{2,}/g," ").trim()).slice(0,14);
+}
+
+async function runWa(){
+  const txt=$("#impPaste").value.trim();
+  if(txt.length<20){ $("#impPaste").classList.remove("hidden"); $("#impPaste").focus();
+    return toast("Paste the WhatsApp message first"); }
+  $("#impStat").innerHTML='<span class="pill p-mute">reading the message\u2026</span>';
+
+  const facts=waFacts(txt);
+  const g={proj:"",dev:"",micro:"",city:"",cfg:"",price:"",loc:"",possession:"",rera:"",allIn:""};
+  const src={};
+  let usps=[],amen=[],marks=[],aiUsed=false,aiNote="";
+
+  const ai=await adsCall("extract-wa",{text:txt.slice(0,12000)});
+  if(ai&&!ai.error){
+    ["proj","dev","micro","city","cfg","price","possession","rera","allIn"]
+      .forEach(k=>{ if(ai[k]){ g[k]=String(ai[k]).trim(); src[k]="Gemini"; } });
+    usps=waClean(ai.usps); amen=waClean(ai.amenities); marks=waClean(ai.landmarks);
+    aiUsed=true;
+  } else aiNote=(ai&&ai.error)||"Gemini did not answer.";
+
+  /* the pattern wins on anything that must be copied exactly */
+  ["rera","cfg","price","possession","allIn"].forEach(k=>{
+    if(facts[k]){ g[k]=facts[k]; src[k]="pattern"; } });
+  if(!g.loc)g.loc=[g.micro,g.city].filter(Boolean).join(", ");
+
+  LAST_READ={g,src,usps,amen,marks,chars:txt.length,via:"WhatsApp message",
+    aiUsed,aiNote,template:false,rawSample:txt};
+  drawFound();
+  const how=aiUsed?"read the message":"pattern read only";
+  $("#impStat").innerHTML=`<span class="pill ${aiUsed?"p-ok":"p-warn"}">${how}</span>`;
+  logEvent("wa-read",g.proj||"");
+  toast(`${how}${facts.pin?` \u00b7 pincode ${facts.pin}`:""} \u2014 check the fields, then Apply`);
+}
+on("#impWa","click",()=>{
+  const ta=$("#impPaste");
+  ta.placeholder="Paste the whole WhatsApp announcement here, footer and all \u2014 the sender's own lines are ignored.";
+  if(ta.classList.contains("hidden")||!ta.value.trim()){
+    ta.classList.remove("hidden"); ta.focus();
+    if(!ta.value.trim())return toast("Paste the message, then press this again");
+  }
+  runWa().catch(e=>{
+    $("#impStat").innerHTML='<span class="pill p-bad">failed</span>';
+    toast("Could not read it: "+((e&&e.message)||e));
+  });
+});
+
 async function readLp(){
   try{ await runRead(); }
   catch(err){
@@ -8629,6 +8747,21 @@ on("#faqCopy","click",()=>{
 
 const LP_KEY="pp_lp_handover";      /* Trigger  → builder */
 const LP_BACK="pp_lp_fromBuilder";  /* builder  → Trigger */
+const LP_AUTH="pp_auth";            /* so the builder can reach Gemini too */
+
+/* The builder is on this same origin, so it can be handed the session rather
+   than asking for a second sign-in. It is the same short-lived Google token
+   that already lives in this tab, it expires on its own, and it never leaves
+   the origin. Without it the builder still works — it just sorts photographs
+   by their file names instead of looking at them. */
+function publishAuth(){
+  try{
+    if(USER&&tokenLive()&&AUTH.logUrl)
+      localStorage.setItem(LP_AUTH,JSON.stringify({
+        url:AUTH.logUrl,credential:USER.credential,exp:USER.exp,email:USER.email}));
+    else localStorage.removeItem(LP_AUTH);
+  }catch(e){ /* a blocked or full localStorage must not stop the handover */ }
+}
 
 function lpBrief(){
   const kw=(id,n)=>val(id).split("\n").map(x=>x.trim()).filter(Boolean).slice(0,n||20);
@@ -8669,6 +8802,7 @@ function lpGo(withBrief){
   if(!withBrief){ window.open(base,"_blank","noopener"); return; }
   const b=lpBrief();
   if(!b.project.name)return toast("Add a project name on the Ad copy tab first");
+  publishAuth();
   try{ localStorage.setItem(LP_KEY,JSON.stringify(b)); }
   catch(e){ console.warn("Could not stage the brief",e); }
   window.open(base+"#handover=1","_blank","noopener");
@@ -8712,7 +8846,7 @@ on("#lpPull","click",()=>lpPull());
    is opened rather than on a timer. */
 document.addEventListener("click",e=>{
   const t=e.target.closest('[data-panel]');
-  if(t&&t.dataset.panel==="p-lp")setTimeout(lpDraw,0);
+  if(t&&t.dataset.panel==="p-lp"){ publishAuth(); setTimeout(lpDraw,0); }
 });
 
 drawProjects(); projectRestore(); drawSets();

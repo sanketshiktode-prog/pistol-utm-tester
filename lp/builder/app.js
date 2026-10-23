@@ -669,6 +669,146 @@
     } catch (e) { /* a full or blocked localStorage must not break the builder */ }
   }
 
+  /* ---- sorting a folder of photographs -----------------------------------
+     A project arrives as a folder from the developer: IMG_2043.jpg,
+     DJI_0094.jpg, WhatsApp Image 2026-10-23 at 14.02.11.jpeg. The names say
+     nothing, so the pictures have to be looked at.
+
+     Two passes, cheapest first. A file actually named "clubhouse" or
+     "elevation" is filed on the name alone and never sent anywhere. Only
+     what is left goes to the model, shrunk to 512px — a quarter of the
+     tokens, and no worse at telling a swimming pool from a floor plan.
+
+     The model only ever chooses a section. It never names the project, never
+     writes copy, and anything it answers that is not one of these sections is
+     dropped before it reaches the form. */
+
+  const SORT_HINTS = [
+    [/\b(elevation|exterior view|facade|tower|building|render|aerial|drone|night ?view|hero|banner|cover)\b/i, 'hero'],
+    [/\b(master ?plan|site ?plan|layout ?plan|masterlayout)\b/i, 'masterplan'],
+    [/\b(floor ?plan|unit ?plan|typical ?plan|\d\s*bhk\s*plan)\b/i, 'floorplan'],
+    [/\b(pool|swimming|gym|fitness|clubhouse|club ?house|amenity|amenities|play ?area|kids|jogging|track|yoga|spa|court|lawn|garden|party ?hall|library|cafe)\b/i, 'amenity'],
+    [/\b(living|bedroom|kitchen|bath|washroom|interior|show ?flat|sample ?flat|lobby)\b/i, 'interior'],
+    [/\b(entrance|gate|landscape|podium|avenue|walkway|street|clubhouse ?exterior)\b/i, 'exterior'],
+    [/\b(logo|brandmark|wordmark)\b/i, 'logo']
+  ];
+  function hintFor(name) {
+    const n = String(name || '').replace(/\.[^.]+$/, '').replace(/[-_]+/g, ' ');
+    for (const [re, sec] of SORT_HINTS) if (re.test(n)) return sec;
+    return '';
+  }
+  const titleCase = s2 => String(s2 || '').replace(/\.[^.]+$/, '')
+    .replace(/[-_]+/g, ' ').replace(/\s{2,}/g, ' ').trim()
+    .replace(/\b\w/g, m => m.toUpperCase()).slice(0, 40);
+
+  /* The credential Trigger left for us, on the origin both pages share. It
+     expires on its own; a missing or stale one is not an error, it just means
+     the file names have to carry the whole job. */
+  function triggerAuth() {
+    try {
+      const a = JSON.parse(localStorage.getItem('pp_auth') || 'null');
+      if (!a || !a.url || !a.credential) return null;
+      if (a.exp && a.exp * 1000 < Date.now() + 30000) return null;
+      return a;
+    } catch (e) { return null; }
+  }
+
+  async function thumb(file, px) {
+    const url = URL.createObjectURL(file);
+    try {
+      const img = await new Promise((res, rej) => {
+        const i = new Image(); i.onload = () => res(i); i.onerror = rej; i.src = url;
+      });
+      const k = Math.min(1, px / Math.max(img.width, img.height));
+      const c = document.createElement('canvas');
+      c.width = Math.max(1, Math.round(img.width * k));
+      c.height = Math.max(1, Math.round(img.height * k));
+      c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+      return c.toDataURL('image/jpeg', 0.72).split(',')[1];
+    } finally { URL.revokeObjectURL(url); }
+  }
+
+  async function askSorter(auth, batch) {
+    const images = [];
+    for (const f of batch) images.push({ name: f.name, data: await thumb(f, 512) });
+    const r = await fetch(auth.url, {
+      method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify({ action: 'classify-images', credential: auth.credential, images })
+    });
+    if (!r.ok) throw new Error('Trigger answered ' + r.status);
+    const j = await r.json();
+    if (j.error) throw new Error(j.error);
+    return j.images || [];
+  }
+
+  async function sortImages() {
+    const files = await pick('image/*', true);
+    if (!files.length) return;
+    const auth = triggerAuth();
+    toast('Looking at ' + files.length + ' image' + (files.length === 1 ? '' : 's') + '…', 4000);
+
+    const plan = files.map(f => ({ file: f, section: hintFor(f.name), caption: titleCase(f.name) }));
+    const unknown = plan.filter(p => !p.section);
+
+    if (unknown.length && auth) {
+      try {
+        /* the model is shown at most twenty at a time */
+        for (let i = 0; i < unknown.length; i += 20) {
+          const batch = unknown.slice(i, i + 20);
+          const rows = await askSorter(auth, batch.map(p => p.file));
+          rows.forEach(r => {
+            const p = batch[r.i];
+            if (!p) return;
+            p.section = r.section || 'other';
+            if (r.caption) p.caption = r.caption;
+          });
+        }
+      } catch (e) {
+        console.warn('Sorter unavailable', e);
+        toast('Could not reach Trigger — sorting by file name only. ' + (e.message || ''), 6000);
+      }
+    } else if (unknown.length && !auth) {
+      toast('Open this from Trigger to have the unnamed photos looked at — sorting by file name only', 6000);
+    }
+
+    const c = P.cfg, counts = {};
+    const bump = k => { counts[k] = (counts[k] || 0) + 1; };
+    for (const p of plan) {
+      const sec = p.section || 'other';
+      if (sec === 'other') { bump('skipped'); continue; }
+      if (sec === 'hero') {
+        c.hero = c.hero || {}; c.hero.images = c.hero.images || [];
+        c.hero.images.push(await addAsset(p.file, 1920)); bump('hero');
+      } else if (sec === 'amenity') {
+        c.amenities = c.amenities || [];
+        c.amenities.push({ image: await addAsset(p.file, 900), name: p.caption }); bump('amenity');
+      } else if (sec === 'exterior' || sec === 'interior') {
+        c.gallery = c.gallery || [];
+        c.gallery.push({ image: await addAsset(p.file, 1600),
+                         category: sec === 'interior' ? 'Interior' : 'Exterior',
+                         caption: p.caption });
+        bump('gallery');
+      } else if (sec === 'masterplan') {
+        c.masterPlan = c.masterPlan || {}; c.masterPlan.images = c.masterPlan.images || [];
+        c.masterPlan.images.push(await addAsset(p.file, 2000)); bump('master plan');
+      } else if (sec === 'floorplan') {
+        c.unitPlans = c.unitPlans || [];
+        c.unitPlans.push({ image: await addAsset(p.file, 1600), label: p.caption }); bump('floor plan');
+      } else if (sec === 'logo') {
+        /* a logo already chosen by hand is not replaced */
+        if (!getP(c, 'brand.logo')) { setP(c, 'brand.logo', await addAsset(p.file, 600,
+          { contain: true, keepPng: true })); bump('logo'); }
+        else bump('skipped');
+      }
+    }
+    gcAssets(); touch(); renderForm(); renderPreview();
+    const said = Object.keys(counts).filter(k => k !== 'skipped')
+      .map(k => counts[k] + ' ' + k).join(', ');
+    toast(said ? said + (counts.skipped ? ' · ' + counts.skipped + ' left out' : '')
+               : 'Nothing could be placed — check the files', 7000);
+  }
+  $('#btnSort').onclick = () => sortImages().catch(e => toast('Sorting failed: ' + (e.message || e), 6000));
+
   (async function boot() {
     await DB.open();
     const all = (await DB.all()).sort((a, b) => b.updated - a.updated);

@@ -116,6 +116,49 @@ asked. What survived the removal, and should stay:
   anything the page drops is lost to the real CRM too. The cap went from 40
   parameters to 60: that one template alone sends 15.
 
+## How a project actually arrives
+
+Not as a brief. As a WhatsApp blast a sales person forwards: no headings,
+emoji for bullets, and the last few lines are the sender's own footer — their
+name, their number, **their agency's RERA**, which is not project information
+at all and must never reach the brief.
+
+**Paste a WhatsApp message** on tab 01 reads one. The split is the design
+agent's, again, and it is the point:
+
+- **Exact things by pattern, in the browser.** `waFacts()` pulls the RERA
+  number, the configuration, the price, possession, all-inclusive and the
+  pincode, and **overrides the model** on every one of them. The price is
+  copied, never converted or rounded; "2, 2.5 & 3 BHK" stays as written. The
+  RERA scan skips any line that reads like a sign-off, which is what keeps the
+  agency's number out.
+- **Judgement by Gemini** (`extract-wa`): which line is the project and which
+  the developer, what is a selling point and what is the broker signing off.
+- `waClean()` drops any list entry that carried a phone number — judged
+  *before* the number is stripped, because "Call Rahul 98765 43210" with the
+  digits gone still reads like a USP and is not one.
+- It lands in the same review table the landing page reader uses, with a
+  `pattern` or `Gemini` tag per field, editable before Apply. Possession goes
+  to `#lpPoss`, RERA to `#crRera`.
+
+## Sorting a folder of photographs
+
+The developer sends a folder: `IMG_2043.jpg`, `DJI_0094.jpg`, `WhatsApp Image
+2026-10-23 at 14.02.11.jpeg`. **Sort images** in the builder files them.
+
+Two passes, cheapest first. A file actually named `clubhouse` or `elevation` is
+placed on the name alone and **never sent anywhere**; only the rest go to
+`classify-images`, shrunk to 512px, one call per twenty. The model chooses a
+section and writes a two-word caption — it never names a project and never
+writes copy, and `IMG_SECTIONS` drops anything that is not one of hero,
+amenity, exterior, interior, masterplan, floorplan, logo or other. `other` is
+counted and left out. A logo already chosen by hand is not replaced.
+
+The builder reaches Gemini with the session Trigger leaves at `pp_auth` on the
+origin they share — the same short-lived Google token already in that tab, with
+its own expiry, never leaving the origin. Without it the sorter still runs, on
+file names alone, and says so.
+
 ## The landing page builder
 
 `lp/` builds the project microsite and exports a folder for GitHub Pages or
