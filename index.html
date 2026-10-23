@@ -4,7 +4,8 @@
 <script src="https://accounts.google.com/gsi/client" async defer></script>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Search Ops Toolkit · PropertyPistol</title>
+<title>Trigger · by PropertyPistol</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'%3E%3Crect width='512' height='512' rx='116' fill='%2314213D'/%3E%3Ccircle cx='256' cy='256' r='124' fill='none' stroke='%23FB6A02' stroke-width='52'/%3E%3Cpath d='M256 74v58M256 380v58M74 256h58M380 256h58' fill='none' stroke='%23FB6A02' stroke-width='52' stroke-linecap='round'/%3E%3Ccircle cx='256' cy='256' r='50' fill='white'/%3E%3C/svg%3E">
 <link rel="icon" type="image/svg+xml" href="https://cdn.propertypistol.com/images/pp-logo-updated.svg">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -36,8 +37,13 @@ body{background:var(--paper);color:var(--ink);font-family:var(--ui);font-size:14
 .logo-fallback{font-family:var(--disp);font-weight:800;font-size:17px;letter-spacing:-.02em}
 .logo-fallback b{color:var(--orange)}
 .divider-v{width:1px;height:24px;background:var(--line)}
-.wordmark{font-family:var(--disp);font-weight:700;font-size:15px;letter-spacing:-.01em}
-.wordmark span{color:var(--ink-soft);font-weight:500}
+.wordmark{font-family:var(--disp);font-weight:800;font-size:19px;letter-spacing:-.02em;line-height:1}
+.wordmark span{display:block;color:var(--muted);font-weight:500;font-size:10.5px;
+  letter-spacing:.02em;margin-top:2px}
+.subject{font-family:var(--disp);font-size:12px;font-weight:600;letter-spacing:.08em;
+  text-transform:uppercase;color:var(--ink-soft)}
+.tg-mark{width:34px;height:34px;flex:0 0 auto;border-radius:8px;display:block}
+.tg-mark-lg{width:64px;height:64px;border-radius:15px}
 .topbar .spacer{flex:1}
 .badge-env{font-family:var(--mono);font-size:11px;font-weight:600;color:var(--orange);background:var(--orange-wash);
   border:1px solid #FFD9BC;padding:4px 9px;border-radius:3px;letter-spacing:.04em}
@@ -310,13 +316,13 @@ code{font-family:var(--mono);background:rgba(0,0,0,.05);padding:1px 4px;border-r
 
 <header class="topbar">
   <div class="topbar-in">
-    <img class="logo" src="https://cdn.propertypistol.com/images/pp-logo-updated.svg" alt="PropertyPistol"
-      onerror="this.outerHTML='&lt;div class=\'logo-fallback\'&gt;Property&lt;b&gt;Pistol&lt;/b&gt;&lt;/div&gt;'">
+    <svg class="tg-mark" viewBox="0 0 512 512" aria-hidden="true"><rect width="512" height="512" rx="116" fill="#14213D"/><circle cx="256" cy="256" r="124" fill="none" stroke="#FB6A02" stroke-width="52"/><path d="M256 74v58M256 380v58M74 256h58M380 256h58" fill="none" stroke="#FB6A02" stroke-width="52" stroke-linecap="round"/><circle cx="256" cy="256" r="50" fill="#FFFFFF"/></svg>
+    <div class="wordmark">Trigger<span>by PropertyPistol</span></div>
     <div class="divider-v"></div>
-    <div class="wordmark">Search Ops Toolkit <span>· Google Ads</span></div>
+    <div class="subject">Google Ads</div>
     <div class="spacer"></div>
     <div class="badge-env" id="varCount">0 VARIANTS</div>
-    <span class="pill p-mute" id="buildTag" title="build">b-23oct-4</span>
+    <span class="pill p-mute" id="buildTag" title="build">b-23oct-5</span>
     <div id="userChip" class="hidden" style="display:flex;align-items:center;gap:9px">
       <div class="divider-v"></div>
       <span id="userName" style="font-size:12.5px;font-weight:500"></span>
@@ -1580,9 +1586,9 @@ Static Square</textarea>
   <div style="min-height:100%;display:flex;align-items:center;justify-content:center;padding:40px 20px">
     <div style="width:100%;max-width:420px">
       <div style="text-align:center;margin-bottom:28px">
-        <img src="https://cdn.propertypistol.com/images/pp-logo-updated.svg" alt="PropertyPistol"
-          style="height:34px" onerror="this.outerHTML='&lt;div class=\'logo-fallback\' style=\'font-size:24px\'&gt;Property&lt;b&gt;Pistol&lt;/b&gt;&lt;/div&gt;'">
-        <h1 style="font-family:var(--disp);font-size:21px;font-weight:700;margin:20px 0 6px">Search Ops Toolkit</h1>
+        <div style="display:flex;justify-content:center"><svg class="tg-mark tg-mark-lg" viewBox="0 0 512 512" aria-hidden="true"><rect width="512" height="512" rx="116" fill="#14213D"/><circle cx="256" cy="256" r="124" fill="none" stroke="#FB6A02" stroke-width="52"/><path d="M256 74v58M256 380v58M74 256h58M380 256h58" fill="none" stroke="#FB6A02" stroke-width="52" stroke-linecap="round"/><circle cx="256" cy="256" r="50" fill="#FFFFFF"/></svg></div>
+        <h1 style="font-family:var(--disp);font-size:26px;font-weight:800;letter-spacing:-.02em;margin:16px 0 2px">Trigger</h1>
+        <div style="font-size:13px;color:var(--muted);margin-bottom:8px">by PropertyPistol</div>
         <p style="margin:0;font-size:13.5px;color:var(--ink-soft)">
           Campaign structures, ad copy and assets for Google Ads.</p>
       </div>

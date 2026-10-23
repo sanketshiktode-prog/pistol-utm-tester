@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 180" role="img" aria-label="Trigger by PropertyPistol">
+  <!-- Horizontal lockup. The wordmark is set in Archivo; if it is not
+       installed the browser falls back and the spacing will not match, so
+       use the PNG for anything that leaves your machine. -->
+  <g transform="translate(20 24) scale(0.258)">
+    <rect width="512" height="512" rx="116" fill="#14213D"/>
+    <circle cx="256" cy="256" r="124" fill="none" stroke="#FB6A02" stroke-width="52"/>
+    <path d="M256 74v58M256 380v58M74 256h58M380 256h58" fill="none"
+          stroke="#FB6A02" stroke-width="52" stroke-linecap="round"/>
+    <circle cx="256" cy="256" r="50" fill="#FFFFFF"/>
+  </g>
+  <text x="172" y="92" font-family="Archivo, Inter, Helvetica, Arial, sans-serif"
+        font-size="68" font-weight="800" letter-spacing="-1.5" fill="#14213D">Trigger</text>
+  <text x="175" y="130" font-family="Inter, Helvetica, Arial, sans-serif"
+        font-size="25" font-weight="500" letter-spacing="0.6" fill="#6B7280">by PropertyPistol</text>
+</svg>

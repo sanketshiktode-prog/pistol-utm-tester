@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <rect width="512" height="512" rx="116" fill="#14213D"/>
+  <!-- Fewer, heavier parts: at 16px a thin tick disappears and a busy ring
+       turns to mud. Four short ticks, one heavy ring, one solid centre. -->
+  <circle cx="256" cy="256" r="124" fill="none" stroke="#FB6A02" stroke-width="52"/>
+  <path d="M256 74v58M256 380v58M74 256h58M380 256h58" fill="none"
+        stroke="#FB6A02" stroke-width="52" stroke-linecap="round"/>
+  <circle cx="256" cy="256" r="50" fill="#FFFFFF"/>
+</svg>

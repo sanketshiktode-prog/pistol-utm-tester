@@ -1,4 +1,8 @@
-# Search Ops Toolkit — what a new session needs to know
+# Trigger — what a new session needs to know
+
+The tool is called **Trigger**, by PropertyPistol. It was "Search Ops Toolkit"
+until 23 Oct 2026; the repository is still `pistol-utm-tester` and renaming it
+would break the GitHub Pages URL, so it stays. Brand files are in `brand/`.
 
 Read this first, then `index.html` and `backend.gs`. Everything below is
 settled: it was decided, built and tested, and reversing any of it will
@@ -6,7 +10,8 @@ break something that already works.
 
 ## What this is
 
-A single-page tool for PropertyPistol's paid search and Demand Gen launches.
+A single-page tool for PropertyPistol's paid search and Demand Gen launches,
+called Trigger.
 It builds tracking URLs, keywords, ad copy, creatives and the full campaign
 structure, and deploys straight into Google Ads through the API.
 
