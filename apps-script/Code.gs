@@ -194,12 +194,25 @@ function doPost(e) {
   }
 }
 
+/* Trigger only ever POSTs. A GET is either somebody opening the URL to
+   check it is alive, or a POST that got turned into one by a redirect —
+   and the second used to surface as "Unexpected token 'S'", because the
+   page tried to read a sentence of prose as JSON. So this answers in
+   JSON, and says plainly what it is. */
 function doGet() {
+  var body = { ok: true, service: 'trigger-apps-script', method: 'GET',
+               note: 'This is the health check. Trigger calls this script with POST; ' +
+                     'if an app shows this message, its POST arrived as a GET.' };
   try {
-    return backend_().handleGet();
+    backend_();                       /* proves the backend loads */
+    body.backend = 'loaded';
   } catch (err) {
-    return ContentService.createTextOutput('Loader is running, but the backend did not load: ' + err);
+    body.ok = false;
+    body.backend = 'failed';
+    body.error = String(err);
   }
+  return ContentService.createTextOutput(JSON.stringify(body))
+    .setMimeType(ContentService.MimeType.JSON);
 }
 
 /* Run this from the editor after a change to confirm the loader can
