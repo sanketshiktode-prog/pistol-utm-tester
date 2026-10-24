@@ -2069,7 +2069,20 @@ function metaLook_(settings) {
       : { id: acct, name: r.name, status: r.account_status, currency: r.currency };
   }
   if (page) {
-    const r = metaCall_(page + '?fields=name,leadgen_tos_accepted', {}, 'get');
+    var r = metaCall_(page + '?fields=name,leadgen_tos_accepted,access_token', {}, 'get');
+    /* The System User's own token often cannot see a Page's lead-gen state.
+       The Page's own token can. Asking the Page about itself is the only
+       reading that settles whether the terms are accepted, so when one
+       comes back the question is put again with it. */
+    if (!r.error && r.access_token) {
+      const asPage = metaCall_(page + '?fields=name,leadgen_tos_accepted' +
+        '&access_token=' + encodeURIComponent(r.access_token), {}, 'get');
+      if (!asPage.error &&
+          Object.prototype.hasOwnProperty.call(asPage, 'leadgen_tos_accepted')) {
+        asPage._viaPageToken = true;
+        r = asPage;
+      }
+    }
     if (r.error) out.page = { error: r.error };
     else {
       /* Absent is not false. Meta leaves the field out when the token may
@@ -2078,7 +2091,10 @@ function metaLook_(settings) {
          that are already accepted. Say which of the two it is. */
       const known = Object.prototype.hasOwnProperty.call(r, 'leadgen_tos_accepted');
       out.page = { id: page, name: r.name,
-                   leadgenTos: r.leadgen_tos_accepted === true, tosKnown: known };
+                   leadgenTos: r.leadgen_tos_accepted === true, tosKnown: known,
+                   /* whether that reading came from the Page itself, which
+                      is the authoritative one */
+                   viaPageToken: r._viaPageToken === true };
     }
   }
   if (form) {
