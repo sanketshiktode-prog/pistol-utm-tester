@@ -2051,11 +2051,49 @@ function metaProp_(k, dflt) {
 const metaToken_   = () => metaProp_('META_TOKEN', '');
 const metaVersion_ = () => metaProp_('META_API_VERSION', META_DEFAULT_VERSION);
 
+/* What Meta itself can see with this token. The point is that the Business
+   Suite and the API do not always agree — a Page can read "Accepted" on
+   the Lead Ad Terms page while the token still cannot run lead ads on it,
+   because the token is looking at a different Page, or cannot see that one
+   at all. Asking outright beats guessing from a deploy that failed. */
+function metaLook_(settings) {
+  const s = settings || {};
+  const out = {};
+  const acct = String(s.accountId || '').replace(/^act_/, '').trim();
+  const page = String(s.pageId || '').trim();
+  const form = String(s.formId || '').trim();
+
+  if (acct) {
+    const r = metaCall_('act_' + acct + '?fields=name,account_status,currency,timezone_name', {}, 'get');
+    out.account = r.error ? { error: r.error }
+      : { id: acct, name: r.name, status: r.account_status, currency: r.currency };
+  }
+  if (page) {
+    const r = metaCall_(page + '?fields=name,leadgen_tos_accepted', {}, 'get');
+    out.page = r.error ? { error: r.error }
+      : { id: page, name: r.name, leadgenTos: r.leadgen_tos_accepted === true };
+  }
+  if (form) {
+    const r = metaCall_(form + '?fields=id,name,status,page', {}, 'get');
+    out.form = r.error ? { error: r.error }
+      : { id: r.id, name: r.name, status: r.status,
+          pageId: r.page && r.page.id, pageName: r.page && r.page.name,
+          /* a form belongs to one Page; pointing an ad set at a form from
+             another Page fails with an error that names neither */
+          matchesPage: !page || !(r.page && r.page.id) || String(r.page.id) === page };
+  }
+  return out;
+}
+
 function metaRoute(body, v) {
   const a = String(body.action || '');
-  if (a === 'meta-check') return {
-    ok: true, ready: !!metaToken_(), version: metaVersion_()
-  };
+  if (a === 'meta-check') {
+    const base = { ok: true, ready: !!metaToken_(), version: metaVersion_() };
+    if (!base.ready) return base;
+    try { base.look = metaLook_(body.settings); }
+    catch (e) { base.look = { error: String(e) }; }
+    return base;
+  }
   if (!metaToken_()) return { error:
     'No META_TOKEN in the Apps Script. Business Settings → System Users → ' +
     'Generate token with ads_management, then Project Settings → Script ' +
@@ -2200,17 +2238,32 @@ function metaPlan(body) {
 /* ---------------- the calls ---------------- */
 
 function metaCall_(path, payload, method) {
-  const url = 'https://graph.facebook.com/' + metaVersion_() + '/' + path;
+  const verb = (method || 'post').toLowerCase();
+  var url = 'https://graph.facebook.com/' + metaVersion_() + '/' + path;
   const form = { access_token: metaToken_() };
   for (var k in payload) if (Object.prototype.hasOwnProperty.call(payload, k)) {
     const v2 = payload[k];
     form[k] = (v2 !== null && typeof v2 === 'object') ? JSON.stringify(v2) : String(v2);
   }
+
+  /* A GET carries nothing in a body — a payload there is dropped, and the
+     call goes out with no token at all and comes back as "an access token
+     is required", which reads like a dead token rather than a wrong verb.
+     So for GET and DELETE the parameters go in the query string, after
+     whatever is already in the path. */
+  const opts = { method: verb, muteHttpExceptions: true };
+  if (verb === 'get' || verb === 'delete') {
+    const parts = [];
+    for (var q in form) if (Object.prototype.hasOwnProperty.call(form, q))
+      parts.push(encodeURIComponent(q) + '=' + encodeURIComponent(form[q]));
+    url += (url.indexOf('?') === -1 ? '?' : '&') + parts.join('&');
+  } else {
+    opts.payload = form;
+  }
+
   var res;
   try {
-    res = UrlFetchApp.fetch(url, {
-      method: method || 'post', payload: form, muteHttpExceptions: true
-    });
+    res = UrlFetchApp.fetch(url, opts);
   } catch (err) { return { error: 'Could not reach Meta: ' + err }; }
 
   const code = res.getResponseCode(), text = res.getContentText();

@@ -344,7 +344,7 @@ code{font-family:var(--mono);background:rgba(0,0,0,.05);padding:1px 4px;border-r
     <div class="subject">Google Ads</div>
     <div class="spacer"></div>
     <div class="badge-env" id="varCount">0 VARIANTS</div>
-    <span class="pill p-mute" id="buildTag" title="build">b-24oct-3</span>
+    <span class="pill p-mute" id="buildTag" title="build">b-24oct-4</span>
     <div id="userChip" class="hidden" style="display:flex;align-items:center;gap:9px">
       <div class="divider-v"></div>
       <span id="userName" style="font-size:12.5px;font-weight:500"></span>
@@ -8896,15 +8896,49 @@ async function mdRun(action,what){
 }
 
 on("#mdCheck","click",async()=>{
-  const r=await adsCall("meta-check",{});
+  const b=mdBody();
+  const r=await adsCall("meta-check",{settings:b.settings});
   if(r.error)return mdShow(r,"The check");
   $("#mdStat").innerHTML=`<span class="pill ${r.ready?"p-ok":"p-bad"}">${r.ready?"token present":"no token"}</span>`;
-  $("#mdOut").innerHTML=r.ready
-    ? mdLine("ok","✓",`A Meta token is on the server, talking to <code>${esc(r.version)}</code>.`)+
-      mdLine("warn","!","That it exists is all this checks. <b>Validate against Meta</b> is what proves it works.")
-    : mdLine("bad","✕","<b>No META_TOKEN on the server.</b> Business Settings → Users → System Users → "+
+  if(!r.ready)
+    return $("#mdOut").innerHTML=mdLine("bad","✕",
+      "<b>No META_TOKEN on the server.</b> Business Settings → Users → System Users → "+
       "add one, give it the ad account and the Page, Generate token with <code>ads_management</code>, "+
       "then Apps Script → Project Settings → Script Properties → <code>META_TOKEN</code>.");
+
+  /* What Meta sees with this token, which is not always what the Business
+     Suite shows the person logged in. A Page can read "Accepted" on the
+     Lead Ad Terms page while the token cannot run lead ads on it. */
+  let h=mdLine("ok","✓",`A Meta token is on the server, talking to <code>${esc(r.version)}</code>.`);
+  const L=r.look||{};
+
+  if(L.account) h+= L.account.error
+    ? mdLine("bad","✕",`<b>Ad account:</b> ${esc(L.account.error)}`)
+    : mdLine("ok","✓",`<b>Ad account:</b> ${esc(L.account.name||L.account.id)}`+
+        (L.account.currency?` · ${esc(L.account.currency)}`:"")+
+        (L.account.status!==1?` · <b>status ${esc(String(L.account.status))}</b> — not an active account`:""));
+
+  if(L.page){
+    if(L.page.error) h+=mdLine("bad","✕",`<b>Page:</b> ${esc(L.page.error)} — the token may not have this Page.`);
+    else if(!L.page.leadgenTos) h+=mdLine("bad","✕",
+      `<b>${esc(L.page.name||L.page.id)} has not accepted the Lead Ad Terms</b>, as far as this token can see. `+
+      `Open <code>facebook.com/legal/leadgen/tos/?page_id=${esc(L.page.id)}</code> as a Page admin. `+
+      `If it already says Accepted there, the token is looking at a different Page than you are — `+
+      `check the Page id above, and that the System User has this Page in its assets.`);
+    else h+=mdLine("ok","✓",`<b>Page:</b> ${esc(L.page.name||L.page.id)} · Lead Ad Terms accepted`);
+  }
+
+  if(L.form){
+    if(L.form.error) h+=mdLine("bad","✕",`<b>Instant Form:</b> ${esc(L.form.error)}`);
+    else if(!L.form.matchesPage) h+=mdLine("bad","✕",
+      `<b>That form belongs to a different Page.</b> "${esc(L.form.name||L.form.id)}" sits on `+
+      `${esc(L.form.pageName||L.form.pageId)}, not on the Page above. A form cannot be used by another Page.`);
+    else h+=mdLine("ok","✓",`<b>Instant Form:</b> ${esc(L.form.name||L.form.id)}`+
+      (L.form.status&&L.form.status!=="ACTIVE"?` · <b>${esc(L.form.status)}</b>`:""));
+  }
+
+  h+=mdLine("warn","!","This is what Meta reports. <b>Validate against Meta</b> is what proves the whole structure.");
+  $("#mdOut").innerHTML=h;
 });
 on("#mdValidate","click",()=>mdRun("meta-validate","Validating").catch(e=>mdShow({error:String(e&&e.message||e)},"Validating")));
 on("#mdDeploy","click",async()=>{
