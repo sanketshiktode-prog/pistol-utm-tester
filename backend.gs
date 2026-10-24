@@ -2070,17 +2070,32 @@ function metaLook_(settings) {
   }
   if (page) {
     const r = metaCall_(page + '?fields=name,leadgen_tos_accepted', {}, 'get');
-    out.page = r.error ? { error: r.error }
-      : { id: page, name: r.name, leadgenTos: r.leadgen_tos_accepted === true };
+    if (r.error) out.page = { error: r.error };
+    else {
+      /* Absent is not false. Meta leaves the field out when the token may
+         not read it — a Page owned by another business, typically — and
+         treating that as "has not accepted" sends people to accept terms
+         that are already accepted. Say which of the two it is. */
+      const known = Object.prototype.hasOwnProperty.call(r, 'leadgen_tos_accepted');
+      out.page = { id: page, name: r.name,
+                   leadgenTos: r.leadgen_tos_accepted === true, tosKnown: known };
+    }
   }
   if (form) {
     const r = metaCall_(form + '?fields=id,name,status,page', {}, 'get');
-    out.form = r.error ? { error: r.error }
-      : { id: r.id, name: r.name, status: r.status,
-          pageId: r.page && r.page.id, pageName: r.page && r.page.name,
-          /* a form belongs to one Page; pointing an ad set at a form from
-             another Page fails with an error that names neither */
-          matchesPage: !page || !(r.page && r.page.id) || String(r.page.id) === page };
+    if (r.error) {
+      /* Reading a form needs leads_retrieval, which is Advanced Access and
+         is NOT needed to create an ad that points at one. So a refusal
+         here says nothing about whether the deploy will work. */
+      const permission = /does not exist|missing permission|cannot be loaded|\(#100\)/i.test(r.error);
+      out.form = { error: r.error, unreadableOnly: permission };
+    } else {
+      out.form = { id: r.id, name: r.name, status: r.status,
+        pageId: r.page && r.page.id, pageName: r.page && r.page.name,
+        /* a form belongs to one Page; pointing an ad set at a form from
+           another Page fails with an error that names neither */
+        matchesPage: !page || !(r.page && r.page.id) || String(r.page.id) === page };
+    }
   }
   return out;
 }

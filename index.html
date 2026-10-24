@@ -344,7 +344,7 @@ code{font-family:var(--mono);background:rgba(0,0,0,.05);padding:1px 4px;border-r
     <div class="subject">Google Ads</div>
     <div class="spacer"></div>
     <div class="badge-env" id="varCount">0 VARIANTS</div>
-    <span class="pill p-mute" id="buildTag" title="build">b-24oct-4</span>
+    <span class="pill p-mute" id="buildTag" title="build">b-25oct-1</span>
     <div id="userChip" class="hidden" style="display:flex;align-items:center;gap:9px">
       <div class="divider-v"></div>
       <span id="userName" style="font-size:12.5px;font-weight:500"></span>
@@ -8920,16 +8920,24 @@ on("#mdCheck","click",async()=>{
 
   if(L.page){
     if(L.page.error) h+=mdLine("bad","✕",`<b>Page:</b> ${esc(L.page.error)} — the token may not have this Page.`);
+    else if(!L.page.tosKnown) h+=mdLine("warn","!",
+      `<b>Page:</b> ${esc(L.page.name||L.page.id)} — the token cannot read whether the Lead Ad Terms `+
+      `are accepted. That usually means the Page is owned by another business and only shared with yours. `+
+      `It does not by itself mean the terms are missing.`);
     else if(!L.page.leadgenTos) h+=mdLine("bad","✕",
-      `<b>${esc(L.page.name||L.page.id)} has not accepted the Lead Ad Terms</b>, as far as this token can see. `+
+      `<b>${esc(L.page.name||L.page.id)} has not accepted the Lead Ad Terms.</b> `+
       `Open <code>facebook.com/legal/leadgen/tos/?page_id=${esc(L.page.id)}</code> as a Page admin. `+
-      `If it already says Accepted there, the token is looking at a different Page than you are — `+
-      `check the Page id above, and that the System User has this Page in its assets.`);
+      `If it already says Accepted there, it was accepted in a different business than the one this `+
+      `token belongs to — the Page's owning business is the one that counts.`);
     else h+=mdLine("ok","✓",`<b>Page:</b> ${esc(L.page.name||L.page.id)} · Lead Ad Terms accepted`);
   }
 
   if(L.form){
-    if(L.form.error) h+=mdLine("bad","✕",`<b>Instant Form:</b> ${esc(L.form.error)}`);
+    if(L.form.unreadableOnly) h+=mdLine("warn","!",
+      `<b>Instant Form:</b> the token cannot read this form. Reading one needs `+
+      `<code>leads_retrieval</code>, which is Advanced Access — and which creating an ad that `+
+      `points at the form does <b>not</b> need. So this says nothing about whether the deploy works.`);
+    else if(L.form.error) h+=mdLine("bad","✕",`<b>Instant Form:</b> ${esc(L.form.error)}`);
     else if(!L.form.matchesPage) h+=mdLine("bad","✕",
       `<b>That form belongs to a different Page.</b> "${esc(L.form.name||L.form.id)}" sits on `+
       `${esc(L.form.pageName||L.form.pageId)}, not on the Page above. A form cannot be used by another Page.`);
