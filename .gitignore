@@ -1,1 +1,9 @@
+# Any Code.gs is assumed to be somebody's working copy with real values in
+# it — a developer token, a Gemini key — and this repository is public.
 Code.gs
+
+# The one exception is the loader, which is secret-free by construction:
+# every value it exposes is read from Script Properties, and t/loader.js
+# fails the moment a literal appears in it. It is versioned because on
+# 24 Oct 2026 it was overwritten in Apps Script with no copy anywhere.
+!apps-script/Code.gs

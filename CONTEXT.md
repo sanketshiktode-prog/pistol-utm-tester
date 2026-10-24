@@ -23,9 +23,18 @@ structure, and deploys straight into Google Ads through the API.
 - **`lp/`** — the landing page builder, served from `/lp/` on the same Pages
   site so it shares the domain and the sign-in. It was a separate repository
   until 23 Oct 2026.
-- **`Code.gs`** — NOT in this repo and must never be. It holds the developer
-  token, client ID, Gemini key and account IDs, and lives only in Apps Script.
-  This repo is public.
+- **`apps-script/Code.gs`** — the loader, and the only file pasted into Apps
+  Script. It defines `doPost`/`doGet` and the configuration globals the
+  backend reads by name (`CLIENT_ID`, `DOMAIN`, `ADMIN`, `SHEET`,
+  `GEMINI_KEY`, `ADS`). It holds **no secrets**: every one of them is read
+  from Script Properties, and `t/loader.js` fails if a literal creeps in.
+  It used to be kept out of this repo because it held the developer token
+  and the Gemini key directly. Those moved to Script Properties, and on
+  24 Oct 2026 the file was overwritten in Apps Script with no copy
+  anywhere — the web app lost its entry point and then threw
+  `ReferenceError: CLIENT_ID is not defined`. It is versioned here so that
+  cannot happen again. Secrets still never belong in this repo: it is
+  public.
 
 Build stamp is in `#buildTag` near the top of `index.html`. Bump it with every
 push, or the user cannot tell whether a hard refresh picked up the change.
