@@ -8845,12 +8845,10 @@ function mdShow(r,what){
   if(r.error){
     $("#mdStat").innerHTML=`<span class="pill p-bad">failed</span>`;
     let h=mdLine("bad","✕",`<b>${esc(what)} stopped.</b> ${esc(r.error)}`);
-    const made=r.made||{};
-    if(made.campaign&&made.campaign!=="(validated)")
-      h+=mdLine("warn","!",`A campaign <b>was</b> created before it stopped: <code>${esc(made.campaign)}</code>. `+
-        `It is paused. Delete it in Ads Manager before trying again, or the next run makes a second one.`);
-    if(made.adset&&made.adset!=="(validated)")
-      h+=mdLine("warn","!",`So was an ad set: <code>${esc(made.adset)}</code>.`);
+    /* The server undoes a half-built campaign itself and says so in the
+       message above, naming the id only when the cleanup also failed.
+       Repeating it here told people to go and delete something that was
+       already gone. */
     box.innerHTML=h; return;
   }
   const made=r.made||{}, notes=r.notes||[];

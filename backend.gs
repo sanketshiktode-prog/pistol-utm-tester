@@ -2101,7 +2101,12 @@ function metaPlan(body) {
       distance_unit: 'kilometer'
     };
   });
-  if (!radii.length) notes.push('No radius target was set, so the ad set has no location — add one on the Deploy tab.');
+  /* Meta has no concept of an ad set that runs everywhere: with no
+     geo_locations it is refused outright. Catching it here says which tab
+     to go to, instead of a Graph error after the campaign already exists. */
+  if (!radii.length)
+    return { error: 'No location is set. Add a radius target on the Deploy tab — ' +
+                    'Meta refuses an ad set with no geography.' };
 
   const excl = (s.excludeAudiences || []).map(function (x) { return String(x).trim(); })
     .filter(Boolean).map(function (id) { return { id: id }; });
@@ -2113,7 +2118,8 @@ function metaPlan(body) {
       : undefined,
     age_min: Number(s.ageMin) || META_AGE_MIN,
     age_max: Number(s.ageMax) || META_AGE_MAX,
-    genders: [],                                   /* all, per the deck */
+    /* all genders, per the deck. That is the ABSENCE of the field — an
+       empty genders array is not "everyone", it is a list naming nobody. */
     publisher_platforms: ['facebook', 'instagram'],
     facebook_positions: ['feed', 'story', 'facebook_reels'],
     instagram_positions: ['stream', 'story', 'reels'],
@@ -2155,6 +2161,11 @@ function metaPlan(body) {
     destination_type: 'ON_AD',                     /* Instant Forms */
     promoted_object: { page_id: pageId },
     daily_budget: budget,
+    /* The budget is here, so the bid strategy has to be here too. Without
+       it Meta falls through to asking for a bid cap or a ROAS floor and
+       rejects the ad set. Highest volume for the money is the deck's
+       setup — no cap, no target cost. */
+    bid_strategy: 'LOWEST_COST_WITHOUT_CAP',
     targeting: targeting,
     is_dynamic_creative: false
   };
@@ -2219,6 +2230,20 @@ function metaCall_(path, payload, method) {
   return b;
 }
 
+/* A deploy that stops halfway leaves a real campaign sitting in the
+   account. Left alone it is invisible work for whoever notices it next,
+   and the run after this one makes a second copy beside it. Deleting the
+   campaign takes its ad sets and ads with it. Uploaded images are left
+   where they are: they cost nothing, and another ad may share the hash. */
+function metaUndo_(made) {
+  if (!made || !made.campaign || made.campaign === '(validated)') return '';
+  const d = metaCall_(String(made.campaign), {}, 'delete');
+  if (d.error)
+    return ' A campaign was created before this failed and could not be removed (' +
+           d.error + '). Delete ' + made.campaign + ' in Ads Manager before trying again.';
+  return ' The half-built campaign was deleted, so nothing was left behind.';
+}
+
 function metaRun(body, v, validateOnly) {
   const plan = metaPlan(body);
   if (plan.error) return plan;
@@ -2247,12 +2272,22 @@ function metaRun(body, v, validateOnly) {
   if (!validateOnly) as.campaign_id = made.campaign;
   if (validateOnly) {
     const probe = metaCall_(act + '/adsets', withOpts(as));
+    /* The ONLY error to forgive here is the missing parent, because there
+       is no campaign id to give on a dry run. An earlier version forgave
+       anything mentioning "campaign", which quietly swallowed a real
+       rejection reading "...your account and campaign objective" — the
+       check went green and the deploy then failed with a campaign already
+       created. Match the parameter name, not the word. */
+    const parentOnly = /campaign_id/i.test(probe.error || '');
     made.adset = probe.error ? null : '(validated)';
-    if (probe.error && !/campaign/i.test(probe.error))
+    if (probe.error && !parentOnly)
       return { error: 'Ad set: ' + probe.error, plan: plan, made: made };
+    if (probe.error) plan.notes.push(
+      'The ad set could only be checked without its campaign, so anything ' +
+      'that depends on the parent is still unchecked.');
   } else {
     const r = metaCall_(act + '/adsets', as);
-    if (r.error) return { error: 'Ad set: ' + r.error, plan: plan, made: made };
+    if (r.error) return { error: 'Ad set: ' + r.error + metaUndo_(made), plan: plan, made: made };
     made.adset = r.id;
   }
 
@@ -2265,13 +2300,13 @@ function metaRun(body, v, validateOnly) {
     if (!ad.image) { plan.notes.push('Ad ' + (i + 1) + ' had no image and was skipped.'); continue; }
 
     const up = metaCall_(act + '/adimages', { bytes: ad.image });
-    if (up.error) return { error: 'Image for ad ' + (i + 1) + ': ' + up.error, plan: plan, made: made };
+    if (up.error) return { error: 'Image for ad ' + (i + 1) + ': ' + up.error + metaUndo_(made), plan: plan, made: made };
     /* the response is keyed by a name Meta chooses, so the hash is read out
        of whatever single entry came back */
     var hash = '';
     const imgs = up.images || {};
     for (var key in imgs) if (imgs[key] && imgs[key].hash) { hash = imgs[key].hash; break; }
-    if (!hash) return { error: 'Meta accepted the image for ad ' + (i + 1) + ' but returned no hash.', plan: plan, made: made };
+    if (!hash) return { error: 'Meta accepted the image for ad ' + (i + 1) + ' but returned no hash.' + metaUndo_(made), plan: plan, made: made };
     made.images.push(hash);
 
     const creative = {
@@ -2295,12 +2330,12 @@ function metaRun(body, v, validateOnly) {
       }
     };
     const cr = metaCall_(act + '/adcreatives', creative);
-    if (cr.error) return { error: 'Creative for ad ' + (i + 1) + ': ' + cr.error, plan: plan, made: made };
+    if (cr.error) return { error: 'Creative for ad ' + (i + 1) + ': ' + cr.error + metaUndo_(made), plan: plan, made: made };
 
     const a2 = metaCall_(act + '/ads', {
       name: ad.name, adset_id: made.adset, creative: { creative_id: cr.id }, status: 'PAUSED'
     });
-    if (a2.error) return { error: 'Ad ' + (i + 1) + ': ' + a2.error, plan: plan, made: made };
+    if (a2.error) return { error: 'Ad ' + (i + 1) + ': ' + a2.error + metaUndo_(made), plan: plan, made: made };
     made.ads.push({ id: a2.id, name: ad.name });
   }
 
