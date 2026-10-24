@@ -62,8 +62,8 @@ function cfg_(key, fallback) {
     return (v === null || v === '') ? fallback : v;
   } catch (e) { return fallback; }
 }
-function cfgList_(key) {
-  return String(cfg_(key, '')).split(',').map(function (x) { return x.trim(); })
+function cfgList_(key, fallback) {
+  return String(cfg_(key, fallback || '')).split(',').map(function (x) { return x.trim(); })
     .filter(Boolean);
 }
 
@@ -77,7 +77,34 @@ const CLIENT_ID = cfg_('CLIENT_ID',
 const DOMAIN = cfg_('DOMAIN', 'propertypistol.com');
 
 const ADMIN  = cfg_('ADMIN_EMAIL', '');
-const SHEET  = cfg_('SHEET_NAME', 'Log');
+
+/* The audit tab. write() creates one if the name does not match, which is
+   not destructive but silently splits the trail in two. So when the
+   property is not set, the existing tab is found by its header row and
+   remembered — one spreadsheet read, once, never again. A script that is
+   not bound to a spreadsheet, or any error at all, falls back to 'Log'
+   without disturbing the request. */
+function logSheetName_() {
+  const named = cfg_('SHEET_NAME', '');
+  if (named) return named;
+  try {
+    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    if (!ss) return 'Log';
+    const sheets = ss.getSheets();
+    for (var i = 0; i < sheets.length; i++) {
+      const sh = sheets[i];
+      if (sh.getLastRow() < 1 || sh.getLastColumn() < 4) continue;
+      const head = sh.getRange(1, 1, 1, 4).getValues()[0].join('|');
+      if (head === 'Time|Email|Name|Role') {
+        try { PropertiesService.getScriptProperties()
+                .setProperty('SHEET_NAME', sh.getName()); } catch (e) {}
+        return sh.getName();
+      }
+    }
+  } catch (e) { /* no spreadsheet, or no scope yet — 'Log' is fine */ }
+  return 'Log';
+}
+const SHEET = logSheetName_();
 
 const GEMINI_KEY = cfg_('GEMINI_KEY', '');
 
