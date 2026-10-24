@@ -809,6 +809,146 @@
   }
   $('#btnSort').onclick = () => sortImages().catch(e => toast('Sorting failed: ' + (e.message || e), 6000));
 
+  /* ---- publishing straight to the hosting ---------------------------------
+     Export ZIP, upload, extract, repeat is the slowest part of making a
+     landing page, and it is the part you do twenty times while the copy is
+     still moving. publish.php sits on the hosting once; after that every
+     change goes up over HTTPS and is live in seconds.
+
+     The token is a secret, so it lives in this browser's localStorage and
+     nowhere else — not in the exported site, not in the repository, which is
+     public. It is sent in the body over HTTPS, never in a URL. */
+
+  const PUB_KEY = 'pp_publish_cfg';
+  const pubCfg = () => { try { return JSON.parse(localStorage.getItem(PUB_KEY) || 'null') || {}; }
+                         catch (e) { return {}; } };
+  const pubSave = c => { try { localStorage.setItem(PUB_KEY, JSON.stringify(c)); } catch (e) {} };
+
+  function pubAsk(then) {
+    const c = pubCfg();
+    const wrap = el('div', { style: 'position:fixed;inset:0;background:rgba(15,20,30,.55);z-index:90;display:flex;align-items:center;justify-content:center;padding:24px' });
+    const row = (label, key, ph, type) => {
+      const i = el('input', { type: type || 'text', value: c[key] || '', placeholder: ph,
+        style: 'width:100%;border:1px solid var(--line);border-radius:8px;padding:9px;font-size:13px' });
+      return { el: el('label', { style: 'display:block;margin-bottom:12px' },
+        el('div', { style: 'font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;opacity:.65;margin-bottom:5px' }, label), i), i };
+    };
+    const api = row('Publish endpoint', 'api', 'https://yourdomain.com/api/publish.php');
+    const tok = row('Token', 'token', 'the long random string from publish-config.php', 'password');
+    const prj = row('Folder on the site', 'project', 'vyana — or "root" for the domain itself');
+    const note = el('div', { style: 'font-size:12px;opacity:.7;line-height:1.55;margin:4px 0 14px' },
+      'The token is kept in this browser only. Upload api/publish.php and api/publish-config.php to your hosting once, put a long random string in the config, then open the endpoint with ?health=1 to check it.');
+    const stat = el('div', { style: 'font-size:12.5px;margin-top:10px;min-height:18px' });
+    const box = el('div', { style: 'background:var(--surface,#fff);border-radius:12px;max-width:520px;width:100%;padding:22px;box-shadow:0 24px 70px rgba(0,0,0,.3)' },
+      el('h3', { style: 'margin:0 0 14px;font-size:16px' }, 'Publish settings'),
+      api.el, tok.el, prj.el, note,
+      el('div', { style: 'display:flex;gap:8px;justify-content:flex-end' },
+        el('button', { class: 'b ghost', type: 'button', onclick: () => wrap.remove() }, 'Cancel'),
+        el('button', { class: 'b', type: 'button', onclick: async () => {
+          stat.textContent = 'Checking…';
+          try {
+            const u = api.i.value.trim();
+            const r = await fetch(u + (u.indexOf('?') > -1 ? '&' : '?') + 'health=1');
+            const j = await r.json();
+            stat.textContent = j.ok
+              ? 'Reachable. PHP ' + j.php + ', post_max_size ' + j.post_max_size + (j.https ? '' : ' — but it answered over plain HTTP, so publishing will refuse')
+              : 'It answered: ' + (j.error || 'something unexpected');
+          } catch (e) { stat.textContent = 'Could not reach it: ' + (e.message || e); }
+        } }, 'Test'),
+        el('button', { class: 'b primary', type: 'button', onclick: () => {
+          const next = { api: api.i.value.trim(), token: tok.i.value.trim(), project: prj.i.value.trim().toLowerCase() };
+          if (!next.api || !next.token || !next.project) { stat.textContent = 'All three are needed.'; return; }
+          pubSave(next); wrap.remove(); if (then) then(next);
+        } }, 'Save')),
+      stat);
+    wrap.append(box); document.body.append(wrap);
+    (c.api ? tok.i : api.i).focus();
+  }
+  $('#btnPublishCfg').onclick = () => pubAsk();
+
+  /* The same file set the ZIP would contain, as plain objects. */
+  function siteFiles() {
+    gcAssets();
+    const resolve = ref => (typeof ref === 'string' && ref.startsWith('a:'))
+      ? (P.assets[ref.slice(2)] ? 'assets/' + P.assets[ref.slice(2)].name : '') : (ref || '');
+    const XC = exportCfg(), H = hosting();
+    const out = [];
+    Object.entries(LPTemplate.renderSite(XC, resolve))
+      .forEach(([n, html]) => out.push({ path: n, data: html }));
+    if (H === 'cpanel') {
+      /* lead.php cannot be published through this endpoint — it refuses
+         anything the server would execute, on purpose. It goes up with the
+         ZIP once, like publish.php itself. */
+      out.__needsPhp = true;
+    }
+    Object.values(P.assets).forEach(a => out.push({ path: 'assets/' + a.name, data: a.data.split(',')[1], b64: true }));
+    const robots = 'User-agent: *\nAllow: /\n';
+    out.push({ path: 'robots.txt', data: robots });
+    return out;
+  }
+
+  const bytesOf = f => f.b64 ? Math.ceil(f.data.length * 0.75) : (f.data.length * 1.1);
+
+  async function publishLive() {
+    const c = pubCfg();
+    if (!c.api || !c.token || !c.project) return pubAsk(() => publishLive());
+    if (!validate()) return;
+
+    /* size the batches to what this particular host will accept */
+    let cap = 3 * 1024 * 1024;
+    try {
+      const r = await fetch(c.api + (c.api.indexOf('?') > -1 ? '&' : '?') + 'health=1');
+      const j = await r.json();
+      const m = String(j.post_max_size || '').match(/^(\d+)([MKG]?)/i);
+      if (m) {
+        const n = Number(m[1]) * ({ K: 1024, M: 1048576, G: 1073741824 }[(m[2] || '').toUpperCase()] || 1);
+        if (n > 0) cap = Math.max(512 * 1024, Math.floor(n * 0.55));
+      }
+    } catch (e) { /* the default stands */ }
+
+    const files = siteFiles();
+    const batches = [];
+    let cur = [], size = 0;
+    for (const f of files) {
+      const b = bytesOf(f);
+      if (b > cap) { toast(f.path + ' is larger than this host accepts in one request — shrink that image', 7000); continue; }
+      if (cur.length && (size + b > cap || cur.length >= 100)) { batches.push(cur); cur = []; size = 0; }
+      cur.push(f); size += b;
+    }
+    if (cur.length) batches.push(cur);
+    if (!batches.length) return toast('Nothing to publish');
+
+    let done = 0, skipped = [], url = null;
+    for (let i = 0; i < batches.length; i++) {
+      toast('Publishing ' + (i + 1) + ' of ' + batches.length + '…', 4000);
+      let j;
+      try {
+        /* text/plain keeps this a simple request, so no CORS preflight is
+           sent — some shared hosts drop OPTIONS entirely. PHP reads the body
+           the same way whatever the type says. */
+        const r = await fetch(c.api, { method: 'POST',
+          headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+          body: JSON.stringify({ token: c.token, project: c.project, files: batches[i] }) });
+        j = await r.json();
+      } catch (e) { toast('Publishing stopped: ' + (e.message || e), 8000); return; }
+      if (!j.ok) {
+        toast('The hosting refused it: ' + (j.error || 'unknown') +
+          (j.error === 'unauthorized' ? ' — check the token in Publish settings' : ''), 9000);
+        return;
+      }
+      done += (j.written || []).length;
+      skipped = skipped.concat(j.skipped || []);
+      url = j.url || url;
+    }
+    if (siteFiles().__needsPhp)
+      toast('Published, but api/lead.php is not sent this way — upload it once with Export ZIP', 8000);
+    const extra = skipped.length ? ' · ' + skipped.length + ' refused (' + skipped.slice(0, 2).map(s => s[0]).join(', ') + ')' : '';
+    toast(done + ' file' + (done === 1 ? '' : 's') + ' live' + extra, 8000);
+    if (url) window.open(url, '_blank', 'noopener');
+  }
+  $('#btnPublish').onclick = () => publishLive()
+    .catch(e => toast('Publishing failed: ' + (e.message || e), 7000));
+
   (async function boot() {
     await DB.open();
     const all = (await DB.all()).sort((a, b) => b.updated - a.updated);

@@ -30,11 +30,14 @@ structure, and deploys straight into Google Ads through the API.
 Build stamp is in `#buildTag` near the top of `index.html`. Bump it with every
 push, or the user cannot tell whether a hard refresh picked up the change.
 
-## The nine tabs
+## The nine tabs, in the order the work happens
 
-1. Tracking URLs · 2. Keyword wrapper · 3. Ad copy · 4. Assets ·
-5. Full structure · 6. Meta ads · 7. Deploy to Google Ads · 8. Creative studio ·
-9. Landing page
+1. Brief · 2. Landing page · 3. Creative studio · 4. Keyword wrapper ·
+5. Ad copy · 6. Assets · 7. Full structure · 8. Meta ads · 9. Deploy to Google Ads
+
+The landing page used to be last, which made it feel like an afterthought when
+it is actually the thing the campaign points at. The brief stays first because
+everything, the page included, is read out of it.
 
 ## Things learned the hard way — do not re-litigate
 
@@ -165,6 +168,38 @@ That one-long-run shape is also why `waFacts` judges each RERA candidate by the
 60 characters before it rather than by its line: a whole-line footer test reads
 an entire brochure page as a sign-off and throws the project's own number away
 with the agency's. The line-by-line pass stays as a fallback.
+
+## Publishing to the hosting
+
+`lp/php-connector/api/publish.php` is uploaded to the hosting once, with
+`publish-config.php` beside it holding a long random token. After that the
+builder's **Publish live** writes every file over HTTPS and the change is live
+in seconds — no FTP, no ZIP, no re-upload. Hostinger, cPanel, anything running
+PHP.
+
+It writes into a web root, so it is deliberately narrow and must stay that way:
+
+- the token is compared with `hash_equals`, and the endpoint does nothing at
+  all without it; HTTPS is required, so the token never travels in the clear
+- one project folder per site, its name a strict slug, and every path resolved
+  with `realpath` and checked to be inside it after the filesystem has had its
+  say about symlinks
+- an extension allowlist, with `php`, `phtml`, `cgi`, `sh`, `htaccess` and the
+  rest refused outright — **this endpoint can never write something the server
+  would execute**, which is also why `api/lead.php` still goes up with the ZIP
+- caps per file and per request, dotfiles refused, writes atomic (`.part` then
+  rename)
+
+**CORS is not optional here and it was the one real bug.** The builder is on
+`github.io` and the endpoint on his own domain, so without
+`Access-Control-Allow-Origin` the upload happens and the reply is thrown away —
+which looks exactly like a failure and is the worst of both. `allow_origin` in
+the config lists the origins allowed (or `*`), `OPTIONS` is answered 204, and
+the builder posts `text/plain` so no preflight is needed at all, because some
+shared hosts drop `OPTIONS`.
+
+The token lives in the builder's own localStorage and nowhere else: not in the
+exported site, not in this repository, which is public.
 
 ## Sorting a folder of photographs
 
