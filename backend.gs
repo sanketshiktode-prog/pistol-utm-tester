@@ -2273,12 +2273,26 @@ function metaRun(body, v, validateOnly) {
   if (validateOnly) {
     const probe = metaCall_(act + '/adsets', withOpts(as));
     /* The ONLY error to forgive here is the missing parent, because there
-       is no campaign id to give on a dry run. An earlier version forgave
-       anything mentioning "campaign", which quietly swallowed a real
-       rejection reading "...your account and campaign objective" — the
-       check went green and the deploy then failed with a campaign already
-       created. Match the parameter name, not the word. */
-    const parentOnly = /campaign_id/i.test(probe.error || '');
+       is no campaign id to give on a dry run.
+
+       This has been wrong in both directions. Forgiving anything that
+       mentioned "campaign" swallowed a real rejection ending "...your
+       account and campaign objective", so the check went green and the
+       deploy then failed with a campaign already created. Forgiving only
+       "campaign_id" then rejected Meta's other way of saying the same
+       thing — "Choose a campaign to create this ad set." — and called a
+       dry run a failure.
+
+       So it is a list of the exact ways Meta reports a missing parent,
+       and nothing else is forgiven. A phrasing not on this list shows up
+       as a failure, which is the safe direction to be wrong in. */
+    const PARENT_MISSING = [
+      /\bcampaign_id\b/i,
+      /choose a campaign to create this ad\s?set/i,
+      /missing\s+(?:required\s+)?(?:parameter\s+)?campaign\b/i
+    ];
+    const msg = probe.error || '';
+    const parentOnly = PARENT_MISSING.some(function (re) { return re.test(msg); });
     made.adset = probe.error ? null : '(validated)';
     if (probe.error && !parentOnly)
       return { error: 'Ad set: ' + probe.error, plan: plan, made: made };
