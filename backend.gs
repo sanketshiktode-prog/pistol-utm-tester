@@ -2136,6 +2136,11 @@ function metaPlan(body) {
     objective: 'OUTCOME_LEADS',
     status: 'PAUSED',
     buying_type: 'AUCTION',
+    /* The budget sits on the ad set, not the campaign. Meta refuses to
+       assume what that means and asks to be told in so many words: false
+       keeps each ad set on its own budget, which is the deck's setup.
+       Leaving it out is a 400, not a default. */
+    is_adset_budget_sharing_enabled: false,
     /* Housing and finance declarations differ by country and are the
        advertiser's call, so this is never guessed — it is passed through
        exactly as chosen on the tab. */
