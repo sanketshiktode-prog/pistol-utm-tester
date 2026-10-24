@@ -198,6 +198,21 @@ the config lists the origins allowed (or `*`), `OPTIONS` is answered 204, and
 the builder posts `text/plain` so no preflight is needed at all, because some
 shared hosts drop `OPTIONS`.
 
+**One hosting account, many sites.** The connection — endpoint, token, base URL
+— is shared by every project and lives in the builder's localStorage. What
+belongs to a project is `publish.folder` and `publish.url`, saved with the
+project itself, so switching project switches site and the toolbar chip says
+which one is current.
+
+`project` accepts a plain slug (`public_html/vyana`) or a short path of them
+(`domains/vyana.example.com/public_html`), because that is the shape some hosts
+give a subdomain. Dots and underscores are allowed inside a segment — that was
+a real bug, `public_html` was refused for its underscore — while `..`, absolute
+paths, uppercase and anything deeper than four segments are refused, and every
+path is still resolved with `realpath` and confined to the root afterwards.
+`action: "sites"` lists what is already published, so folders are chosen from
+what is there rather than guessed at.
+
 The token lives in the builder's own localStorage and nowhere else: not in the
 exported site, not in this repository, which is public.
 

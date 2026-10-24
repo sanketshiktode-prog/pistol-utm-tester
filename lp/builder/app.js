@@ -819,10 +819,35 @@
      nowhere else — not in the exported site, not in the repository, which is
      public. It is sent in the body over HTTPS, never in a URL. */
 
+  /* One hosting account, many sites. The connection — endpoint, token, the
+     site's base URL — is the same for every project; what changes per project
+     is which folder it publishes into and what it is reachable at. Each
+     builder project remembers its own, so switching project switches site. */
   const PUB_KEY = 'pp_publish_cfg';
   const pubCfg = () => { try { return JSON.parse(localStorage.getItem(PUB_KEY) || 'null') || {}; }
                          catch (e) { return {}; } };
   const pubSave = c => { try { localStorage.setItem(PUB_KEY, JSON.stringify(c)); } catch (e) {} };
+
+  /* the folder this project publishes into, remembered with the project */
+  const siteOf = () => getP(P.cfg, 'publish.folder') || '';
+  const siteUrlOf = () => getP(P.cfg, 'publish.url') || '';
+  function setSite(folder, url) {
+    setP(P.cfg, 'publish.folder', folder || '');
+    setP(P.cfg, 'publish.url', url || '');
+    touch(); drawSiteChip();
+  }
+  /* a sensible default: the project's own slug */
+  const suggestFolder = () => (getP(P.cfg, 'project.name') || '')
+    .toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 40);
+
+  function drawSiteChip() {
+    const el2 = $('#siteChip'); if (!el2) return;
+    const f = siteOf(), u = siteUrlOf();
+    if (!f) { el2.textContent = 'no site chosen'; el2.removeAttribute('href'); el2.style.opacity = .6; return; }
+    el2.textContent = f === 'root' ? 'the domain root' : f;
+    el2.style.opacity = 1;
+    if (u) { el2.href = u; el2.target = '_blank'; el2.rel = 'noopener'; } else el2.removeAttribute('href');
+  }
 
   function pubAsk(then) {
     const c = pubCfg();
@@ -835,13 +860,27 @@
     };
     const api = row('Publish endpoint', 'api', 'https://yourdomain.com/api/publish.php');
     const tok = row('Token', 'token', 'the long random string from publish-config.php', 'password');
-    const prj = row('Folder on the site', 'project', 'vyana — or "root" for the domain itself');
+    const prj = { i: el('input', { value: siteOf() || suggestFolder(),
+        placeholder: 'vyana  ·  or root  ·  or domains/vyana.example.com/public_html',
+        style: 'width:100%;border:1px solid var(--line);border-radius:8px;padding:9px;font-size:13px' }) };
+    const liveUrl = { i: el('input', { value: siteUrlOf(),
+        placeholder: 'https://vyana.example.com  (optional, for the Open link)',
+        style: 'width:100%;border:1px solid var(--line);border-radius:8px;padding:9px;font-size:13px' }) };
+    prj.el = el('label', { style: 'display:block;margin-bottom:12px' },
+      el('div', { style: 'font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;opacity:.65;margin-bottom:5px' },
+        'This project publishes into'), prj.i);
+    liveUrl.el = el('label', { style: 'display:block;margin-bottom:12px' },
+      el('div', { style: 'font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;opacity:.65;margin-bottom:5px' },
+        'Its address'), liveUrl.i);
+    const already = el('div', { style: 'font-size:12px;line-height:1.6;margin:2px 0 14px;opacity:.8' });
     const note = el('div', { style: 'font-size:12px;opacity:.7;line-height:1.55;margin:4px 0 14px' },
-      'The token is kept in this browser only. Upload api/publish.php and api/publish-config.php to your hosting once, put a long random string in the config, then open the endpoint with ?health=1 to check it.');
+      'The endpoint and token are the hosting account, shared by every project. The folder is this project only. The token is kept in this browser and nowhere else.');
     const stat = el('div', { style: 'font-size:12.5px;margin-top:10px;min-height:18px' });
     const box = el('div', { style: 'background:var(--surface,#fff);border-radius:12px;max-width:520px;width:100%;padding:22px;box-shadow:0 24px 70px rgba(0,0,0,.3)' },
       el('h3', { style: 'margin:0 0 14px;font-size:16px' }, 'Publish settings'),
-      api.el, tok.el, prj.el, note,
+      api.el, tok.el,
+      el('div', { style: 'height:1px;background:var(--line);margin:4px 0 14px' }),
+      prj.el, liveUrl.el, already, note,
       el('div', { style: 'display:flex;gap:8px;justify-content:flex-end' },
         el('button', { class: 'b ghost', type: 'button', onclick: () => wrap.remove() }, 'Cancel'),
         el('button', { class: 'b', type: 'button', onclick: async () => {
@@ -853,12 +892,29 @@
             stat.textContent = j.ok
               ? 'Reachable. PHP ' + j.php + ', post_max_size ' + j.post_max_size + (j.https ? '' : ' — but it answered over plain HTTP, so publishing will refuse')
               : 'It answered: ' + (j.error || 'something unexpected');
+            /* and what is already out there, so folders are not guessed at */
+            if (j.ok && tok.i.value.trim()) {
+              const r2 = await fetch(u, { method: 'POST',
+                headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+                body: JSON.stringify({ token: tok.i.value.trim(), action: 'sites' }) });
+              const s2 = await r2.json();
+              if (s2.ok) {
+                const rows = (s2.sites || []).filter(x => x.published)
+                  .map(x => x.folder + (x.published ? ' · ' + x.published.slice(0, 10) : ''));
+                already.innerHTML = rows.length
+                  ? '<b>Already on this hosting:</b><br>' + rows.join('<br>')
+                  : 'Nothing published on this hosting yet.';
+              }
+            }
           } catch (e) { stat.textContent = 'Could not reach it: ' + (e.message || e); }
         } }, 'Test'),
         el('button', { class: 'b primary', type: 'button', onclick: () => {
-          const next = { api: api.i.value.trim(), token: tok.i.value.trim(), project: prj.i.value.trim().toLowerCase() };
-          if (!next.api || !next.token || !next.project) { stat.textContent = 'All three are needed.'; return; }
-          pubSave(next); wrap.remove(); if (then) then(next);
+          const next = { api: api.i.value.trim(), token: tok.i.value.trim() };
+          const folder = prj.i.value.trim().toLowerCase();
+          if (!next.api || !next.token || !folder) { stat.textContent = 'Endpoint, token and folder are all needed.'; return; }
+          pubSave(next);
+          setSite(folder, liveUrl.i.value.trim());
+          wrap.remove(); if (then) then(next);
         } }, 'Save')),
       stat);
     wrap.append(box); document.body.append(wrap);
@@ -891,8 +947,9 @@
 
   async function publishLive() {
     const c = pubCfg();
-    if (!c.api || !c.token || !c.project) return pubAsk(() => publishLive());
+    if (!c.api || !c.token || !siteOf()) return pubAsk(() => publishLive());
     if (!validate()) return;
+    const folder = siteOf();
 
     /* size the batches to what this particular host will accept */
     let cap = 3 * 1024 * 1024;
@@ -928,7 +985,7 @@
            the same way whatever the type says. */
         const r = await fetch(c.api, { method: 'POST',
           headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-          body: JSON.stringify({ token: c.token, project: c.project, files: batches[i] }) });
+          body: JSON.stringify({ token: c.token, project: folder, files: batches[i] }) });
         j = await r.json();
       } catch (e) { toast('Publishing stopped: ' + (e.message || e), 8000); return; }
       if (!j.ok) {
@@ -943,8 +1000,10 @@
     if (siteFiles().__needsPhp)
       toast('Published, but api/lead.php is not sent this way — upload it once with Export ZIP', 8000);
     const extra = skipped.length ? ' · ' + skipped.length + ' refused (' + skipped.slice(0, 2).map(s => s[0]).join(', ') + ')' : '';
-    toast(done + ' file' + (done === 1 ? '' : 's') + ' live' + extra, 8000);
-    if (url) window.open(url, '_blank', 'noopener');
+    const open = siteUrlOf() || url;
+    toast(done + ' file' + (done === 1 ? '' : 's') + ' live at ' + (folder === 'root' ? 'the domain root' : folder) + extra, 8000);
+    setP(P.cfg, 'publish.at', new Date().toISOString()); touch(); drawSiteChip();
+    if (open) window.open(open, '_blank', 'noopener');
   }
   $('#btnPublish').onclick = () => publishLive()
     .catch(e => toast('Publishing failed: ' + (e.message || e), 7000));
@@ -958,7 +1017,7 @@
       P = applyBrief(handed);
       await DB.put(P);
       try { localStorage.setItem('lpb_last', P.id); } catch (e) {}
-      renderForm(); renderPreview(); refreshProjects(); fitFrame(); pushBack();
+      renderForm(); renderPreview(); refreshProjects(); fitFrame(); pushBack(); drawSiteChip();
       toast((handed.faq || []).length
         ? 'Loaded from Trigger with ' + handed.faq.length + ' keyword FAQs — add the images and export'
         : 'Loaded from Trigger — add the images and export', 5000);
@@ -967,7 +1026,7 @@
     let last = null; try { last = localStorage.getItem('lpb_last'); } catch (e) {}
     P = all.find(p => p.id === last) || all[0] || newProject();
     P.cfg = Object.assign(blank(), P.cfg);
-    renderForm(); renderPreview(); refreshProjects(); fitFrame(); pushBack();
+    renderForm(); renderPreview(); refreshProjects(); fitFrame(); pushBack(); drawSiteChip();
     if (!all.length) toast('Tip: click "Load Sample" to see a complete example', 4000);
   })();
 })();

@@ -111,9 +111,36 @@ if (!is_array($b)) out(['ok' => false, 'error' => 'invalid JSON'], 400);
 $given = (string)($b['token'] ?? '');
 if (!hash_equals($token, $given)) out(['ok' => false, 'error' => 'unauthorized'], 401);
 
+/* What is already published here. Folder names and when their index.html
+   last changed — nothing is read out of the files themselves. */
+if (($b['action'] ?? '') === 'sites') {
+  $sites = [];
+  foreach (@scandir($base) ?: [] as $d) {
+    if ($d === '.' || $d === '..' || $d[0] === '.') continue;
+    $full = $base . DIRECTORY_SEPARATOR . $d;
+    if (!is_dir($full)) continue;
+    if ($d === 'api' || $d === 'cgi-bin') continue;
+    $idx = $full . DIRECTORY_SEPARATOR . 'index.html';
+    $sites[] = ['folder' => $d,
+                'published' => is_file($idx) ? gmdate('c', filemtime($idx)) : null,
+                'files' => is_file($idx) ? count(@glob($full . '/*') ?: []) : 0];
+  }
+  $rootIdx = $base . DIRECTORY_SEPARATOR . 'index.html';
+  out(['ok' => true, 'root_published' => is_file($rootIdx) ? gmdate('c', filemtime($rootIdx)) : null,
+       'sites' => $sites, 'url' => rtrim((string)($CFG['site_url'] ?? ''), '/')]);
+}
+
 $project = (string)($b['project'] ?? '');
-if (!preg_match('/^[a-z0-9][a-z0-9-]{1,48}$/', $project))
-  out(['ok' => false, 'error' => 'project must be a slug: lowercase letters, numbers and hyphens'], 400);
+/* One site per folder. A plain slug covers public_html/vyana, and a short
+   path of slugs covers the shape some hosts give a subdomain,
+   domains/vyana.example.com/public_html. Dots are allowed inside a segment
+   because subdomain folders have them; '..' is refused below and every path
+   is still resolved and confined to the root afterwards. */
+if ($project !== 'root' &&
+    !preg_match('#^[a-z0-9][a-z0-9._-]{0,62}(/[a-z0-9][a-z0-9._-]{0,62}){0,3}$#', $project))
+  out(['ok' => false, 'error' => 'project must be a folder name, or a short path of them'], 400);
+if (strpos($project, '..') !== false)
+  out(['ok' => false, 'error' => 'refused: traversal in the project name'], 400);
 
 /* "." publishes to the web root itself, for a site on its own domain */
 $dirName = ($project === 'root' || ($b['at_root'] ?? false)) ? '' : $project;
