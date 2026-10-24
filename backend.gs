@@ -132,6 +132,14 @@ function handlePost(e) {
     return json(out);
   }
 
+  /* Meta. Same shape as the Google Ads route above: the token lives in a
+     Script Property, the browser never sees it, and nothing is created
+     unless the API says it was. */
+  if (String(body.action || '').indexOf('meta-') === 0) {
+    if (!v.ok) return json({ error: 'Sign in again \u2014 ' + v.reason });
+    return json(metaRoute(body, v) || { error: 'Unknown Meta action: ' + body.action });
+  }
+
   /* A brochure whose pages are pictures — most of them are — has no text to
      pull, so the pages themselves are read. */
   if (body.action === 'read-brochure') {
@@ -2004,4 +2012,298 @@ function aiReview(body, v) {
              'ai-review', shots.length + ' sizes', String(out.verdict || '')]);
   } catch (e) {}
   return out;
+}
+
+
+/* =====================================================================
+   Meta — campaigns, ad sets and ads through the Marketing API
+   =====================================================================
+
+   The account's own way of doing this is written down in
+   Meta_Campaign_Creation.pptx, and this follows it rather than inventing
+   a structure: Leads objective, budget on the AD SET, Instant Forms as the
+   conversion location, residents within a radius, 28-64, all genders,
+   broker lists excluded, Facebook and Instagram feeds, stories and reels,
+   Dynamic Creative off, Advantage+ campaign budget off.
+
+   Everything is created PAUSED. Nothing is reported as created unless the
+   API returned an id for it.
+
+   SET UP, ONCE
+     Business Settings -> Users -> System Users -> Add, give it access to
+     the ad account and the Page, then Generate token with ads_management
+     and pages_show_list. Put it in Script Properties as META_TOKEN.
+     Managing your OWN ad accounts needs only Standard Access; App Review
+     is for managing other people's.
+
+   The Graph API version moves. It is a Script Property, META_API_VERSION,
+   so it can be bumped without touching this file. A version Meta has
+   retired comes back as a clear error naming the property.
+   ===================================================================== */
+
+const META_DEFAULT_VERSION = 'v23.0';
+const META_AGE_MIN = 28, META_AGE_MAX = 64;
+
+function metaProp_(k, dflt) {
+  try { return PropertiesService.getScriptProperties().getProperty(k) || dflt || ''; }
+  catch (e) { return dflt || ''; }
+}
+const metaToken_   = () => metaProp_('META_TOKEN', '');
+const metaVersion_ = () => metaProp_('META_API_VERSION', META_DEFAULT_VERSION);
+
+function metaRoute(body, v) {
+  const a = String(body.action || '');
+  if (a === 'meta-check') return {
+    ok: true, ready: !!metaToken_(), version: metaVersion_()
+  };
+  if (!metaToken_()) return { error:
+    'No META_TOKEN in the Apps Script. Business Settings → System Users → ' +
+    'Generate token with ads_management, then Project Settings → Script ' +
+    'Properties → META_TOKEN. It is never put in the repository.' };
+  if (a === 'meta-validate') return metaRun(body, v, true);
+  if (a === 'meta-deploy')   return metaRun(body, v, false);
+  return null;
+}
+
+/* ---------------- the plan ---------------- */
+
+const metaClean_ = function (x, max) {
+  return (x == null ? '' : String(x)).replace(/[\u0000-\u001f\u007f]/g, ' ')
+    .replace(/\s{2,}/g, ' ').trim().slice(0, max || 200);
+};
+/* Meta counts money in the minor unit, so rupees arrive as paise. */
+function metaMinor_(n) {
+  const x = Math.round(Number(n) * 100);
+  return isFinite(x) && x > 0 ? String(x) : '';
+}
+
+/* Built as a plain object first, with no network anywhere near it, so the
+   whole structure can be checked before anything is sent. */
+function metaPlan(body) {
+  const b = body.brief || {}, s = body.settings || {};
+  const notes = [];
+
+  const proj = metaClean_(b.proj, 80);
+  if (!proj) return { error: 'No project name.' };
+  const place = metaClean_(b.micro || b.city, 60);
+
+  /* The deck names things Project_Location_LeadGen, and the ad set carries
+     the same with the objective spelled out. */
+  const campaignName = [proj, place, 'LeadGen'].filter(Boolean).join('_').replace(/\s+/g, '_');
+  const adsetName = [proj, place, 'Lead Generation'].filter(Boolean).join(' – ');
+
+  const radii = (body.targets || []).filter(function (t) {
+    return t && t.kind === 'radius' && isFinite(Number(t.lat)) && isFinite(Number(t.lng));
+  }).map(function (t) {
+    return {
+      latitude: Number(t.lat), longitude: Number(t.lng),
+      radius: Math.max(1, Math.min(80, Number(t.radius) || 7)),
+      distance_unit: 'kilometer'
+    };
+  });
+  if (!radii.length) notes.push('No radius target was set, so the ad set has no location — add one on the Deploy tab.');
+
+  const excl = (s.excludeAudiences || []).map(function (x) { return String(x).trim(); })
+    .filter(Boolean).map(function (id) { return { id: id }; });
+  if (!excl.length) notes.push('No broker list is being excluded. The deck says to exclude Broker Data and All Location Broker Data.');
+
+  const targeting = {
+    geo_locations: radii.length
+      ? { custom_locations: radii, location_types: ['home'] }   /* residents */
+      : undefined,
+    age_min: Number(s.ageMin) || META_AGE_MIN,
+    age_max: Number(s.ageMax) || META_AGE_MAX,
+    genders: [],                                   /* all, per the deck */
+    publisher_platforms: ['facebook', 'instagram'],
+    facebook_positions: ['feed', 'story', 'facebook_reels'],
+    instagram_positions: ['stream', 'story', 'reels'],
+    targeting_automation: { advantage_audience: s.advantageAudience ? 1 : 0 }
+  };
+  if (excl.length) targeting.excluded_custom_audiences = excl;
+  const interests = (s.interests || []).filter(Boolean)
+    .map(function (i) { return { id: String(i.id), name: metaClean_(i.name, 60) }; });
+  if (interests.length) targeting.flexible_spec = [{ interests: interests }];
+
+  const budget = metaMinor_(s.dailyBudget);
+  if (!budget) return { error: 'Set a daily budget.' };
+  const pageId = String(s.pageId || '').trim();
+  if (!pageId) return { error: 'Set the Facebook Page id.' };
+  const formId = String(s.formId || '').trim();
+  if (!formId) return { error: 'Set the Instant Form id — this is a lead form campaign.' };
+
+  const campaign = {
+    name: campaignName,
+    objective: 'OUTCOME_LEADS',
+    status: 'PAUSED',
+    buying_type: 'AUCTION',
+    /* Housing and finance declarations differ by country and are the
+       advertiser's call, so this is never guessed — it is passed through
+       exactly as chosen on the tab. */
+    special_ad_categories: (s.specialCategories || [])
+  };
+
+  const adset = {
+    name: adsetName,
+    status: 'PAUSED',
+    billing_event: 'IMPRESSIONS',
+    optimization_goal: 'LEAD_GENERATION',
+    destination_type: 'ON_AD',                     /* Instant Forms */
+    promoted_object: { page_id: pageId },
+    daily_budget: budget,
+    targeting: targeting,
+    is_dynamic_creative: false
+  };
+  if (s.startTime) adset.start_time = String(s.startTime);
+
+  /* One ad per creative image. The Creative studio already renders the
+     shapes Meta wants, so the square goes to feeds and the story to
+     stories and reels. */
+  const ads = (body.creatives || []).slice(0, 10).map(function (c, i) {
+    return {
+      name: metaClean_(c.name, 60) || ('Static ' + (i + 1)),
+      image: c.data || '',
+      primary: metaClean_(c.primary || (body.copy || {}).primary, 1000),
+      headline: metaClean_(c.headline || (body.copy || {}).headline, 40),
+      description: metaClean_(c.description || (body.copy || {}).description, 30),
+      cta: String(s.cta || 'LEARN_MORE').toUpperCase().replace(/[^A-Z_]/g, '')
+    };
+  });
+  if (!ads.length) notes.push('No creative was sent, so the campaign and ad set are made but no ad is.');
+  ads.forEach(function (a, i) {
+    if (!a.headline) notes.push('Ad ' + (i + 1) + ' has no headline.');
+    if (!a.primary)  notes.push('Ad ' + (i + 1) + ' has no primary text.');
+  });
+
+  return {
+    ok: true, campaign: campaign, adset: adset, ads: ads,
+    pageId: pageId, formId: formId, notes: notes,
+    accountId: String(s.accountId || '').replace(/^act_/, '')
+  };
+}
+
+/* ---------------- the calls ---------------- */
+
+function metaCall_(path, payload, method) {
+  const url = 'https://graph.facebook.com/' + metaVersion_() + '/' + path;
+  const form = { access_token: metaToken_() };
+  for (var k in payload) if (Object.prototype.hasOwnProperty.call(payload, k)) {
+    const v2 = payload[k];
+    form[k] = (v2 !== null && typeof v2 === 'object') ? JSON.stringify(v2) : String(v2);
+  }
+  var res;
+  try {
+    res = UrlFetchApp.fetch(url, {
+      method: method || 'post', payload: form, muteHttpExceptions: true
+    });
+  } catch (err) { return { error: 'Could not reach Meta: ' + err }; }
+
+  const code = res.getResponseCode(), text = res.getContentText();
+  var b = {};
+  try { b = JSON.parse(text); } catch (e) {
+    return { error: 'Meta returned something that is not JSON: ' + text.slice(0, 300) };
+  }
+  if (code !== 200 || b.error) {
+    const e = b.error || {};
+    var msg = e.error_user_msg || e.message || text.slice(0, 300);
+    if (/Unsupported.*version|Unknown version/i.test(msg))
+      msg += ' — bump META_API_VERSION in Script Properties.';
+    if (/(^|\W)190(\W|$)/.test(String(e.code)) || /token/i.test(msg))
+      msg += ' — the System User token may have been revoked.';
+    return { error: 'Meta ' + code + ': ' + msg, _code: e.code, _sub: e.error_subcode };
+  }
+  return b;
+}
+
+function metaRun(body, v, validateOnly) {
+  const plan = metaPlan(body);
+  if (plan.error) return plan;
+  if (!plan.accountId) return { error: 'Set the ad account id.' };
+  const act = 'act_' + plan.accountId;
+  const made = { campaign: null, adset: null, ads: [], images: [] };
+
+  const opts = validateOnly ? { execution_options: ['validate_only'] } : {};
+  const withOpts = function (o) {
+    const out = {};
+    for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) out[k] = o[k];
+    for (var k2 in opts) out[k2] = opts[k2];
+    return out;
+  };
+
+  /* 1. campaign */
+  const c = metaCall_(act + '/campaigns', withOpts(plan.campaign));
+  if (c.error) return { error: 'Campaign: ' + c.error, plan: plan, made: made };
+  made.campaign = validateOnly ? '(validated)' : c.id;
+
+  /* 2. ad set. On a validate pass there is no campaign id to point at, so
+     the ad set is checked on its own merits with the campaign left out —
+     Meta refuses an ad set with no parent, which would be a false failure. */
+  const as = {};
+  for (var k in plan.adset) as[k] = plan.adset[k];
+  if (!validateOnly) as.campaign_id = made.campaign;
+  if (validateOnly) {
+    const probe = metaCall_(act + '/adsets', withOpts(as));
+    made.adset = probe.error ? null : '(validated)';
+    if (probe.error && !/campaign/i.test(probe.error))
+      return { error: 'Ad set: ' + probe.error, plan: plan, made: made };
+  } else {
+    const r = metaCall_(act + '/adsets', as);
+    if (r.error) return { error: 'Ad set: ' + r.error, plan: plan, made: made };
+    made.adset = r.id;
+  }
+
+  if (validateOnly)
+    return { ok: true, validated: true, plan: plan, made: made, notes: plan.notes };
+
+  /* 3. the images, then a creative and an ad for each */
+  for (var i = 0; i < plan.ads.length; i++) {
+    const ad = plan.ads[i];
+    if (!ad.image) { plan.notes.push('Ad ' + (i + 1) + ' had no image and was skipped.'); continue; }
+
+    const up = metaCall_(act + '/adimages', { bytes: ad.image });
+    if (up.error) return { error: 'Image for ad ' + (i + 1) + ': ' + up.error, plan: plan, made: made };
+    /* the response is keyed by a name Meta chooses, so the hash is read out
+       of whatever single entry came back */
+    var hash = '';
+    const imgs = up.images || {};
+    for (var key in imgs) if (imgs[key] && imgs[key].hash) { hash = imgs[key].hash; break; }
+    if (!hash) return { error: 'Meta accepted the image for ad ' + (i + 1) + ' but returned no hash.', plan: plan, made: made };
+    made.images.push(hash);
+
+    const creative = {
+      name: ad.name,
+      object_story_spec: {
+        page_id: plan.pageId,
+        link_data: {
+          image_hash: hash,
+          link: 'https://www.facebook.com/' + plan.pageId,
+          message: ad.primary,
+          name: ad.headline,
+          description: ad.description,
+          call_to_action: {
+            type: ad.cta || 'LEARN_MORE',
+            value: { lead_gen_form_id: plan.formId }
+          }
+        }
+      },
+      degrees_of_freedom_spec: {
+        creative_features_spec: { standard_enhancements: { enroll_status: 'OPT_OUT' } }
+      }
+    };
+    const cr = metaCall_(act + '/adcreatives', creative);
+    if (cr.error) return { error: 'Creative for ad ' + (i + 1) + ': ' + cr.error, plan: plan, made: made };
+
+    const a2 = metaCall_(act + '/ads', {
+      name: ad.name, adset_id: made.adset, creative: { creative_id: cr.id }, status: 'PAUSED'
+    });
+    if (a2.error) return { error: 'Ad ' + (i + 1) + ': ' + a2.error, plan: plan, made: made };
+    made.ads.push({ id: a2.id, name: ad.name });
+  }
+
+  try {
+    if (v && v.ok && typeof write === 'function')
+      write([new Date(), v.email, v.name, typeof role === 'function' ? role(v.email) : '',
+             'meta-deploy', plan.campaign.name, made.ads.length + ' ads']);
+  } catch (e) {}
+
+  return { ok: true, made: made, plan: plan, notes: plan.notes };
 }

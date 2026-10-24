@@ -344,7 +344,7 @@ code{font-family:var(--mono);background:rgba(0,0,0,.05);padding:1px 4px;border-r
     <div class="subject">Google Ads</div>
     <div class="spacer"></div>
     <div class="badge-env" id="varCount">0 VARIANTS</div>
-    <span class="pill p-mute" id="buildTag" title="build">b-24oct-2</span>
+    <span class="pill p-mute" id="buildTag" title="build">b-24oct-3</span>
     <div id="userChip" class="hidden" style="display:flex;align-items:center;gap:9px">
       <div class="divider-v"></div>
       <span id="userName" style="font-size:12.5px;font-weight:500"></span>
@@ -1190,6 +1190,69 @@ Static Square</textarea>
     </div>
   </div>
 </div>
+
+  <div class="card">
+    <div class="card-hd"><h2>Deploy to Meta</h2><span class="hint" id="mdStat">not checked</span></div>
+    <div class="card-bd">
+      <div class="callout">Builds the campaign, the ad set and one ad per creative, straight into
+        Meta — Leads objective, budget on the ad set, Instant Forms, residents inside the radius,
+        28–64, all genders, broker lists excluded, feeds, stories and reels. Exactly the account's
+        own setup. <b>Everything is created paused.</b></div>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:14px">
+        <div class="f"><span class="f-lab">Ad account id</span>
+          <input id="mdAcct" placeholder="act_1234567890" spellcheck="false"></div>
+        <div class="f"><span class="f-lab">Facebook Page id</span>
+          <input id="mdPage" placeholder="the page the ads run from" spellcheck="false"></div>
+        <div class="f"><span class="f-lab">Instant Form id</span>
+          <input id="mdForm" placeholder="the lead form to open" spellcheck="false"></div>
+        <div class="f"><span class="f-lab">Daily budget <span class="pill p-mute">₹ per ad set</span></span>
+          <input id="mdBudget" value="450" inputmode="decimal" spellcheck="false"></div>
+        <div class="f"><span class="f-lab">Age</span>
+          <div class="ticket"><input id="mdAgeMin" value="28" inputmode="numeric">
+            <span class="dash">–</span><input id="mdAgeMax" value="64" inputmode="numeric"></div></div>
+        <div class="f"><span class="f-lab">Call to action</span>
+          <select id="mdCta">
+            <option value="LEARN_MORE">Learn more</option>
+            <option value="SEE_MORE">See details</option>
+            <option value="SIGN_UP">Sign up</option>
+            <option value="GET_QUOTE">Get quote</option>
+            <option value="BOOK_TRAVEL">Book now</option>
+          </select></div>
+      </div>
+
+      <div class="f" style="margin-top:12px"><span class="f-lab">Custom audiences to exclude
+        <span class="pill p-mute">one id per line</span></span>
+        <textarea id="mdExcl" rows="3" placeholder="Broker Data and All Location Broker Data"></textarea>
+        <span class="f-note">The deck says to exclude both broker lists. Leave empty only if brokers
+          are genuinely buyers for this project.</span></div>
+
+      <div class="f" style="margin-top:12px"><span class="f-lab">Special ad category</span>
+        <select id="mdSpecial">
+          <option value="">None</option>
+          <option value="HOUSING">Housing</option>
+          <option value="CREDIT">Credit</option>
+          <option value="EMPLOYMENT">Employment</option>
+          <option value="FINANCIAL_PRODUCTS_SERVICES">Financial products and services</option>
+        </select>
+        <span class="f-note">Meta asks you to declare this and the rules differ by country. It is
+          never guessed here — read the project's own content and choose. A residential ad is not
+          automatically a financial product.</span></div>
+
+      <label class="chk" style="margin-top:10px"><input type="checkbox" id="mdAdv"> Advantage+ audience</label>
+
+      <div class="btnrow" style="margin-top:14px">
+        <button class="btn" id="mdCheck">Check the token</button>
+        <button class="btn btn-navy" id="mdValidate">Validate against Meta</button>
+        <button class="btn btn-pri" id="mdDeploy">Deploy paused</button>
+      </div>
+      <div id="mdOut" style="margin-top:14px"></div>
+      <div class="f-note" style="margin-top:8px">Needs <code>META_TOKEN</code> in the Apps Script —
+        a System User token with <code>ads_management</code>. The creatives come from the Creative
+        studio and the copy from this tab, so render and generate before deploying.</div>
+    </div>
+  </div>
+
 </section>
 
 <section class="panel" id="p-api">
@@ -8710,6 +8773,154 @@ document.addEventListener("keydown",e=>{
 on("#crOut","click",e=>{
   const img=e.target.closest("img[data-k]");
   if(img)lbShow(+img.dataset.k);
+});
+
+/* ═══════════ deploying to Meta ══════════════════════════════════════════
+   The structure is not invented: it is the account's own, written down in
+   Meta_Campaign_Creation.pptx. Leads objective, budget on the ad set,
+   Instant Forms, residents inside the radius, 28-64, all genders, broker
+   lists excluded, feeds and stories and reels, Dynamic Creative off.
+
+   Everything is created paused, and nothing is reported as created unless
+   Meta returned an id for it. */
+
+const mdLine=(l,ic,h)=>`<div class="check c-${l}"><span class="ic">${ic}</span><span>${h}</span></div>`;
+
+/* The renders that belong in a Meta ad. The square carries the feeds and
+   the story carries stories and reels; the two wide Google sizes have no
+   placement here and are left out rather than squeezed in. */
+async function mdCreatives(){
+  /* A set keeps its renders in an object keyed by size, not a list, and the
+     two wide Google shapes have no Meta placement — so only the square, the
+     portrait and the story are taken, in that order. */
+  const want=["square","portrait","story"];
+  const out=[];
+  const push=async(name,b64)=>{
+    if(!b64||out.length>=10)return;
+    const small=await aiShrink("data:image/jpeg;base64,"+b64,1200);
+    out.push({name:String(name).slice(0,60),data:small||b64});
+  };
+  const sets=(typeof allSets==="function"?allSets():[])||[];
+  for(const st of sets){
+    const imgs=(st&&st.images)||{};
+    for(const nm of want) if(imgs[nm]&&imgs[nm].data)
+      await push(`${st.name?st.name+" ":""}${nm}`.trim(),imgs[nm].data);
+  }
+  if(out.length)return out;
+
+  /* nothing kept as a set yet — take the loose renders instead */
+  for(const o of (CR_OUT||[])){
+    const nm=String(o.name||"").toLowerCase();
+    if(!want.some(w=>nm.indexOf(w)>-1))continue;
+    const data=await aiShrink(o.url,1200);
+    if(data)out.push({name:o.name,data});
+    if(out.length>=10)break;
+  }
+  return out;
+}
+
+function mdBody(){
+  const b=brief();
+  const copy={
+    primary:(MT.p&&MT.p[0])||"", headline:(MT.h&&MT.h[0])||"", description:(MT.d&&MT.d[0])||""
+  };
+  return {
+    brief:{proj:b.proj,dev:b.dev,micro:b.micro,city:b.city},
+    targets:TARGETS,
+    copy,
+    settings:{
+      accountId:val("mdAcct"), pageId:val("mdPage"), formId:val("mdForm"),
+      dailyBudget:Number(val("mdBudget"))||0,
+      ageMin:Number(val("mdAgeMin"))||28, ageMax:Number(val("mdAgeMax"))||64,
+      cta:val("mdCta"),
+      advantageAudience:$("#mdAdv")&&$("#mdAdv").checked,
+      specialCategories:val("mdSpecial")?[val("mdSpecial")]:[],
+      excludeAudiences:val("mdExcl").split("\n").map(x=>x.trim()).filter(Boolean)
+    }
+  };
+}
+
+function mdShow(r,what){
+  const box=$("#mdOut");
+  if(r.error){
+    $("#mdStat").innerHTML=`<span class="pill p-bad">failed</span>`;
+    let h=mdLine("bad","✕",`<b>${esc(what)} stopped.</b> ${esc(r.error)}`);
+    const made=r.made||{};
+    if(made.campaign&&made.campaign!=="(validated)")
+      h+=mdLine("warn","!",`A campaign <b>was</b> created before it stopped: <code>${esc(made.campaign)}</code>. `+
+        `It is paused. Delete it in Ads Manager before trying again, or the next run makes a second one.`);
+    if(made.adset&&made.adset!=="(validated)")
+      h+=mdLine("warn","!",`So was an ad set: <code>${esc(made.adset)}</code>.`);
+    box.innerHTML=h; return;
+  }
+  const made=r.made||{}, notes=r.notes||[];
+  let h="";
+  if(r.validated){
+    $("#mdStat").innerHTML=`<span class="pill p-ok">validated</span>`;
+    h=mdLine("ok","✓","<b>Meta accepted the campaign and the ad set.</b> Nothing was created — "+
+      "this only checked that it would be.");
+  }else{
+    $("#mdStat").innerHTML=`<span class="pill p-ok">deployed</span>`;
+    h=mdLine("ok","✓",`<b>Created, paused.</b> Campaign <code>${esc(made.campaign||"")}</code>, `+
+      `ad set <code>${esc(made.adset||"")}</code>, ${(made.ads||[]).length} ad`+
+      ((made.ads||[]).length===1?"":"s")+".");
+    (made.ads||[]).forEach(a=>{ h+=mdLine("ok","✓",`${esc(a.name)} — <code>${esc(a.id)}</code>`); });
+    h+=mdLine("warn","!","Nothing is spending yet. Turn the campaign on in Ads Manager when the "+
+      "copy and the form have been read once more.");
+  }
+  const p=r.plan||{};
+  if(p.campaign)h+=`<div class="f-lab" style="margin-top:14px">What was sent</div>`+
+    `<div class="dpair"><span>Campaign</span><span>${esc(p.campaign.name)}</span></div>`+
+    `<div class="dpair"><span>Ad set</span><span>${esc(p.adset.name)}</span></div>`+
+    `<div class="dpair"><span>Daily budget</span><span>₹${esc(String(Number(p.adset.daily_budget)/100))}</span></div>`+
+    `<div class="dpair"><span>Radius</span><span>${
+      ((p.adset.targeting.geo_locations||{}).custom_locations||[]).map(c=>c.radius+" km").join(", ")||"—"}</span></div>`+
+    `<div class="dpair"><span>Age</span><span>${p.adset.targeting.age_min}–${p.adset.targeting.age_max}</span></div>`+
+    `<div class="dpair"><span>Excluded</span><span>${
+      (p.adset.targeting.excluded_custom_audiences||[]).length} custom audience(s)</span></div>`;
+  notes.forEach(n=>{ h+=mdLine("warn","!",esc(n)); });
+  box.innerHTML=h;
+}
+
+async function mdRun(action,what){
+  const box=$("#mdOut");
+  $("#mdStat").innerHTML=`<span class="pill p-mute">${esc(what)}…</span>`;
+  box.innerHTML=mdLine("warn","…",`${esc(what)}…`);
+  const body=mdBody();
+  if(action==="meta-deploy"){
+    box.innerHTML=mdLine("warn","…","Shrinking the creatives…");
+    body.creatives=await mdCreatives();
+    if(!body.creatives.length)
+      return mdShow({error:"No square or story render was found. Render in the Creative studio first."},what);
+  }
+  const r=await adsCall(action,body);
+  mdShow(r,what);
+}
+
+on("#mdCheck","click",async()=>{
+  const r=await adsCall("meta-check",{});
+  if(r.error)return mdShow(r,"The check");
+  $("#mdStat").innerHTML=`<span class="pill ${r.ready?"p-ok":"p-bad"}">${r.ready?"token present":"no token"}</span>`;
+  $("#mdOut").innerHTML=r.ready
+    ? mdLine("ok","✓",`A Meta token is on the server, talking to <code>${esc(r.version)}</code>.`)+
+      mdLine("warn","!","That it exists is all this checks. <b>Validate against Meta</b> is what proves it works.")
+    : mdLine("bad","✕","<b>No META_TOKEN on the server.</b> Business Settings → Users → System Users → "+
+      "add one, give it the ad account and the Page, Generate token with <code>ads_management</code>, "+
+      "then Apps Script → Project Settings → Script Properties → <code>META_TOKEN</code>.");
+});
+on("#mdValidate","click",()=>mdRun("meta-validate","Validating").catch(e=>mdShow({error:String(e&&e.message||e)},"Validating")));
+on("#mdDeploy","click",async()=>{
+  const b=mdBody();
+  if(!confirm(`Create the campaign, ad set and ads in ad account ${b.settings.accountId||"(not set)"}?\n\n`+
+    `Everything is created PAUSED, so nothing spends until you turn it on.`))return;
+  mdRun("meta-deploy","Deploying").catch(e=>mdShow({error:String(e&&e.message||e)},"Deploying"));
+});
+/* the ids are worth remembering between sessions; they are not secrets */
+["mdAcct","mdPage","mdForm","mdBudget","mdExcl","mdCta","mdSpecial"].forEach(id=>{
+  const el=$("#"+id); if(!el)return;
+  const k="pp_meta_"+id;
+  const saved=store.get(k,null); if(saved!==null&&saved!=="")el.value=saved;
+  el.addEventListener("change",()=>store.set(k,el.value));
 });
 
 /* ═══════════ FAQs built from the keywords ═══════════════════════════════

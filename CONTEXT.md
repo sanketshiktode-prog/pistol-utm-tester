@@ -297,6 +297,39 @@ Possession lives in two places now, because it belongs to the page rather than
 the campaign: `#lpPoss` on Trigger's Landing page tab, and `about.possession` in
 the builder. It travels both ways with everything else.
 
+## Meta
+
+The structure is not invented. It is the account's own, written down in
+`Meta_Campaign_Creation.pptx`, and `metaPlan()` follows it: **Leads** objective,
+budget on the **ad set** (not the campaign), **Instant Forms** as the conversion
+location, **residents** inside a radius (`location_types: ['home']`), 28–64, all
+genders, broker lists excluded, Facebook and Instagram feeds, stories and reels,
+Dynamic Creative off, Advantage+ campaign budget off.
+
+- `metaPlan()` is pure and touches no network, so the whole structure can be
+  checked before anything is sent.
+- **Money is sent in the minor unit**: ₹450 goes up as `45000`.
+- **Everything is created PAUSED**, and nothing is reported as created unless
+  Meta returned an id for it. When a run stops halfway, what *was* made is
+  reported with its id and the advice to delete it before retrying — a silent
+  partial deploy is how duplicate campaigns appear.
+- **Validate** uses `execution_options: ['validate_only']` and stops after the
+  campaign and ad set: no image is uploaded to check a plan. An ad set has no
+  parent on a validate pass, so a complaint mentioning the campaign is not
+  treated as a failure.
+- The ads are one per render. Only **square, portrait and story** are sent —
+  the two wide Google shapes have no Meta placement. A set keeps its renders in
+  an object keyed by size, not a list; reading it as a list was a real bug.
+- **Special ad categories are never guessed.** The rules differ by country and
+  the declaration is the advertiser's; the tab asks and passes through exactly
+  what was chosen.
+
+`META_TOKEN` is a System User token with `ads_management`, in Script
+Properties. Managing your own ad accounts needs only Standard Access; App
+Review is for managing other people's. `META_API_VERSION` is a property too,
+because the Graph version moves — a retired one comes back as an error naming
+the property to bump, the same lesson as the Gemini model names.
+
 ## The strategy codes
 
 `Op` (open, no segment) · `In`, `luxury`, `invest`, `avid` (library segments) ·
