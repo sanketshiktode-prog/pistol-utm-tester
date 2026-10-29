@@ -2364,6 +2364,11 @@ function aiReview(body, v) {
    retired comes back as a clear error naming the property.
    ===================================================================== */
 
+/* Which copy of this file the Apps Script is actually running. The tab
+   shows it beside its own build, because "the fix is pushed" and "the fix
+   is running" were indistinguishable from the screen for an hour. */
+const BACKEND_BUILD = 'b-29oct-11';
+
 const META_DEFAULT_VERSION = 'v23.0';
 const META_AGE_MIN = 28, META_AGE_MAX = 64;
 
@@ -2538,7 +2543,8 @@ function metaRoute(body, v) {
     return metaForms_(body.pageId);
   }
   if (a === 'meta-check') {
-    const base = { ok: true, ready: !!metaToken_(), version: metaVersion_() };
+    const base = { ok: true, ready: !!metaToken_(), version: metaVersion_(),
+                   backendBuild: BACKEND_BUILD };
     if (!base.ready) return base;
     try { base.look = metaLook_(body.settings); }
     catch (e) { base.look = { error: String(e) }; }

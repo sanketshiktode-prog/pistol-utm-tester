@@ -124,7 +124,12 @@ const ADS = {
 
 const BACKEND_REPO = 'sanketshiktode-prog/pistol-utm-tester';
 const BACKEND_FILE = 'backend.gs';
-const BACKEND_CACHE_SECONDS = 300;
+/* Five minutes meant every push was followed by "run clearBackendCache or
+   wait", and when that was forgotten the script answered with the previous
+   copy of the code — which looks exactly like the fix not working. A fetch
+   from raw.githubusercontent costs a fraction of a second and happens once
+   a minute at most, so the trap is not worth the saving. */
+const BACKEND_CACHE_SECONDS = 60;
 
 /* Apps Script caches at most 100 KB per entry and the backend is larger
    than that, so it is stored in pieces with a count beside them. A

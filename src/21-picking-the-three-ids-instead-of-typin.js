@@ -84,6 +84,20 @@ on("#mdCheck","click",async()=>{
      Suite shows the person logged in. A Page can read "Accepted" on the
      Lead Ad Terms page while the token cannot run lead ads on it. */
   let h=mdLine("ok","✓",`A Meta token is on the server, talking to <code>${esc(r.version)}</code>.`);
+
+  /* "The fix is pushed" and "the fix is running" were indistinguishable
+     from this screen: the Apps Script keeps a cached copy of the backend,
+     so a deploy could still be using the previous code and reporting the
+     bug that had just been fixed. */
+  const mine=(($("#buildTag")||{}).textContent||"").trim();
+  const theirs=(r.backendBuild||"").trim();
+  if(theirs&&mine&&theirs!==mine) h+=mdLine("warn","!",
+    `<b>The Apps Script is running an older copy of the backend.</b> `+
+    `This page is <code>${esc(mine)}</code>, the script has <code>${esc(theirs)}</code>. `+
+    `It refreshes itself within a minute — wait and press this again, or run `+
+    `<code>clearBackendCache</code> in the Apps Script to do it now.`);
+  else if(theirs) h+=mdLine("ok","✓",
+    `<span class="p-mute">Backend <code>${esc(theirs)}</code> — same as this page.</span>`);
   const L=r.look||{};
 
   if(L.account) h+= L.account.error
