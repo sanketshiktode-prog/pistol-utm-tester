@@ -262,6 +262,24 @@ html{scroll-behavior:smooth}
   background:var(--navy-wash);color:var(--navy);margin-left:7px}
 .hist-act.bad{background:var(--bad-wash);color:var(--bad)}
 .hist-act.meta{background:var(--orange-wash);color:#9A4200}
+/* location sets */
+.setbar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:4px 0 8px}
+.setbar-lab{font-size:11px;font-weight:600;letter-spacing:.07em;text-transform:uppercase;
+  color:var(--ink-soft)}
+.setchips{display:flex;gap:6px;flex-wrap:wrap}
+.setchip{border:1px solid var(--line);background:var(--surface);border-radius:999px;
+  padding:5px 13px;font:inherit;font-size:12.5px;cursor:pointer;color:var(--ink-soft)}
+.setchip:hover{border-color:#C3C8D0}
+.setchip[aria-pressed="true"]{background:var(--navy);border-color:var(--navy);color:#fff;font-weight:600}
+.setchip b{font-family:var(--mono);font-size:10px;margin-left:6px;opacity:.75;font-weight:400}
+.tgt-row .setname{flex:0 0 auto;font-family:var(--mono);font-size:10px;color:var(--ink-soft);
+  background:var(--paper);border:1px solid var(--line-soft);border-radius:7px;padding:2px 7px}
+/* campaign -> set */
+.cmpset{display:grid;grid-template-columns:1fr 210px;gap:10px;align-items:center;
+  padding:9px 0;border-bottom:1px solid var(--line-soft)}
+.cmpset:last-child{border-bottom:0}
+.cmpset .nm{font-size:13px;font-weight:500;min-width:0;overflow-wrap:anywhere}
+.cmpset .sub{font-size:11px;color:var(--ink-soft);font-family:var(--mono)}
 .picker-bar{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-top:14px;
   padding:12px 14px;background:var(--paper);border:1px solid var(--line);border-radius:12px}
 .linky{border:0;background:none;padding:0 0 0 8px;font:inherit;font-size:11px;
@@ -407,7 +425,7 @@ html{scroll-behavior:smooth}
     <div class="subject">Google Ads</div>
     <div class="spacer"></div>
     <div class="badge-env" id="varCount">0 VARIANTS</div>
-    <span class="pill p-mute" id="buildTag" title="build">b-29oct-2</span>
+    <span class="pill p-mute" id="buildTag" title="build">b-29oct-3</span>
     <div id="userChip" class="hidden" style="display:flex;align-items:center;gap:9px">
       <div class="divider-v"></div>
       <span id="userName" style="font-size:12.5px;font-weight:500"></span>
@@ -1388,6 +1406,17 @@ Static Square</textarea>
           it is a point and a distance. Everything here goes on the <b>campaign</b>, Search and
           Demand Gen alike.</div>
 
+        <!-- Sets. Google targets location on the campaign, so this is what
+             lets one project run Vadgaon in one campaign and Wakad in another. -->
+        <div class="setbar">
+          <span class="setbar-lab">Location set</span>
+          <div class="setchips" id="locChips"></div>
+          <button class="btn btn-sm" id="locAdd">+ New set</button>
+          <button class="btn btn-sm" id="locRename">Rename</button>
+          <button class="btn btn-sm" id="locDrop">Delete</button>
+        </div>
+        <div class="f-note" id="locHint" style="margin:-4px 0 10px"></div>
+
         <div class="locbar" role="tablist">
           <button class="locbar-b on" data-loc="city">City / locality</button>
           <button class="locbar-b" data-loc="pin">Pincodes</button>
@@ -1445,6 +1474,7 @@ Static Square</textarea>
           <button class="btn btn-sm" id="mapCentre">Centre on the project</button>
           <button class="btn btn-sm" id="tgtAll">Select all</button>
           <button class="btn btn-sm" id="tgtDelSel">Remove selected</button>
+          <select id="tgtMove" class="hdr-sel" title="Move the selected places to another set"></select>
           <button class="btn btn-sm" id="mapClear">Clear everything</button>
         </div>
         <div id="tgtList" style="margin-top:10px"></div>
@@ -2384,6 +2414,51 @@ let CH="search", VT={...VT_DEFAULTS}, VARIANTS=[], PICK=0;
    the deploy panel reads it while drawing and the map block runs later. */
 let TARGETS=store.get("pp_targets",[])||[];   /* {kind:'radius'|'pin',lat,lng,radius,units,label,id} */
 const saveTargets=()=>store.set("pp_targets",TARGETS);
+
+/* ═══════════ location sets ═══════════
+   Google Ads targets location on the CAMPAIGN, never the ad group. So a
+   project that wants Vadgaon in one campaign and Wakad in another needs
+   two campaigns with different criteria — and one global list of places,
+   which is what this was, cannot express that at all.
+
+   A set is a named group of places. Every target belongs to one; every
+   campaign points at one. A project that never opens this has a single
+   set holding everything, and deploys exactly as it did before. */
+const LOCSET_KEY="pp_locsets", LOCPICK_KEY="pp_locpick";
+let LOCSETS=store.get(LOCSET_KEY,null);
+if(!Array.isArray(LOCSETS)||!LOCSETS.length)
+  LOCSETS=[{id:"all",name:"All campaigns"}];
+const saveLocSets=()=>store.set(LOCSET_KEY,LOCSETS);
+let LOCSET_ON=LOCSETS[0].id;           /* the set being edited on the map */
+
+/* which campaign uses which set: {campaignName: setId} */
+let LOCPICK=store.get(LOCPICK_KEY,{})||{};
+const saveLocPick=()=>store.set(LOCPICK_KEY,LOCPICK);
+
+const locSet=id=>LOCSETS.find(s=>s.id===id)||LOCSETS[0];
+const locSetName=id=>(locSet(id)||{}).name||"";
+/* a target written before sets existed has no set and belongs to the first */
+const locOf=t=>(t&&t.set&&LOCSETS.some(s=>s.id===t.set))?t.set:LOCSETS[0].id;
+const locTargets=id=>TARGETS.filter(t=>locOf(t)===id);
+const locSetFor=campaign=>{
+  const id=LOCPICK[campaign];
+  return (id&&LOCSETS.some(s=>s.id===id))?id:LOCSETS[0].id;
+};
+function locNewId(){
+  let n=2, id;
+  do{ id="s"+(n++); }while(LOCSETS.some(s=>s.id===id));
+  return id;
+}
+/* What one set contributes to a campaign, in the shape the API wants. */
+function locCriteria(setId){
+  const mine=locTargets(setId);
+  return {
+    locationIds:mine.filter(t=>t.kind!=="radius"&&t.id).map(t=>String(t.id)),
+    proximity:mine.filter(t=>t.kind==="radius").map(t=>({
+      lat:t.lat,lng:t.lng,radius:t.radius,units:t.units||"KILOMETERS"})),
+    missing:mine.filter(t=>t.kind!=="radius"&&!t.id).length
+  };
+}
 let STRATS=store.get("pp_strats2",null);
 if(!STRATS){
   const legacy=store.get("pp_strats",null);
@@ -2757,6 +2832,11 @@ document.addEventListener("keydown",e=>{if(e.key==="Escape")$("#modal").classLis
 
 /* ═══ boot ═══ */
 fillStrategies(); fillUnits(); syncTicket();
+/* The set strip and the places list used to be painted only by the map's
+   own setup, so if Leaflet failed to load — a blocked CDN, a dead network —
+   the whole Locations card came up blank and looked broken rather than
+   simply mapless. They are drawn here, before and regardless of the map. */
+try{ drawLocSets(); drawTargets(); }catch(e){}
 
 /* ═══════════ tabs ═══════════ */
 /* Every panel carries the heading its tab used to be, so the page reads
@@ -6407,6 +6487,12 @@ function apPlan(){
     campaigns:PLAN.map(p=>({
       name:p.campaign,
       strategy:p.strat||"",
+      /* Google puts location on the campaign, so this is where it belongs.
+         With one set these are the same for every campaign and the backend
+         cannot tell the difference. */
+      locationIds:locCriteria(locSetFor(p.campaign)).locationIds,
+      proximity:locCriteria(locSetFor(p.campaign)).proximity,
+      locationSet:locSetName(locSetFor(p.campaign)),
       adgroups:p.groups.map((g,gi)=>({
         name:g.name, matchType:g.mt||"B",
         trackingTemplate:TPL[CH],
@@ -6485,6 +6571,15 @@ function dgCreativeSets(){
   const one=dgCreatives();
   return Object.keys(one).length?[{name:"Creative",images:one}]:[];
 }
+/* the campaign -> set dropdowns are redrawn constantly, so the handler
+   lives on the container rather than on each select */
+on("#apPlan","change",e=>{
+  const sel=e.target&&e.target.closest("select[data-cset]");
+  if(!sel)return;
+  LOCPICK[sel.dataset.cset]=sel.value; saveLocPick();
+  drawApPlan();
+});
+
 function drawApPlan(){
   const pl=apPlan();
   if(!pl){ $("#apPlan").innerHTML=`<div class="empty">Build the structure on tab 05 first.</div>`;
@@ -6495,7 +6590,8 @@ function drawApPlan(){
   const bizN=pl.assets.businessName?1:0;
   const extra=pl.settings.negKeywords.length+pl.settings.sharedSets.length+
     pl.settings.exAge.length+pl.settings.exGender.length+pl.settings.exIncome.length;
-  const ops=pl.campaigns.map(c=>2+pl.settings.locationIds.length+1+extra+
+  /* each campaign's own places, since that is what will be sent for it */
+  const ops=pl.campaigns.map(c=>2+(c.locationIds||[]).length+(c.proximity||[]).length+1+extra+
     c.adgroups.length*2+c.adgroups.reduce((b,g)=>b+g.keywords.length+(g.negExact||[]).length,0)+
     (pl.assets.callouts.length+pl.assets.sitelinks.length+pl.assets.snippets.length+imgN+bizN)*2);
   $("#apPlanStat").textContent=`${pl.campaigns.length} campaigns \u00b7 ${ags} ad groups`;
@@ -6507,9 +6603,28 @@ function drawApPlan(){
     if(g.headlines.length<minH||g.descriptions.length<minD)
       thin.push(`${g.name} \u2014 ${g.headlines.length} headlines, ${g.descriptions.length} descriptions`);
   }));
+  /* With more than one set, each campaign chooses its own places here —
+     which is the only level Google accepts them at. */
+  const manySets=LOCSETS.length>1;
   $("#apPlan").innerHTML=
-    pl.campaigns.map((c,i)=>`<div class="apg"><span style="font-family:var(--mono);font-size:12px">${esc(c.name)}</span>
-      <span class="pill p-mute">${c.adgroups.length} ad groups \u00b7 ${ops[i]} operations</span></div>`).join("")+
+    pl.campaigns.map((c,i)=>{
+      const crit=locCriteria(locSetFor(c.name));
+      const where=crit.locationIds.length||crit.proximity.length
+        ? `${crit.locationIds.length?`${crit.locationIds.length} place${crit.locationIds.length===1?"":"s"}`:""}${
+            crit.locationIds.length&&crit.proximity.length?" · ":""}${
+            crit.proximity.length?`${crit.proximity.length} radius`:""}`
+        : "nothing targeted";
+      return manySets
+        ? `<div class="cmpset">
+             <div><div class="nm">${esc(c.name)}</div>
+               <div class="sub">${c.adgroups.length} ad groups · ${ops[i]} operations · ${esc(where)}</div></div>
+             <select class="hdr-sel" data-cset="${esc(c.name)}" style="max-width:100%">${
+               LOCSETS.map(st=>`<option value="${esc(st.id)}"${
+                 st.id===locSetFor(c.name)?" selected":""}>${esc(st.name)}</option>`).join("")}</select>
+           </div>`
+        : `<div class="apg"><span style="font-family:var(--mono);font-size:12px">${esc(c.name)}</span>
+             <span class="pill p-mute">${c.adgroups.length} ad groups \u00b7 ${ops[i]} operations</span></div>`;
+    }).join("")+
     (dg?"":`<div class="apg"><span>Keywords</span><span class="pill p-mute">${kws}</span></div>`)+
     (dg?"":`<div class="apg"><span>Assets, on every campaign</span><span class="pill p-mute">${pl.assets.callouts.length} callouts \u00b7 ${pl.assets.sitelinks.length} sitelinks \u00b7 ${pl.assets.snippets.length} snippets${imgN?` \u00b7 ${imgN} image${imgN===1?"":"s"}`:""}${bizN?" \u00b7 business name":""}</span></div>`)+
     (dg?"":`<div class="apg"><span>Negatives</span><span class="pill p-mute">${pl.settings.negKeywords.length} typed \u00b7 ${pl.settings.sharedSets.length} list${pl.settings.sharedSets.length===1?"":"s"} \u00b7 ${pl.campaigns.reduce((a2,c)=>a2+c.adgroups.reduce((b2,g)=>b2+(g.negExact||[]).length,0),0)} exact-in-phrase</span></div>`)+
@@ -6541,10 +6656,22 @@ function drawApPlan(){
       <b>Logo set but no business name.</b> Google needs both before either shows.</span></div>`:""))+
     /* a radius is a location too — warning about "no location" while circles
        sit on the map was simply wrong */
-    (pl.settings.locationIds.length||(pl.settings.proximity||[]).length?"":
-      `<div class="check c-warn" style="margin-top:10px"><span class="ic">!</span><span>
-      <b>Nothing targeted.</b> Without a city, a pincode or a radius the campaign runs everywhere.
-      Set it under Locations on the left.</span></div>`)+
+    ((()=>{
+      /* a campaign with an empty set runs everywhere, which is the expensive
+         mistake this whole section exists to prevent */
+      const bare=pl.campaigns.filter(c=>{
+        const cr=locCriteria(locSetFor(c.name));
+        return !cr.locationIds.length&&!cr.proximity.length;
+      });
+      if(!bare.length)return "";
+      return `<div class="check c-warn" style="margin-top:10px"><span class="ic">!</span><span>
+        <b>${bare.length===pl.campaigns.length?"Nothing targeted."
+          :`${bare.length} campaign${bare.length===1?"":"s"} with no location.`}</b>
+        Without a city, a pincode or a radius ${bare.length===pl.campaigns.length?"the campaign runs":"they run"}
+        everywhere.${bare.length===pl.campaigns.length?"":` <span class="p-mute">${
+          esc(bare.map(c=>c.name).join(", "))}</span>`}
+        Set it under Locations on the left.</span></div>`;
+    })())+
     (pl.settings.noIdCount?`<div class="check c-warn" style="margin-top:10px"><span class="ic">!</span><span>
       <b>${pl.settings.noIdCount} location${pl.settings.noIdCount===1?"":"s"} without a criterion ID.</b>
       Those are not being targeted. Press <b>Look up the missing IDs again</b> under Locations.</span></div>`:"")+
@@ -6879,7 +7006,7 @@ on("#apGeoOut","click",async e=>{
   const b=e.target.closest("[data-geo]"); if(!b)return;
   const id=b.dataset.geo, nm=b.dataset.nm||id;
   if(TARGETS.some(t=>String(t.id)===String(id)))return toast("Already on the list");
-  TARGETS.push({kind:"geo",id:String(id),label:nm,lat:0,lng:0});
+  TARGETS.push({kind:"geo",id:String(id),label:nm,lat:0,lng:0,set:LOCSET_ON});
   saveTargets(); drawTargets(); drawApSettings(); drawApPlan();
   b.disabled=true; b.className="btn btn-sm"; b.textContent="already added";
   toast(`${nm} added`);
@@ -8915,13 +9042,87 @@ function mapInit(){
   setTimeout(()=>MAP.invalidateSize(),120);
   drawTargets();
 }
-function addTarget(t){ TARGETS.push(t); saveTargets(); drawTargets();
+/* whatever is added lands in the set the map is editing */
+function addTarget(t){ TARGETS.push(Object.assign({set:LOCSET_ON},t)); saveTargets(); drawTargets();
   try{ drawApSettings(); drawApPlan(); }catch(e){} }
 function removeTarget(i){ TARGETS.splice(i,1); saveTargets(); drawTargets(); }
 
 const TGT_KIND={ geo:["CITY","k-city"], pin:["PINCODE","k-pin"], radius:["RADIUS","k-rad"] };
+/* ═══ the set strip, and which set the map is editing ═══ */
+function drawLocSets(){
+  const box=$("#locChips");
+  if(box)box.innerHTML=LOCSETS.map(s=>{
+    const n=locTargets(s.id).length;
+    return `<button class="setchip" data-set="${esc(s.id)}"
+      aria-pressed="${s.id===LOCSET_ON}">${esc(s.name)}<b>${n}</b></button>`;
+  }).join("");
+
+  const mv=$("#tgtMove");
+  if(mv)mv.innerHTML=`<option value="">Move selected to…</option>`+
+    LOCSETS.filter(s=>s.id!==LOCSET_ON)
+      .map(s=>`<option value="${esc(s.id)}">${esc(s.name)}</option>`).join("");
+
+  const hint=$("#locHint");
+  if(hint)hint.textContent=LOCSETS.length===1
+    ? "One set, used by every campaign. Add another to give campaigns different places."
+    : `Places you add go into “${locSetName(LOCSET_ON)}”. Each campaign picks a set on the Deploy card.`;
+}
+$$("#locChips").forEach(()=>{});
+on("#locChips","click",e=>{
+  const b=e.target.closest(".setchip"); if(!b)return;
+  LOCSET_ON=b.dataset.set;
+  drawLocSets(); drawTargets(); drawApSettings(); drawApPlan();
+});
+on("#locAdd","click",()=>{
+  const name=(prompt("Name this set of places:","")||"").trim();
+  if(!name)return;
+  if(LOCSETS.some(s=>s.name.toLowerCase()===name.toLowerCase()))
+    return toast("There is already a set with that name");
+  const id=locNewId();
+  LOCSETS.push({id,name}); saveLocSets(); LOCSET_ON=id;
+  drawLocSets(); drawTargets(); drawApPlan();
+  toast(`“${name}” added — places you add now go into it`);
+});
+on("#locRename","click",()=>{
+  const cur=locSet(LOCSET_ON);
+  const name=(prompt("Rename this set:",cur.name)||"").trim();
+  if(!name||name===cur.name)return;
+  cur.name=name; saveLocSets(); drawLocSets(); drawApPlan();
+});
+on("#locDrop","click",()=>{
+  if(LOCSETS.length===1)return toast("There has to be one set");
+  const cur=locSet(LOCSET_ON);
+  const n=locTargets(cur.id).length;
+  const used=Object.keys(LOCPICK).filter(k=>LOCPICK[k]===cur.id);
+  if(!confirm(`Delete “${cur.name}”?`+
+    (n?`\n\n${n} place${n===1?"":"s"} in it will be deleted too.`:"")+
+    (used.length?`\n${used.length} campaign${used.length===1?"":"s"} using it will fall back to “${
+      LOCSETS.find(s=>s.id!==cur.id).name}”.`:"")))return;
+  TARGETS=TARGETS.filter(t=>locOf(t)!==cur.id);
+  LOCSETS=LOCSETS.filter(s=>s.id!==cur.id);
+  used.forEach(k=>{delete LOCPICK[k];});
+  LOCSET_ON=LOCSETS[0].id;
+  saveLocSets(); saveTargets(); saveLocPick();
+  drawLocSets(); drawTargets(); drawApSettings(); drawApPlan();
+  toast(`“${cur.name}” deleted`);
+});
+on("#tgtMove","change",()=>{
+  const to=$("#tgtMove").value; if(!to)return;
+  const moved=TARGETS.filter(t=>t.sel&&locOf(t)===LOCSET_ON);
+  if(!moved.length){ $("#tgtMove").value=""; return toast("Tick some places first"); }
+  moved.forEach(t=>{t.set=to;t.sel=false;});
+  saveTargets(); $("#tgtMove").value="";
+  drawLocSets(); drawTargets(); drawApSettings(); drawApPlan();
+  toast(`${moved.length} moved to “${locSetName(to)}”`);
+});
+
 function drawTargets(){
   const st=$("#mapStat");
+  /* The list shows the set being edited. Everything still lives in one
+     TARGETS array, so the row keeps its REAL index — the remove and radius
+     controls address that array, and renumbering them to the filtered view
+     would delete the wrong place. */
+  const many=LOCSETS.length>1;
   const n=k=>TARGETS.filter(t=>t.kind===k).length;
   const miss=TARGETS.filter(t=>t.kind!=="radius"&&!t.id).length;
   const bits=[];
@@ -8933,7 +9134,8 @@ function drawTargets(){
         miss?` \u00b7 ${miss} without an ID`:""}</span>`
     : `<span class="pill p-mute">nothing targeted yet</span>`;
   const box=$("#tgtList");
-  if(box)box.innerHTML=TARGETS.length?TARGETS.map((t,i)=>{
+  const shown=TARGETS.map((t,i)=>({t,i})).filter(x=>!many||locOf(x.t)===LOCSET_ON);
+  if(box)box.innerHTML=shown.length?shown.map(({t,i})=>{
     const K=TGT_KIND[t.kind]||TGT_KIND.pin;
     return `<div class="tgt-row">
       <input type="checkbox" data-sel="${i}"${t.sel?" checked":""}>
@@ -8944,9 +9146,13 @@ function drawTargets(){
         ? `<input class="rad" type="number" min="1" max="80" value="${t.radius}" data-r="${i}">
            <span class="cid">${t.units==="MILES"?"mi":"km"}</span>`
         : `<span class="cid${t.id?"":" miss"}">${t.id?"ID "+esc(t.id):"no ID \u2014 not targetable"}</span>`}
+      ${many?`<span class="setname">${esc(locSetName(locOf(t)))}</span>`:""}
       <button class="x" data-x="${i}" title="Remove">\u2715</button>
     </div>`;}).join("")
-    :`<div class="empty">Nothing targeted. Search a city, paste pincodes, or click the map.</div>`;
+    :`<div class="empty">${many
+        ? `Nothing in \u201c${esc(locSetName(LOCSET_ON))}\u201d yet. Search a city, paste pincodes, or click the map.`
+        : "Nothing targeted. Search a city, paste pincodes, or click the map."}</div>`;
+  drawLocSets();
   if(!MAP||!MAP_LAYER)return;
   MAP_LAYER.clearLayers();
   const pts=[];
@@ -9066,7 +9272,7 @@ on("#pinAdd","click",async()=>{
   for(const pin of todo){
     if(st)st.innerHTML=`<span class="pill p-mute">locating ${pin}\u2026 ${done}/${todo.length}</span>`;
     const g=await geocodePin(pin,($("#acCity")&&$("#acCity").value)?"India":"India");
-    if(g){ TARGETS.push({kind:"pin",pin,lat:g.lat,lng:g.lng,
+    if(g){ TARGETS.push({kind:"pin",pin,lat:g.lat,lng:g.lng,set:LOCSET_ON,
       label:`${pin} \u2014 ${String(g.name).split(",").slice(0,2).join(",")}`,id:""}); done++; }
     else missed.push(pin);
     await new Promise(r=>setTimeout(r,1100));   /* Nominatim asks for one a second */

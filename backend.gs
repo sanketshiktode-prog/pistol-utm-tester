@@ -1179,15 +1179,25 @@ function buildOps(cid, plan, c) {
   applyBidding(camp, S);
   ops.push({ campaignOperation: { create: camp } });
 
-  /* locations, then language */
-  (S.locationIds || []).forEach(function (id) {
+  /* Locations, then language.
+
+     Location targeting in Google Ads lives on the campaign, not the ad
+     group, so a project that wants Vadgaon in one campaign and Wakad in
+     another needs two campaigns with different criteria — which is what
+     per-campaign locations are. A campaign that names its own set uses it;
+     one that does not falls back to the settings, so an existing plan that
+     knows nothing about sets deploys exactly as it did before. */
+  const campLocs = (c.locationIds && c.locationIds.length) ? c.locationIds : (S.locationIds || []);
+  const campProx = (c.proximity   && c.proximity.length)   ? c.proximity   : (S.proximity   || []);
+
+  campLocs.forEach(function (id) {
     if (!digits(id)) return;
     ops.push({ campaignCriterionOperation: { create: {
       campaign: campRn,
       location: { geoTargetConstant: 'geoTargetConstants/' + digits(id) }
     }}});
   });
-  (S.proximity || []).forEach(function (pr) {
+  campProx.forEach(function (pr) {
     if (!pr || !pr.lat || !pr.lng) return;
     ops.push({ campaignCriterionOperation: { create: {
       campaign: campRn,
