@@ -142,12 +142,28 @@ function audSummary(a){
   if(a.advantage==="on")bits.push("Advantage+");
   return bits.join(" · ")+" — anything not set here comes from the fields above";
 }
+/* An audience is OFF when a.off is set, so everything saved before this
+   existed stays on, which is what those projects already did. */
+const audOn=a=>!a.off;
+const audPicked=()=>AUDS.filter(audOn);
+
+/* the summary appears twice — open underneath, collapsed on the row */
+function audRetitle(card,a){
+  if(!card||!a)return;
+  const full=audSummary(a);
+  const sum=card.querySelector(".mdaud-sum"); if(sum)sum.textContent=full;
+  const one=card.querySelector(".mdaud-oneline"); if(one)one.textContent=full.split(" — ")[0];
+}
 function drawAuds(){
   const box=$("#mdAudList"); if(!box)return;
   box.innerHTML=AUDS.map((a,i)=>`
-    <div class="mdaud" data-ai="${i}">
+    <div class="mdaud${a.open?" open":""}${audOn(a)?"":" off"}" data-ai="${i}">
       <div class="mdaud-hd">
+        <input type="checkbox" class="tick" data-ac="${i}"${audOn(a)?" checked":""}
+          title="Build an ad set for this audience">
         <input class="nm" data-af="name" value="${esc(a.name||"")}" placeholder="Name this audience">
+        <span class="mdaud-oneline">${esc(audSummary(a).split(" — ")[0])}</span>
+        <button class="ed" data-ae="${i}" title="Edit this audience">${a.open?"Done":"Edit"}</button>
         <button class="x" data-ax="${i}" title="Remove">✕</button>
       </div>
       <div class="mdaud-g">
@@ -187,11 +203,23 @@ function drawAuds(){
       <div class="mdaud-sum">${esc(audSummary(a))}</div>
     </div>`).join("");
 
-  const note=$("#mdAudNote");
-  if(note)note.textContent=AUDS.length
-    ? `${AUDS.length} ad set${AUDS.length===1?"":"s"} under one campaign, each with the same ads.`
-    : "None yet — one ad set is built from the fields above. Add audiences to split it.";
+  const note=$("#mdAudNote"), n=audPicked().length;
+  if(note)note.textContent=!AUDS.length
+    ? "None yet — one ad set is built from the fields above. Add audiences to split it."
+    : n
+      ? `${n} of ${AUDS.length} ticked — ${n} ad set${n===1?"":"s"} under one campaign, each with the same ads.`
+      : `${AUDS.length} here, none ticked — one ad set is built from the fields above instead.`;
+  const pick=$("#mdAudPick");
+  if(pick)pick.textContent=AUDS.length?(n===AUDS.length?"untick all":"tick all"):"";
 }
+/* tick or untick every one of them — the whole point of loading thirteen
+   is to run three of them this week */
+on("#mdAudPick","click",()=>{
+  if(!AUDS.length)return;
+  const all=audPicked().length===AUDS.length;
+  AUDS.forEach(a=>{ a.off=all; });
+  saveAuds(); drawAuds();
+});
 on("#mdAudAdd","click",()=>{
   AUDS.push({id:audNewId(),name:""}); saveAuds(); drawAuds();
   const last=$("#mdAudList").lastElementChild;
@@ -203,19 +231,22 @@ on("#mdAudList","input",e=>{
   if(!AUDS[i])return;
   AUDS[i][f.dataset.af]=f.value;
   saveAuds();
-  const sum=f.closest(".mdaud").querySelector(".mdaud-sum");
-  if(sum)sum.textContent=audSummary(AUDS[i]);   /* redrawing would lose the caret */
+  audRetitle(f.closest(".mdaud"),AUDS[i]);     /* redrawing would lose the caret */
 });
 on("#mdAudList","change",e=>{
   const f=e.target&&e.target.closest("select[data-af]"); if(!f)return;
   const i=+f.closest(".mdaud").dataset.ai;
   if(!AUDS[i])return;
   AUDS[i][f.dataset.af]=f.value; saveAuds();
-  const sum=f.closest(".mdaud").querySelector(".mdaud-sum");
-  if(sum)sum.textContent=audSummary(AUDS[i]);
+  audRetitle(f.closest(".mdaud"),AUDS[i]);
 });
 on("#mdAudList","click",e=>{
-  const x=e.target&&e.target.closest("[data-ax]"); if(!x)return;
+  const t=e.target;
+  const tick=t&&t.closest("[data-ac]");
+  if(tick){ const i=+tick.dataset.ac; if(AUDS[i]){ AUDS[i].off=!tick.checked; saveAuds(); drawAuds(); } return; }
+  const ed=t&&t.closest("[data-ae]");
+  if(ed){ const i=+ed.dataset.ae; if(AUDS[i]){ AUDS[i].open=!AUDS[i].open; saveAuds(); drawAuds(); } return; }
+  const x=t&&t.closest("[data-ax]"); if(!x)return;
   const i=+x.dataset.ax;
   const nm=(AUDS[i]&&AUDS[i].name)||"this audience";
   if(!confirm(`Remove “${nm}”? Its ad set will not be built.`))return;
@@ -224,7 +255,7 @@ on("#mdAudList","click",e=>{
 
 /* what the backend wants: only the fields this audience actually sets */
 function audPayload(){
-  return AUDS.filter(a=>a.name&&a.name.trim()).map(a=>{
+  return AUDS.filter(a=>audOn(a)&&a.name&&a.name.trim()).map(a=>{
     const o={name:a.name.trim()};
     const ints=audIds(a.interests);
     if(ints.length)o.interests=ints.map(id=>({id,name:""}));

@@ -2367,7 +2367,7 @@ function aiReview(body, v) {
 /* Which copy of this file the Apps Script is actually running. The tab
    shows it beside its own build, because "the fix is pushed" and "the fix
    is running" were indistinguishable from the screen for an hour. */
-const BACKEND_BUILD = 'b-29oct-12';
+const BACKEND_BUILD = 'b-29oct-13';
 
 const META_DEFAULT_VERSION = 'v23.0';
 const META_AGE_MIN = 28, META_AGE_MAX = 64;
@@ -2957,6 +2957,21 @@ function metaCreativeMulti_(plan, ad, hashes) {
   /* one shape only, or none that mapped: the plain single-image creative
      does the job and is far less to get wrong */
   if (images.length < 2) return null;
+
+  /* Meta: "The language asset feed must include a default rule in the asset
+     customisation rules." Every rule above names placements, so a placement
+     Meta adds later — or one it decides to deliver on anyway — matches no
+     rule and the whole feed is refused. The last rule is the catch-all: it
+     names no placement, takes the feed shape, and is flagged the default. */
+  rules.push({
+    customization_spec: { age_min: 18, age_max: 65 },
+    is_default: true,
+    image_label: { name: META_PLACEMENTS[0].label },
+    body_label: { name: 'body' },
+    title_label: { name: 'title' },
+    description_label: { name: 'desc' },
+    link_url_label: { name: 'url' }
+  });
 
   return {
     name: ad.name,

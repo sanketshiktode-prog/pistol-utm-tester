@@ -269,13 +269,30 @@ html{scroll-behavior:smooth}
 .cmpset .nm{font-size:13px;font-weight:500;min-width:0;overflow-wrap:anywhere}
 .cmpset .sub{font-size:11px;color:var(--ink-soft);font-family:var(--mono)}
 /* audiences, one ad set each */
-.mdaud{border:1px solid var(--line);border-radius:12px;padding:12px 14px;margin-bottom:10px;
+/* Thirteen of these open at once was a page of identical boxes with no way
+   to say which three to run. A closed one is a single row: tick, name, what
+   it is in one line. Open is the same card as before. */
+.mdaud{border:1px solid var(--line);border-radius:12px;padding:7px 10px;margin-bottom:7px;
   background:var(--surface)}
-.mdaud-hd{display:flex;align-items:center;gap:8px;margin-bottom:9px}
-.mdaud-hd input.nm{flex:1 1 auto;min-width:0;border:1px solid var(--line);border-radius:9px;
-  font:inherit;font-family:var(--disp);font-weight:600;font-size:13px;padding:6px 10px}
+.mdaud.open{padding:12px 14px;margin-bottom:10px}
+.mdaud:not(.open) .mdaud-g,.mdaud:not(.open) .mdaud-sum{display:none}
+.mdaud.off{opacity:.55}
+.mdaud-hd{display:flex;align-items:center;gap:8px}
+.mdaud.open .mdaud-hd{margin-bottom:9px}
+.mdaud-hd input.tick{flex:0 0 auto;width:15px;height:15px;accent-color:var(--accent);cursor:pointer}
+.mdaud-hd input.nm{flex:0 1 auto;width:188px;min-width:0;border:1px solid transparent;border-radius:9px;
+  font:inherit;font-family:var(--disp);font-weight:600;font-size:13px;padding:5px 8px;background:transparent}
+.mdaud.open .mdaud-hd input.nm{flex:1 1 auto;width:auto;border-color:var(--line);background:var(--surface)}
+.mdaud-hd input.nm:hover{border-color:var(--line)}
+.mdaud-oneline{flex:1 1 auto;min-width:0;font-family:var(--mono);font-size:10.5px;
+  color:var(--ink-soft);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.mdaud.open .mdaud-oneline{display:none}
+.mdaud-hd .ed{border:1px solid var(--line);background:var(--surface);border-radius:9px;
+  cursor:pointer;height:26px;padding:0 10px;flex:0 0 auto;color:var(--ink-soft);
+  font:inherit;font-size:11px}
+.mdaud-hd .ed:hover{border-color:var(--accent);color:var(--accent)}
 .mdaud-hd .x{border:1px solid var(--line);background:var(--surface);border-radius:9px;
-  cursor:pointer;width:28px;height:28px;flex:0 0 auto;color:var(--ink-soft)}
+  cursor:pointer;width:26px;height:26px;flex:0 0 auto;color:var(--ink-soft)}
 .mdaud-hd .x:hover{border-color:var(--bad);color:var(--bad)}
 .mdaud-g{display:grid;grid-template-columns:repeat(auto-fit,minmax(148px,1fr));gap:9px}
 .mdaud-g label{display:block;min-width:0}

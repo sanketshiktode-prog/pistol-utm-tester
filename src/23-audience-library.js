@@ -55,7 +55,7 @@ function audLoadLibrary(){
   });
   saveAuds(); drawAuds();
   toast(added
-    ? `${added} audience${added===1?"":"s"} added \u2014 ${added} ad set${added===1?"":"s"}, one each`
+    ? `${added} audience${added===1?"":"s"} added \u2014 untick the ones this campaign does not want`
     : "They are all here already");
 }
 on("#mdAudLoad","click",audLoadLibrary);
