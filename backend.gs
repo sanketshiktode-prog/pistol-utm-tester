@@ -2365,23 +2365,49 @@ function metaPlan(body) {
     .filter(Boolean).map(function (id) { return { id: id }; });
   if (!excl.length) notes.push('No broker list is being excluded. The deck says to exclude Broker Data and All Location Broker Data.');
 
-  const targeting = {
-    geo_locations: radii.length
-      ? { custom_locations: radii, location_types: ['home'] }   /* residents */
-      : undefined,
-    age_min: Number(s.ageMin) || META_AGE_MIN,
-    age_max: Number(s.ageMax) || META_AGE_MAX,
-    /* all genders, per the deck. That is the ABSENCE of the field — an
-       empty genders array is not "everyone", it is a list naming nobody. */
-    publisher_platforms: ['facebook', 'instagram'],
-    facebook_positions: ['feed', 'story', 'facebook_reels'],
-    instagram_positions: ['stream', 'story', 'reels'],
-    targeting_automation: { advantage_audience: s.advantageAudience ? 1 : 0 }
-  };
-  if (excl.length) targeting.excluded_custom_audiences = excl;
-  const interests = (s.interests || []).filter(Boolean)
-    .map(function (i) { return { id: String(i.id), name: metaClean_(i.name, 60) }; });
-  if (interests.length) targeting.flexible_spec = [{ interests: interests }];
+  /* One audience, built from the tab's own settings overlaid with whatever
+     this particular one names. An audience that says nothing is the tab's
+     settings exactly, which is how a project with no audiences at all still
+     produces the single ad set it always did. */
+  function buildTargeting(a) {
+    a = a || {};
+    const t = {
+      geo_locations: radii.length
+        ? { custom_locations: radii, location_types: ['home'] }   /* residents */
+        : undefined,
+      age_min: Number(a.ageMin) || Number(s.ageMin) || META_AGE_MIN,
+      age_max: Number(a.ageMax) || Number(s.ageMax) || META_AGE_MAX,
+      /* all genders, per the deck. That is the ABSENCE of the field — an
+         empty genders array is not "everyone", it is a list naming nobody. */
+      publisher_platforms: ['facebook', 'instagram'],
+      facebook_positions: ['feed', 'story', 'facebook_reels'],
+      instagram_positions: ['stream', 'story', 'reels'],
+      targeting_automation: {
+        advantage_audience: (a.advantageAudience !== undefined
+          ? a.advantageAudience : s.advantageAudience) ? 1 : 0 }
+    };
+    /* 1 is male and 2 is female to Meta; both, or neither, is the field
+       left out rather than a list naming everyone */
+    const g = (a.genders || []).map(Number).filter(function (x) { return x === 1 || x === 2; });
+    if (g.length === 1) t.genders = g;
+
+    const ex = (a.exclude && a.exclude.length ? a.exclude : (s.excludeAudiences || []))
+      .map(function (x) { return String(x).trim(); }).filter(Boolean)
+      .map(function (id) { return { id: id }; });
+    if (ex.length) t.excluded_custom_audiences = ex;
+
+    const inc = (a.include || []).map(function (x) { return String(x).trim(); })
+      .filter(Boolean).map(function (id) { return { id: id }; });
+    if (inc.length) t.custom_audiences = inc;
+
+    const ints = ((a.interests && a.interests.length) ? a.interests : (s.interests || []))
+      .filter(Boolean)
+      .map(function (i) { return { id: String(i.id), name: metaClean_(i.name, 60) }; });
+    if (ints.length) t.flexible_spec = [{ interests: ints }];
+    return t;
+  }
+
+  const targeting = buildTargeting(null);
 
   const budget = metaMinor_(s.dailyBudget);
   if (!budget) return { error: 'Set a daily budget.' };
@@ -2406,23 +2432,37 @@ function metaPlan(body) {
     special_ad_categories: (s.specialCategories || [])
   };
 
-  const adset = {
-    name: adsetName,
-    status: 'PAUSED',
-    billing_event: 'IMPRESSIONS',
-    optimization_goal: 'LEAD_GENERATION',
-    destination_type: 'ON_AD',                     /* Instant Forms */
-    promoted_object: { page_id: pageId },
-    daily_budget: budget,
-    /* The budget is here, so the bid strategy has to be here too. Without
-       it Meta falls through to asking for a bid cap or a ROAS floor and
-       rejects the ad set. Highest volume for the money is the deck's
-       setup — no cap, no target cost. */
-    bid_strategy: 'LOWEST_COST_WITHOUT_CAP',
-    targeting: targeting,
-    is_dynamic_creative: false
-  };
-  if (s.startTime) adset.start_time = String(s.startTime);
+  /* One ad set per audience. An audience is what Meta splits on and what
+     a report is read by, so two of them in one ad set is one number where
+     two were wanted. The budget is per ad set, so an audience may carry
+     its own; the tab's figure is what the rest use. */
+  const audiences = (s.audiences || []).filter(function (a) { return a && a.name; });
+  const specs = audiences.length ? audiences : [null];
+
+  const adsets = specs.map(function (a, i) {
+    const nm = a ? metaClean_(a.name, 60) : '';
+    const one = {
+      name: nm ? (adsetName + ' \u2013 ' + nm) : adsetName,
+      status: 'PAUSED',
+      billing_event: 'IMPRESSIONS',
+      optimization_goal: 'LEAD_GENERATION',
+      destination_type: 'ON_AD',                     /* Instant Forms */
+      promoted_object: { page_id: pageId },
+      daily_budget: (a && metaMinor_(a.dailyBudget)) || budget,
+      /* The budget is here, so the bid strategy has to be here too. Without
+         it Meta falls through to asking for a bid cap or a ROAS floor and
+         rejects the ad set. Highest volume for the money is the deck's
+         setup — no cap, no target cost. */
+      bid_strategy: 'LOWEST_COST_WITHOUT_CAP',
+      targeting: buildTargeting(a),
+      is_dynamic_creative: false
+    };
+    if (s.startTime) one.start_time = String(s.startTime);
+    one._audience = nm || '(the tab\u2019s settings)';
+    return one;
+  });
+  /* kept so anything reading a single ad set still does */
+  const adset = adsets[0];
 
   /* One ad per creative image. The Creative studio already renders the
      shapes Meta wants, so the square goes to feeds and the story to
@@ -2443,8 +2483,21 @@ function metaPlan(body) {
     if (!a.primary)  notes.push('Ad ' + (i + 1) + ' has no primary text.');
   });
 
+  if (audiences.length) {
+    const seen = {};
+    audiences.forEach(function (a) {
+      const k = metaClean_(a.name, 60).toLowerCase();
+      if (seen[k]) notes.push('Two audiences are both called \u201c' + a.name +
+        '\u201d \u2014 their ad sets will be hard to tell apart in reporting.');
+      seen[k] = 1;
+    });
+    notes.push(audiences.length + ' audiences, so ' + audiences.length +
+      ' ad sets, each with its own budget and ' + ads.length + ' ad' +
+      (ads.length === 1 ? '' : 's') + '.');
+  }
+
   return {
-    ok: true, campaign: campaign, adset: adset, ads: ads,
+    ok: true, campaign: campaign, adset: adset, adsets: adsets, ads: ads,
     pageId: pageId, formId: formId, notes: notes,
     accountId: String(s.accountId || '').replace(/^act_/, '')
   };
@@ -2535,11 +2588,22 @@ function metaRun(body, v, validateOnly) {
   /* 2. ad set. On a validate pass there is no campaign id to point at, so
      the ad set is checked on its own merits with the campaign left out —
      Meta refuses an ad set with no parent, which would be a false failure. */
-  const as = {};
-  for (var k in plan.adset) as[k] = plan.adset[k];
-  if (!validateOnly) as.campaign_id = made.campaign;
+  const PLAN_SETS = plan.adsets && plan.adsets.length ? plan.adsets : [plan.adset];
+  const stripInternal = function (o) {
+    const out = {};
+    for (var k2 in o) if (k2.charAt(0) !== '_') out[k2] = o[k2];
+    return out;
+  };
+
   if (validateOnly) {
-    const probe = metaCall_(act + '/adsets', withOpts(as));
+    /* Every audience gets its own ad set, and any one of them can be the
+       one Meta refuses — a bad interest id, a budget under the floor. All
+       of them are checked, not just the first, or a dry run passes and the
+       deploy stops halfway through. */
+    for (var si = 0; si < PLAN_SETS.length; si++) {
+      const probe = metaCall_(act + '/adsets', withOpts(stripInternal(PLAN_SETS[si])));
+      const which = PLAN_SETS.length > 1
+        ? 'Ad set \u201c' + (PLAN_SETS[si]._audience || (si + 1)) + '\u201d: ' : 'Ad set: ';
     /* The ONLY error to forgive here is the missing parent, because there
        is no campaign id to give on a dry run.
 
@@ -2559,22 +2623,31 @@ function metaRun(body, v, validateOnly) {
       /choose a campaign to create this ad\s?set/i,
       /missing\s+(?:required\s+)?(?:parameter\s+)?campaign\b/i
     ];
-    const msg = probe.error || '';
-    const parentOnly = PARENT_MISSING.some(function (re) { return re.test(msg); });
-    made.adset = probe.error ? null : '(validated)';
-    if (probe.error && !parentOnly)
-      return { error: 'Ad set: ' + probe.error, plan: plan, made: made };
-    if (probe.error) plan.notes.push(
-      'The ad set could only be checked without its campaign, so anything ' +
-      'that depends on the parent is still unchecked.');
-  } else {
-    const r = metaCall_(act + '/adsets', as);
-    if (r.error) return { error: 'Ad set: ' + r.error + metaUndo_(made), plan: plan, made: made };
-    made.adset = r.id;
+      const msg = probe.error || '';
+      const parentOnly = PARENT_MISSING.some(function (re) { return re.test(msg); });
+      if (probe.error && !parentOnly)
+        return { error: which + probe.error, plan: plan, made: made };
+      if (probe.error && si === 0) plan.notes.push(
+        'The ad set could only be checked without its campaign, so anything ' +
+        'that depends on the parent is still unchecked.');
+    }
+    made.adset = '(validated)';
+    made.adsets = PLAN_SETS.map(function () { return '(validated)'; });
+    return { ok: true, validated: true, plan: plan, made: made, notes: plan.notes };
   }
 
-  if (validateOnly)
-    return { ok: true, validated: true, plan: plan, made: made, notes: plan.notes };
+  /* 2b. the real ad sets, one per audience */
+  made.adsets = [];
+  for (var sj = 0; sj < PLAN_SETS.length; sj++) {
+    const body = stripInternal(PLAN_SETS[sj]);
+    body.campaign_id = made.campaign;
+    const r = metaCall_(act + '/adsets', body);
+    const label = PLAN_SETS.length > 1
+      ? 'Ad set \u201c' + (PLAN_SETS[sj]._audience || (sj + 1)) + '\u201d: ' : 'Ad set: ';
+    if (r.error) return { error: label + r.error + metaUndo_(made), plan: plan, made: made };
+    made.adsets.push({ id: r.id, audience: PLAN_SETS[sj]._audience || '' });
+  }
+  made.adset = made.adsets[0] && made.adsets[0].id;
 
   /* 3. the images, then a creative and an ad for each */
   for (var i = 0; i < plan.ads.length; i++) {
@@ -2614,11 +2687,21 @@ function metaRun(body, v, validateOnly) {
     const cr = metaCall_(act + '/adcreatives', creative);
     if (cr.error) return { error: 'Creative for ad ' + (i + 1) + ': ' + cr.error + metaUndo_(made), plan: plan, made: made };
 
-    const a2 = metaCall_(act + '/ads', {
-      name: ad.name, adset_id: made.adset, creative: { creative_id: cr.id }, status: 'PAUSED'
-    });
-    if (a2.error) return { error: 'Ad ' + (i + 1) + ': ' + a2.error + metaUndo_(made), plan: plan, made: made };
-    made.ads.push({ id: a2.id, name: ad.name });
+    /* The creative is an account-level object, so the same one is put under
+       every ad set rather than uploaded and built again per audience. The
+       ad carries the audience in its name, because in reporting the ad name
+       is often all there is to tell two of them apart. */
+    for (var sk = 0; sk < made.adsets.length; sk++) {
+      const into = made.adsets[sk];
+      const adName = into.audience ? (ad.name + ' \u2013 ' + into.audience) : ad.name;
+      const a2 = metaCall_(act + '/ads', {
+        name: adName, adset_id: into.id, creative: { creative_id: cr.id }, status: 'PAUSED'
+      });
+      if (a2.error) return { error: 'Ad ' + (i + 1) +
+        (into.audience ? ' in \u201c' + into.audience + '\u201d' : '') + ': ' +
+        a2.error + metaUndo_(made), plan: plan, made: made };
+      made.ads.push({ id: a2.id, name: adName, adset: into.id, audience: into.audience });
+    }
   }
 
   try {

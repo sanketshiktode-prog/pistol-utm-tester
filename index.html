@@ -280,6 +280,28 @@ html{scroll-behavior:smooth}
 .cmpset:last-child{border-bottom:0}
 .cmpset .nm{font-size:13px;font-weight:500;min-width:0;overflow-wrap:anywhere}
 .cmpset .sub{font-size:11px;color:var(--ink-soft);font-family:var(--mono)}
+/* audiences, one ad set each */
+.mdaud{border:1px solid var(--line);border-radius:12px;padding:12px 14px;margin-bottom:10px;
+  background:var(--surface)}
+.mdaud-hd{display:flex;align-items:center;gap:8px;margin-bottom:9px}
+.mdaud-hd input.nm{flex:1 1 auto;min-width:0;border:1px solid var(--line);border-radius:9px;
+  font:inherit;font-family:var(--disp);font-weight:600;font-size:13px;padding:6px 10px}
+.mdaud-hd .x{border:1px solid var(--line);background:var(--surface);border-radius:9px;
+  cursor:pointer;width:28px;height:28px;flex:0 0 auto;color:var(--ink-soft)}
+.mdaud-hd .x:hover{border-color:var(--bad);color:var(--bad)}
+.mdaud-g{display:grid;grid-template-columns:repeat(auto-fit,minmax(148px,1fr));gap:9px}
+.mdaud-g label{display:block;min-width:0}
+/* the age pair needs room for two boxes; in one grid cell the second was
+   squeezed to nothing and disappeared under the field beside it */
+.mdaud-g label.wide{grid-column:span 2}
+.agepair{display:flex;align-items:center;gap:7px}
+.agepair input{flex:1 1 0;min-width:0}
+.agepair .dash{flex:0 0 auto;color:var(--ink-soft);font-family:var(--mono)}
+@media (max-width:760px){.mdaud-g label.wide{grid-column:span 1}}
+.mdaud-g span.l{display:block;font-size:10px;font-weight:600;letter-spacing:.06em;
+  text-transform:uppercase;color:var(--ink-soft);margin-bottom:3px}
+.mdaud-g input,.mdaud-g select,.mdaud-g textarea{font-size:12px;padding:7px 9px;border-radius:9px}
+.mdaud-sum{font-family:var(--mono);font-size:10.5px;color:var(--ink-soft);margin-top:9px}
 .picker-bar{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-top:14px;
   padding:12px 14px;background:var(--paper);border:1px solid var(--line);border-radius:12px}
 .linky{border:0;background:none;padding:0 0 0 8px;font:inherit;font-size:11px;
@@ -425,7 +447,7 @@ html{scroll-behavior:smooth}
     <div class="subject">Google Ads</div>
     <div class="spacer"></div>
     <div class="badge-env" id="varCount">0 VARIANTS</div>
-    <span class="pill p-mute" id="buildTag" title="build">b-29oct-3</span>
+    <span class="pill p-mute" id="buildTag" title="build">b-29oct-4</span>
     <div id="userChip" class="hidden" style="display:flex;align-items:center;gap:9px">
       <div class="divider-v"></div>
       <span id="userName" style="font-size:12.5px;font-weight:500"></span>
@@ -1354,6 +1376,17 @@ Static Square</textarea>
           automatically a financial product.</span></div>
 
       <label class="chk" style="margin-top:10px"><input type="checkbox" id="mdAdv"> Advantage+ audience</label>
+
+      <!-- One ad set per audience. Meta splits and reports on the ad set, so
+           two audiences inside one of them is one number where two were
+           wanted. Everything above is the default each audience starts from;
+           an audience only states what it changes. -->
+      <div class="f" style="margin-top:16px">
+        <span class="f-lab">Audiences
+          <button class="mini-act" type="button" id="mdAudAdd">+ add an audience</button></span>
+        <div id="mdAudList"></div>
+        <span class="f-note" id="mdAudNote"></span>
+      </div>
 
       <div class="btnrow" style="margin-top:14px">
         <button class="btn" id="mdCheck">Check the token</button>
@@ -9388,6 +9421,131 @@ async function mdCreatives(){
   return out;
 }
 
+/* ═══════════ audiences, one ad set each ═══════════
+   Meta splits delivery and reports results on the ad set. Two audiences
+   inside one ad set is therefore one number where two were wanted, and no
+   way to turn the weaker one off. Each audience here becomes its own ad
+   set under the one campaign, carrying the same ads.
+
+   An audience states only what it changes. Everything it leaves alone —
+   age, exclusions, budget, Advantage+ — comes from the fields above, so a
+   project that never touches this behaves exactly as it always did. */
+const AUD_KEY="pp_meta_auds";
+let AUDS=store.get(AUD_KEY,[])||[];
+const saveAuds=()=>store.set(AUD_KEY,AUDS);
+const audNewId=()=>"a"+Date.now().toString(36)+Math.random().toString(36).slice(2,5);
+const audIds=t=>String(t||"").split(/[\n,]/).map(x=>x.trim()).filter(Boolean);
+
+function audSummary(a){
+  const bits=[];
+  if(a.interests&&a.interests.trim())bits.push(audIds(a.interests).length+" interest ids");
+  if(a.include&&a.include.trim())bits.push(audIds(a.include).length+" included");
+  if(a.exclude&&a.exclude.trim())bits.push(audIds(a.exclude).length+" excluded");
+  if(a.ageMin||a.ageMax)bits.push(`${a.ageMin||val("mdAgeMin")}–${a.ageMax||val("mdAgeMax")}`);
+  if(a.genders&&a.genders!=="all")bits.push(a.genders==="1"?"men":"women");
+  bits.push(`₹${a.dailyBudget||val("mdBudget")||0}/day`);
+  if(a.advantage==="on")bits.push("Advantage+");
+  return bits.join(" · ")+" — anything not set here comes from the fields above";
+}
+function drawAuds(){
+  const box=$("#mdAudList"); if(!box)return;
+  box.innerHTML=AUDS.map((a,i)=>`
+    <div class="mdaud" data-ai="${i}">
+      <div class="mdaud-hd">
+        <input class="nm" data-af="name" value="${esc(a.name||"")}" placeholder="Name this audience">
+        <button class="x" data-ax="${i}" title="Remove">✕</button>
+      </div>
+      <div class="mdaud-g">
+        <label><span class="l">Interest ids</span>
+          <input data-af="interests" value="${esc(a.interests||"")}" placeholder="6003… , 6004…"></label>
+        <label><span class="l">Custom audiences in</span>
+          <input data-af="include" value="${esc(a.include||"")}" placeholder="lookalike ids"></label>
+        <label><span class="l">Custom audiences out</span>
+          <input data-af="exclude" value="${esc(a.exclude||"")}" placeholder="broker list ids"></label>
+        <label class="wide"><span class="l">Age</span>
+          <div class="agepair">
+            <input data-af="ageMin" inputmode="numeric" value="${esc(a.ageMin||"")}" placeholder="${esc(val("mdAgeMin")||"28")}">
+            <span class="dash">–</span>
+            <input data-af="ageMax" inputmode="numeric" value="${esc(a.ageMax||"")}" placeholder="${esc(val("mdAgeMax")||"64")}">
+          </div></label>
+        <label><span class="l">Gender</span>
+          <select data-af="genders">
+            <option value="all"${a.genders==="all"||!a.genders?" selected":""}>Everyone</option>
+            <option value="1"${a.genders==="1"?" selected":""}>Men</option>
+            <option value="2"${a.genders==="2"?" selected":""}>Women</option>
+          </select></label>
+        <label><span class="l">Daily budget</span>
+          <input data-af="dailyBudget" inputmode="decimal" value="${esc(a.dailyBudget||"")}"
+            placeholder="${esc(val("mdBudget")||"450")}"></label>
+        <label><span class="l">Advantage+</span>
+          <select data-af="advantage">
+            <option value=""${!a.advantage?" selected":""}>As set above</option>
+            <option value="on"${a.advantage==="on"?" selected":""}>On</option>
+            <option value="off"${a.advantage==="off"?" selected":""}>Off</option>
+          </select></label>
+      </div>
+      <div class="mdaud-sum">${esc(audSummary(a))}</div>
+    </div>`).join("");
+
+  const note=$("#mdAudNote");
+  if(note)note.textContent=AUDS.length
+    ? `${AUDS.length} ad set${AUDS.length===1?"":"s"} under one campaign, each with the same ads.`
+    : "None yet — one ad set is built from the fields above. Add audiences to split it.";
+}
+on("#mdAudAdd","click",()=>{
+  AUDS.push({id:audNewId(),name:""}); saveAuds(); drawAuds();
+  const last=$("#mdAudList").lastElementChild;
+  if(last){ const nm=last.querySelector("input.nm"); if(nm)nm.focus(); }
+});
+on("#mdAudList","input",e=>{
+  const f=e.target&&e.target.closest("[data-af]"); if(!f)return;
+  const i=+f.closest(".mdaud").dataset.ai;
+  if(!AUDS[i])return;
+  AUDS[i][f.dataset.af]=f.value;
+  saveAuds();
+  const sum=f.closest(".mdaud").querySelector(".mdaud-sum");
+  if(sum)sum.textContent=audSummary(AUDS[i]);   /* redrawing would lose the caret */
+});
+on("#mdAudList","change",e=>{
+  const f=e.target&&e.target.closest("select[data-af]"); if(!f)return;
+  const i=+f.closest(".mdaud").dataset.ai;
+  if(!AUDS[i])return;
+  AUDS[i][f.dataset.af]=f.value; saveAuds();
+  const sum=f.closest(".mdaud").querySelector(".mdaud-sum");
+  if(sum)sum.textContent=audSummary(AUDS[i]);
+});
+on("#mdAudList","click",e=>{
+  const x=e.target&&e.target.closest("[data-ax]"); if(!x)return;
+  const i=+x.dataset.ax;
+  const nm=(AUDS[i]&&AUDS[i].name)||"this audience";
+  if(!confirm(`Remove “${nm}”? Its ad set will not be built.`))return;
+  AUDS.splice(i,1); saveAuds(); drawAuds();
+});
+
+/* what the backend wants: only the fields this audience actually sets */
+function audPayload(){
+  return AUDS.filter(a=>a.name&&a.name.trim()).map(a=>{
+    const o={name:a.name.trim()};
+    const ints=audIds(a.interests);
+    if(ints.length)o.interests=ints.map(id=>({id,name:""}));
+    const inc=audIds(a.include); if(inc.length)o.include=inc;
+    const exc=audIds(a.exclude); if(exc.length)o.exclude=exc;
+    if(a.ageMin)o.ageMin=Number(a.ageMin)||undefined;
+    if(a.ageMax)o.ageMax=Number(a.ageMax)||undefined;
+    if(a.genders&&a.genders!=="all")o.genders=[Number(a.genders)];
+    if(a.dailyBudget)o.dailyBudget=Number(a.dailyBudget)||undefined;
+    if(a.advantage==="on")o.advantageAudience=true;
+    if(a.advantage==="off")o.advantageAudience=false;
+    return o;
+  });
+}
+
+/* drawn here rather than at the top of the file: AUDS is declared just
+   above, and a call before that line is in the temporal dead zone — it
+   threw, was swallowed by the boot's try/catch, and the cards from a saved
+   project simply never appeared. */
+drawAuds();
+
 function mdBody(){
   const b=brief();
   const copy={
@@ -9404,7 +9562,8 @@ function mdBody(){
       cta:val("mdCta"),
       advantageAudience:$("#mdAdv")&&$("#mdAdv").checked,
       specialCategories:val("mdSpecial")?[val("mdSpecial")]:[],
-      excludeAudiences:val("mdExcl").split("\n").map(x=>x.trim()).filter(Boolean)
+      excludeAudiences:val("mdExcl").split("\n").map(x=>x.trim()).filter(Boolean),
+      audiences:audPayload()
     }
   };
 }
