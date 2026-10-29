@@ -2538,7 +2538,7 @@ function aiReview(body, v) {
 /* Which copy of this file the Apps Script is actually running. The tab
    shows it beside its own build, because "the fix is pushed" and "the fix
    is running" were indistinguishable from the screen for an hour. */
-const BACKEND_BUILD = 'b-29oct-16';
+const BACKEND_BUILD = 'b-30oct-1';
 
 const META_DEFAULT_VERSION = 'v23.0';
 const META_AGE_MIN = 28, META_AGE_MAX = 64;
@@ -3134,8 +3134,12 @@ function metaCreativeMulti_(plan, ad, hashes) {
      Meta adds later — or one it decides to deliver on anyway — matches no
      rule and the whole feed is refused. The last rule is the catch-all: it
      names no placement, takes the feed shape, and is flagged the default. */
+  /* Meta, second time of asking: "Default asset customisation rule (with
+     lowest priority) with empty customisation_spec is required." An age
+     band is not empty — the spec has to be {} outright, and the rule has
+     to be last, which is what makes it the lowest priority. */
   rules.push({
-    customization_spec: { age_min: 18, age_max: 65 },
+    customization_spec: {},
     is_default: true,
     image_label: { name: META_PLACEMENTS[0].label },
     body_label: { name: 'body' },

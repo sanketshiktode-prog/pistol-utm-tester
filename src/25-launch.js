@@ -23,12 +23,13 @@ let LAUNCH_BUSY=false;
 
 function drawLaunch(){
   const box=$("#lnPick"); if(!box)return;
-  box.innerHTML=LAUNCH.map(p=>`
-    <label class="ln-tick${LAUNCH_PICK[p.id]?" on":""}">
+  box.innerHTML=LAUNCH.map(p=>{
+    const r=launchReady(p);
+    return `<label class="ln-tick${LAUNCH_PICK[p.id]?" on":""}${r.ok?"":" wait"}">
       <input type="checkbox" data-ln="${p.id}"${LAUNCH_PICK[p.id]?" checked":""}>
       <span class="nm">${esc(p.label)}</span>
-      <span class="sub">${esc(launchReady(p).short)}</span>
-    </label>`).join("");
+      <span class="sub">${r.ok?esc(r.short):"— "+esc(r.short)}</span>
+    </label>`;}).join("");
   const n=LAUNCH.filter(p=>LAUNCH_PICK[p.id]).length;
   const st=$("#lnStat");
   if(st)st.innerHTML=n
