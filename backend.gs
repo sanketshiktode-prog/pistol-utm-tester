@@ -678,6 +678,7 @@ function adsRoute(body, v) {
     const own = !!metaProp_(oauthKey_(v.email), '');
     return { ok: true, connected: own, email: v.email,
              possible: oauthReady_(),
+             redirect: oauthRedirect_(), clientId: oauthClientId_(),
              required: metaProp_('ADS_REQUIRE_OWN', '') === '1' };
   }
   if (body.action === 'ads-disconnect') {
@@ -769,7 +770,11 @@ function oauthUrl_(email) {
   const q = Object.keys(p).map(function (k) {
     return encodeURIComponent(k) + '=' + encodeURIComponent(p[k]);
   }).join('&');
-  return { ok: true, url: 'https://accounts.google.com/o/oauth2/v2/auth?' + q };
+  /* redirect_uri_mismatch is the commonest failure here and the message
+     Google shows never says what was sent. It is returned so the two can
+     be compared character for character instead of guessed at. */
+  return { ok: true, url: 'https://accounts.google.com/o/oauth2/v2/auth?' + q,
+           redirect: oauthRedirect_(), clientId: oauthClientId_() };
 }
 
 function oauthExchange_(code) {

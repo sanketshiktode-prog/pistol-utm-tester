@@ -447,7 +447,7 @@ html{scroll-behavior:smooth}
     <div class="subject">Google Ads</div>
     <div class="spacer"></div>
     <div class="badge-env" id="varCount">0 VARIANTS</div>
-    <span class="pill p-mute" id="buildTag" title="build">b-29oct-5</span>
+    <span class="pill p-mute" id="buildTag" title="build">b-29oct-6</span>
     <div id="userChip" class="hidden" style="display:flex;align-items:center;gap:9px">
       <div class="divider-v"></div>
       <span id="userName" style="font-size:12.5px;font-weight:500"></span>
@@ -3954,9 +3954,15 @@ on("#gaConnect","click",async()=>{
   /* opened rather than navigated, so a half-built campaign on this page is
      not thrown away by leaving it */
   const w=window.open(r.url,"_blank","noopener");
-  stat.innerHTML=w
+  /* redirect_uri_mismatch is the usual failure and Google's page never says
+     what was sent, so it is printed here to compare against the Console. */
+  const sent=`<div class="f-note" style="margin-top:6px">Sending redirect URI
+    <code>${esc(r.redirect||"(none)")}</code> — if Google says
+    <b>redirect_uri_mismatch</b>, this exact string has to be under
+    <b>Authorized redirect URIs</b> on client <code>${esc((r.clientId||"").slice(0,24))}…</code></div>`;
+  stat.innerHTML=(w
     ? `<span class="p-mute">Finish in the new tab, then press <b>Check the connection</b> here.</span>`
-    : `<span class="p-mute">Pop-up blocked. <a href="${esc(r.url)}" target="_blank" rel="noopener">Open it here</a>, then come back.</span>`;
+    : `<span class="p-mute">Pop-up blocked. <a href="${esc(r.url)}" target="_blank" rel="noopener">Open it here</a>, then come back.</span>`)+sent;
 });
 on("#gaDisconnect","click",async()=>{
   if(!confirm("Disconnect your Google Ads?\n\nYour campaigns will go back to being created by the shared credential."))return;
