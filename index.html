@@ -235,6 +235,33 @@ html{scroll-behavior:smooth}
   background:var(--orange-wash);border:1px solid #FFD9BC;border-radius:8px;padding:3px 9px}
 .sec-head h1{font-family:var(--disp);font-size:21px;font-weight:700;letter-spacing:-.02em;margin:0}
 .sec-head .rule{flex:1 1 auto;height:1px;background:var(--line)}
+/* the history drawer */
+.drawer{position:fixed;inset:0;z-index:60;background:rgba(20,22,28,.42);
+  display:flex;justify-content:flex-end;animation:fade .14s ease}
+.drawer[hidden]{display:none}
+@keyframes fade{from{opacity:0}to{opacity:1}}
+.drawer-sheet{background:var(--surface);width:min(760px,96vw);height:100%;
+  display:flex;flex-direction:column;box-shadow:-8px 0 30px rgba(20,22,28,.18)}
+.drawer-hd{display:flex;align-items:center;gap:12px;flex-wrap:wrap;
+  padding:16px 20px;border-bottom:1px solid var(--line)}
+.drawer-hd h2{font-family:var(--disp);font-size:16px;font-weight:700;margin:0;letter-spacing:-.01em}
+.drawer-bd{flex:1 1 auto;overflow:auto;padding:16px 20px 28px}
+.drawer-bd .empty{color:var(--ink-soft);font-size:13px;padding:28px 0;text-align:center}
+.hist-who{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px}
+.hist-who span{font-size:11.5px;background:var(--paper);border:1px solid var(--line);
+  border-radius:999px;padding:4px 11px}
+.hist-who b{font-family:var(--mono);font-size:10.5px;color:var(--orange);margin-left:5px}
+.hist-row{display:grid;grid-template-columns:132px 1fr;gap:12px;padding:11px 0;
+  border-bottom:1px solid var(--line-soft)}
+.hist-row:last-child{border-bottom:0}
+.hist-when{font-family:var(--mono);font-size:11px;color:var(--ink-soft);line-height:1.5}
+.hist-main b{font-size:13px;font-weight:600}
+.hist-what{font-size:12.5px;color:var(--ink-soft);margin-top:3px;word-break:break-word}
+.hist-what code{font-size:11px}
+.hist-act{font-family:var(--mono);font-size:10px;border-radius:7px;padding:2px 7px;
+  background:var(--navy-wash);color:var(--navy);margin-left:7px}
+.hist-act.bad{background:var(--bad-wash);color:var(--bad)}
+.hist-act.meta{background:var(--orange-wash);color:#9A4200}
 .picker-bar{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-top:14px;
   padding:12px 14px;background:var(--paper);border:1px solid var(--line);border-radius:12px}
 .linky{border:0;background:none;padding:0 0 0 8px;font:inherit;font-size:11px;
@@ -380,7 +407,7 @@ html{scroll-behavior:smooth}
     <div class="subject">Google Ads</div>
     <div class="spacer"></div>
     <div class="badge-env" id="varCount">0 VARIANTS</div>
-    <span class="pill p-mute" id="buildTag" title="build">b-29oct-1</span>
+    <span class="pill p-mute" id="buildTag" title="build">b-29oct-2</span>
     <div id="userChip" class="hidden" style="display:flex;align-items:center;gap:9px">
       <div class="divider-v"></div>
       <span id="userName" style="font-size:12.5px;font-weight:500"></span>
@@ -388,10 +415,31 @@ html{scroll-behavior:smooth}
       <select id="projPick" class="hdr-sel" title="Saved projects"></select>
       <button class="btn btn-sm" id="projSave">Save</button>
       <button class="btn btn-sm" id="newProject">New project</button>
+      <button class="btn btn-sm" id="histOpen">History</button>
       <button class="btn btn-sm" id="signOut">Sign out</button>
     </div>
   </div>
 </header>
+
+<!-- Who deployed what. Twenty people share this tool; the answer belongs
+     inside it rather than in a spreadsheet only one of them can open. -->
+<div id="histWrap" class="drawer" hidden>
+  <div class="drawer-sheet" role="dialog" aria-label="Deploy history">
+    <div class="drawer-hd">
+      <h2>History</h2>
+      <div class="seg" id="histScope" style="max-width:260px">
+        <button data-scope="deploys" aria-pressed="true">Deploys</button>
+        <button data-scope="all" aria-pressed="false">Everything</button>
+      </div>
+      <label class="chk" style="margin:0"><input type="checkbox" id="histMine"> Only mine</label>
+      <button class="btn btn-sm" id="histRefresh">Refresh</button>
+      <button class="btn btn-sm" id="histClose" style="margin-left:auto">Close</button>
+    </div>
+    <div class="drawer-bd" id="histOut">
+      <div class="empty">Nothing loaded yet.</div>
+    </div>
+  </div>
+</div>
 
 <nav class="tabs" role="tablist"><div class="tabs-in">
   <button class="tab" role="tab" aria-selected="true" data-panel="p-url"><span class="num">01</span>Brief</button>
@@ -3747,6 +3795,65 @@ on("#projPick","change",()=>{
   logEvent("project-open",v);
   projectApply(p,v);
 });
+/* ═══════════ who deployed what ═══════════
+   The log has always been written; it has never been readable by the people
+   it is about. Twenty of them share this tool, so the question "who made
+   this campaign" is asked here rather than by opening a spreadsheet one
+   person owns. */
+let HIST_SCOPE="deploys";
+const histWhen=iso=>{
+  const d=new Date(iso); if(isNaN(d))return ["",""];
+  const now=new Date(), sameDay=d.toDateString()===now.toDateString();
+  const t=d.toLocaleTimeString([], {hour:"2-digit",minute:"2-digit"});
+  return [sameDay?"today":d.toLocaleDateString([], {day:"2-digit",month:"short"}), t];
+};
+function histDraw(r){
+  const box=$("#histOut");
+  if(r.error)return box.innerHTML=`<div class="empty">${esc(r.error)}</div>`;
+  if(!r.rows||!r.rows.length)
+    return box.innerHTML=`<div class="empty">${esc(r.note||"Nothing here yet.")}</div>`;
+
+  const who=(r.people||[]).length>1
+    ? `<div class="hist-who">`+r.people.map(p=>
+        `<span>${esc(p.name||p.email)}<b>${p.count}</b></span>`).join("")+`</div>`
+    : "";
+  box.innerHTML=who+r.rows.map(x=>{
+    const [day,time]=histWhen(x.at);
+    /* the server says whether it worked; the page does not guess from prose */
+    const failed=x.ok===false;
+    const kind=failed?"bad":(x.action.indexOf("meta")===0?"meta":"");
+    const mine=x.email&&r.you&&x.email.toLowerCase()===r.you.toLowerCase();
+    return `<div class="hist-row">
+      <div class="hist-when">${esc(day)}<br>${esc(time)}</div>
+      <div class="hist-main">
+        <b>${esc(x.name||x.email||"somebody")}</b>${mine?` <span class="pill p-mute">you</span>`:""}
+        <span class="hist-act ${kind}">${esc(x.action)}</span>
+        <div class="hist-what">${esc(x.detail||"")}${
+          x.note?` · <code>${esc(x.note)}</code>`:""}</div>
+      </div></div>`;
+  }).join("")+(r.truncated
+    ? `<div class="empty">Showing the most recent ${r.rows.length}. Older rows are in the sheet.</div>`:"");
+}
+async function histLoad(){
+  const box=$("#histOut");
+  box.innerHTML=`<div class="empty">Reading the log…</div>`;
+  const r=await adsCall("history",{scope:HIST_SCOPE,mine:$("#histMine").checked,limit:80});
+  histDraw(r||{error:"No answer from the Apps Script."});
+}
+on("#histOpen","click",()=>{ $("#histWrap").hidden=false; histLoad(); });
+on("#histClose","click",()=>{ $("#histWrap").hidden=true; });
+on("#histRefresh","click",histLoad);
+on("#histMine","change",histLoad);
+on("#histWrap","click",e=>{ if(e.target&&e.target.id==="histWrap")$("#histWrap").hidden=true; });
+document.addEventListener("keydown",e=>{
+  if(e.key==="Escape"&&!$("#histWrap").hidden)$("#histWrap").hidden=true;
+});
+$$("#histScope button").forEach(b=>b.addEventListener("click",()=>{
+  HIST_SCOPE=b.dataset.scope;
+  $$("#histScope button").forEach(x=>x.setAttribute("aria-pressed",String(x===b)));
+  histLoad();
+}));
+
 on("#signOut","click",()=>{
   clearProject();
   logEvent("sign-out","");

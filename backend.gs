@@ -82,6 +82,11 @@ function handlePost(e) {
 
   /* Google Ads API work lives in apps-script-ads-api.gs, in this same
      project. Same deployment, same sign-in check, same log. */
+  if (String(body.action || '') === 'history') {
+    if (!v.ok) return json({ error: 'Sign in again — ' + v.reason });
+    return json(historyRead(body, v));
+  }
+
   if (String(body.action || '').indexOf('ads-') === 0) {
     if (!v.ok) return json({ error: 'Sign in again \u2014 ' + v.reason });
     if (typeof adsRoute !== 'function')
@@ -480,6 +485,106 @@ function write(row) {
 function json(o) {
   return ContentService.createTextOutput(JSON.stringify(o))
     .setMimeType(ContentService.MimeType.JSON);
+}
+
+/* ═══════════ who deployed what ═══════════
+   Every action has been written to a spreadsheet since the beginning, but
+   only whoever owns that spreadsheet could read it. With twenty people
+   sharing one tool, "who created this campaign" is a question asked inside
+   the tool, by the people asking it, not a reason to go and open a sheet.
+
+   Deploys are what the question is about, so those come back by default
+   and everything else only when asked for. The newest row first, because
+   that is the one being asked about. */
+const HIST_DEPLOY = ['ads-deploy', 'meta-deploy'];
+
+/* Whether a deploy row records a success. Guessing from the prose of an
+   error does not work — "Meta 400: something went wrong" contains none of
+   the words one would look for. So it is the other way round: a success
+   note is one of the three shapes this file writes, and a deploy row that
+   is not one of them failed. New wording on an error therefore shows as a
+   failure, which is the safe direction. */
+function histOk_(action, note) {
+  if (HIST_DEPLOY.indexOf(action) === -1) return null;   /* not a deploy */
+  const n = String(note || '').trim();
+  if (!n) return false;
+  return /^customers\/\d+\/campaigns\/\d+/.test(n)      /* Google resource name */
+      || /^campaign\s+\d+/.test(n)                       /* Meta: campaign <id> */
+      || /^\d+\s+operations$/.test(n);                    /* a dry run */
+}
+
+function historyRead(body, v) {
+  if (!v || !v.ok) return { error: 'Sign in again.' };
+  if (typeof write !== 'function') return { error: 'No log sheet in this project.' };
+
+  var sh;
+  try {
+    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    sh = ss && ss.getSheetByName(SHEET);
+    if (!sh) return { ok: true, rows: [], note: 'Nothing has been logged yet.' };
+  } catch (e) { return { error: 'Could not open the log: ' + e }; }
+
+  const limit = Math.min(Math.max(Number(body.limit) || 60, 1), 400);
+  const want  = String(body.scope || 'deploys');
+  const mine  = !!body.mine;
+  const last  = sh.getLastRow();
+  if (last < 2) return { ok: true, rows: [], note: 'Nothing has been logged yet.' };
+
+  /* Read backwards in chunks rather than reading the sheet: a year of use is
+     tens of thousands of rows and all anybody wants is the last page of
+     them. A single guessed window does not work — deploys are sparse among
+     the reads, so one guess either reads far too much or comes back half
+     empty. This keeps asking for the next chunk back until the page is full
+     or the sheet runs out, and never reads more than it has to. */
+  const rows = [];
+  var bottom = last;        /* the lowest row not yet read; row 1 is the header */
+  var scanned = 0;
+  const CHUNK = Math.max(limit * 4, 200), CEILING = 20000;
+
+  while (bottom >= 2 && rows.length < limit && scanned < CEILING) {
+    const take = Math.min(CHUNK, bottom - 1);
+    const top  = bottom - take + 1;
+    const vals = sh.getRange(top, 1, take, 7).getValues();
+    scanned += take;
+    for (var i = vals.length - 1; i >= 0 && rows.length < limit; i--) {
+      const r = vals[i];
+      const action = String(r[4] || '');
+      if (!action) continue;
+      if (want === 'deploys' && HIST_DEPLOY.indexOf(action) === -1) continue;
+      const email = String(r[1] || '');
+      if (mine && email.toLowerCase() !== String(v.email || '').toLowerCase()) continue;
+      /* instanceof Date is not reliable across execution contexts, and the
+         cell may be a string anyway if somebody has edited the sheet */
+      const when = r[0];
+      rows.push({
+        at    : (when && typeof when.getTime === 'function' && !isNaN(when.getTime()))
+                  ? when.toISOString() : String(when || ''),
+        email : email,
+        name  : String(r[2] || ''),
+        role  : String(r[3] || ''),
+        action: action,
+        detail: String(r[5] || ''),
+        note  : String(r[6] || ''),
+        ok    : histOk_(action, r[6])
+      });
+    }
+    bottom = top - 1;     /* always moves, so this cannot read a row twice */
+  }
+
+  /* Who has been deploying at all, so a name can be recognised without
+     reading every row. Counted over the window that was read, and said so. */
+  const by = {};
+  rows.forEach(function (x) {
+    const k = x.email || '(unknown)';
+    by[k] = by[k] || { email: k, name: x.name, count: 0 };
+    by[k].count++;
+  });
+  const people = Object.keys(by).map(function (k) { return by[k]; })
+    .sort(function (a, b) { return b.count - a.count; });
+
+  return { ok: true, rows: rows, people: people, scope: want,
+           you: v.email, scanned: scanned,
+           truncated: rows.length === limit && bottom >= 2 };
 }
 
 function handleGet() {
@@ -960,7 +1065,9 @@ function adsDeploy(body, v) {
                typeof role === 'function' ? role(v.email) : '',
                dry ? 'ads-validate' : 'ads-deploy',
                cid + ' / ' + c.name,
-               results[results.length - 1].error || (ops.length + ' operations')]);
+               results[results.length - 1].error ||
+                 (r.error ? '' : (firstCampaign(r.body) ||
+                   (ops.length + ' operations')))]);
       }
     } catch (err) { /* nothing here is worth losing a built campaign over */ }
   }
@@ -2507,7 +2614,8 @@ function metaRun(body, v, validateOnly) {
   try {
     if (v && v.ok && typeof write === 'function')
       write([new Date(), v.email, v.name, typeof role === 'function' ? role(v.email) : '',
-             'meta-deploy', plan.campaign.name, made.ads.length + ' ads']);
+             'meta-deploy', act + ' / ' + plan.campaign.name,
+             'campaign ' + made.campaign + ' \u00b7 ' + made.ads.length + ' ads']);
   } catch (e) {}
 
   return { ok: true, made: made, plan: plan, notes: plan.notes };
