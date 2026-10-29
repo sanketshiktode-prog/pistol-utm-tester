@@ -10,7 +10,11 @@ on("#acMicro","input",()=>{ if(!$("#locMain").value.trim()){
 $("#p1c").textContent=`${(PROJ.p1||"").length}/${PATH_MAX}`;
 $("#p2c").textContent=`${(PROJ.p2||"").length}/${PATH_MAX}`;
 if(!ADG[ADCUR])ADCUR=Object.keys(ADG)[0]||"";
-fillAdPicker(); drawAd(); fillVariantPickers(); echoBrief();
+/* drawAd reaches drawKwList in a later file, and adChecks reaches AS,
+   which is declared nineteen lines below this one. With no saved ad
+   groups neither is reached and the page looked fine; with saved ones it
+   threw at boot and the ad copy came up empty. */
+onBoot(()=>{ fillAdPicker(); drawAd(); fillVariantPickers(); echoBrief(); });
 
 /* ═══════════ 04 assets ═══════════ */
 const SL_T=25, SL_D=35, CO_MAX=25, SN_MAX=25;

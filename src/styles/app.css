@@ -440,3 +440,13 @@ html{scroll-behavior:smooth}
 .locbar-b.on{color:var(--ink);font-weight:600;border-bottom-color:var(--orange,#FB6A02)}
 .locpane{display:none}
 .locpane.on{display:block}
+
+/* Launch — the platforms, ticked */
+.ln-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px}
+.ln-tick{display:flex;align-items:center;gap:10px;border:1px solid var(--line);border-radius:12px;
+  padding:12px 14px;background:var(--surface);cursor:pointer;min-width:0}
+.ln-tick.on{border-color:var(--accent);background:var(--paper)}
+.ln-tick input{width:16px;height:16px;accent-color:var(--accent);flex:0 0 auto;cursor:pointer}
+.ln-tick .nm{font-family:var(--disp);font-weight:600;font-size:13.5px;flex:0 0 auto}
+.ln-tick .sub{font-family:var(--mono);font-size:10.5px;color:var(--ink-soft);
+  margin-left:auto;text-align:right;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}

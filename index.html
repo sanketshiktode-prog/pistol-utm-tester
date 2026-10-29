@@ -32,7 +32,7 @@
     <div class="subject">Google Ads</div>
     <div class="spacer"></div>
     <div class="badge-env" id="varCount">0 VARIANTS</div>
-    <span class="pill p-mute" id="buildTag" title="build">b-29oct-15</span>
+    <span class="pill p-mute" id="buildTag" title="build">b-29oct-16</span>
     <div id="userChip" class="hidden" style="display:flex;align-items:center;gap:9px">
       <div class="divider-v"></div>
       <span id="userName" style="font-size:12.5px;font-weight:500"></span>
@@ -76,7 +76,7 @@
   <button class="tab" role="tab" aria-selected="false" data-panel="p-tgt"><span class="num">07</span>Targeting</button>
   <button class="tab" role="tab" aria-selected="false" data-panel="p-st"><span class="num">08</span>Full structure</button>
   <button class="tab" role="tab" aria-selected="false" data-panel="p-mt"><span class="num">09</span>Meta ads</button>
-  <button class="tab" role="tab" aria-selected="false" data-panel="p-api"><span class="num">10</span>Deploy to Google Ads</button>
+  <button class="tab" role="tab" aria-selected="false" data-panel="p-api"><span class="num">10</span>Launch</button>
 </div></nav>
 
 <main class="wrap">
@@ -1100,6 +1100,24 @@ Static Square</textarea>
 </section>
 
 <section class="panel" id="p-api">
+
+<div class="card" style="margin-bottom:16px">
+  <div class="card-hd"><h2>Launch</h2><span class="hint" id="lnStat">nothing ticked</span></div>
+  <div class="card-bd">
+    <div class="callout">Tick the platforms and send them in one go. They run one after another, never
+      together, so a half-finished Google run cannot start a Meta one. Everything is created paused.</div>
+    <div id="lnPick" class="ln-row" style="margin-top:12px"></div>
+    <div class="btnrow" style="margin-top:14px">
+      <button class="btn btn-navy" id="lnValidate">Validate everything ticked</button>
+      <button class="btn btn-pri" id="lnDeploy">Launch</button>
+    </div>
+    <div class="f-note" style="margin-top:10px">Each platform is still drafted where it always was —
+      Search and Demand Gen from the Channel switch on the brief, Meta on its own tab. This is only the
+      end of it. Validate costs nothing and creates nothing; run it first.</div>
+    <div id="lnOut" style="margin-top:12px"></div>
+  </div>
+</div>
+
 <div class="split">
 
   <div class="sticky-col">
@@ -1623,6 +1641,7 @@ Static Square</textarea>
 <script src="src/22-the-landing-page-builder.js"></script>
 <script src="src/23-audience-library.js"></script>
 <script src="src/24-projects-on-the-server.js"></script>
+<script src="src/25-launch.js"></script>
 <script src="src/99-run-boot.js"></script>
 </body>
 </html>
