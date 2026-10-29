@@ -2916,11 +2916,26 @@ function metaRun(body, v, validateOnly) {
             value: { lead_gen_form_id: plan.formId }
           }
         }
-      },
-      degrees_of_freedom_spec: {
-        creative_features_spec: { standard_enhancements: { enroll_status: 'OPT_OUT' } }
       }
     };
+
+    /* Meta has retired standard_enhancements — sending it is now a 400,
+       "Including standard enhancements field in creative has been
+       deprecated. Please choose to set individual features instead."
+
+       The individual features that replaced it are a list Meta edits
+       whenever it likes, and naming one that has moved is the same 400
+       again. So nothing is sent by default: the account's own setting
+       decides, which is where somebody can see and change it. Anyone who
+       does want specific ones off puts their names in META_CREATIVE_OPTOUT,
+       comma separated, and they go through untouched. */
+    const optOut = metaProp_('META_CREATIVE_OPTOUT', '')
+      .split(',').map(function (x) { return x.trim(); }).filter(Boolean);
+    if (optOut.length) {
+      const feats = {};
+      optOut.forEach(function (f) { feats[f] = { enroll_status: 'OPT_OUT' }; });
+      creative.degrees_of_freedom_spec = { creative_features_spec: feats };
+    }
     const cr = metaCall_(act + '/adcreatives', creative);
     if (cr.error) return { error: 'Creative for ad ' + (i + 1) + ': ' + cr.error + metaUndo_(made), plan: plan, made: made };
 

@@ -32,7 +32,7 @@
     <div class="subject">Google Ads</div>
     <div class="spacer"></div>
     <div class="badge-env" id="varCount">0 VARIANTS</div>
-    <span class="pill p-mute" id="buildTag" title="build">b-29oct-8</span>
+    <span class="pill p-mute" id="buildTag" title="build">b-29oct-9</span>
     <div id="userChip" class="hidden" style="display:flex;align-items:center;gap:9px">
       <div class="divider-v"></div>
       <span id="userName" style="font-size:12.5px;font-weight:500"></span>
@@ -73,9 +73,10 @@
   <button class="tab" role="tab" aria-selected="false" data-panel="p-kw"><span class="num">04</span>Keyword wrapper</button>
   <button class="tab" role="tab" aria-selected="false" data-panel="p-ad"><span class="num">05</span>Ad copy</button>
   <button class="tab" role="tab" aria-selected="false" data-panel="p-as"><span class="num">06</span>Assets</button>
-  <button class="tab" role="tab" aria-selected="false" data-panel="p-st"><span class="num">07</span>Full structure</button>
-  <button class="tab" role="tab" aria-selected="false" data-panel="p-mt"><span class="num">08</span>Meta ads</button>
-  <button class="tab" role="tab" aria-selected="false" data-panel="p-api"><span class="num">09</span>Deploy to Google Ads</button>
+  <button class="tab" role="tab" aria-selected="false" data-panel="p-tgt"><span class="num">07</span>Targeting</button>
+  <button class="tab" role="tab" aria-selected="false" data-panel="p-st"><span class="num">08</span>Full structure</button>
+  <button class="tab" role="tab" aria-selected="false" data-panel="p-mt"><span class="num">09</span>Meta ads</button>
+  <button class="tab" role="tab" aria-selected="false" data-panel="p-api"><span class="num">10</span>Deploy to Google Ads</button>
 </div></nav>
 
 <main class="wrap">
@@ -775,6 +776,115 @@ Static Square</textarea>
 </div>
 </section>
 <!-- ══════ 05 FULL STRUCTURE ══════ -->
+<section class="panel" id="p-tgt">
+  <div class="split">
+    <div>
+<div class="card">
+      <div class="card-hd"><h2>Locations</h2><span class="hint" id="mapStat">nothing targeted yet</span></div>
+      <div class="card-bd">
+        <div class="callout">Three ways to target, one list. A <b>city or locality</b> and a <b>pincode</b>
+          both need Google's criterion ID, which is looked up for you. A <b>radius</b> needs no ID —
+          it is a point and a distance. Everything here goes on the <b>campaign</b>, Search and
+          Demand Gen alike.</div>
+
+        <!-- Sets. Google targets location on the campaign, so this is what
+             lets one project run Vadgaon in one campaign and Wakad in another. -->
+        <div class="setbar">
+          <span class="setbar-lab">Location set</span>
+          <div class="setchips" id="locChips"></div>
+          <button class="btn btn-sm" id="locAdd">+ New set</button>
+          <button class="btn btn-sm" id="locRename">Rename</button>
+          <button class="btn btn-sm" id="locDrop">Delete</button>
+        </div>
+        <div class="f-note" id="locHint" style="margin:-4px 0 10px"></div>
+
+        <div class="locbar" role="tablist">
+          <button class="locbar-b on" data-loc="city">City / locality</button>
+          <button class="locbar-b" data-loc="pin">Pincodes</button>
+          <button class="locbar-b" data-loc="rad">Radius</button>
+        </div>
+
+        <div class="locpane on" data-pane="city">
+          <label class="f"><span class="f-lab">Search a place</span>
+            <div class="ticket" style="grid-template-columns:1fr 150px">
+              <input type="text" id="geoQ" spellcheck="false" placeholder="Mundhwa, or Pune, or Maharashtra">
+              <select id="geoCc">
+                <option value="IN">India</option><option value="AE">UAE</option>
+              </select>
+            </div>
+            <span class="f-note">Google is asked for matching places and returns the criterion ID with each
+              one. City beats region unless you really want the whole state.</span></label>
+          <div class="btnrow">
+            <button class="btn btn-sm btn-pri" id="geoGo">Search</button>
+            <button class="btn btn-sm" id="apGeo">Use the project's location</button>
+          </div>
+          <div id="apGeoOut" style="margin-top:12px"></div>
+        </div>
+
+        <div class="locpane" data-pane="pin">
+          <label class="f"><span class="f-lab">Pincodes — one per line, or comma separated</span>
+            <textarea id="pinList" rows="4" spellcheck="false" inputmode="numeric" placeholder="411001&#10;411014&#10;411028"></textarea>
+            <span class="f-note">Each one is placed on the map and then looked up with Google for its
+              criterion ID. A pincode with no ID cannot be targeted, and the list below says which
+              ones are still missing one.</span></label>
+          <div class="btnrow">
+            <button class="btn btn-sm btn-pri" id="pinAdd">Add these pincodes</button>
+            <button class="btn btn-sm" id="pinRetry">Look up the missing IDs again</button>
+          </div>
+        </div>
+
+        <div class="locpane" data-pane="rad">
+          <div class="f-note" style="margin-bottom:10px">Click anywhere on the map to drop a circle.
+            Drag its pin to move it. Change one circle's radius in its own row, or set them all at once below.</div>
+          <div class="row2">
+            <label class="f"><span class="f-lab">Radius for a new circle</span>
+              <div class="ticket" style="grid-template-columns:1fr 84px">
+                <input type="number" id="radKm" value="5" min="1" max="80" step="1">
+                <select id="radUnit"><option value="KILOMETERS">km</option><option value="MILES">miles</option></select>
+              </div></label>
+            <label class="f"><span class="f-lab">Apply to every circle</span>
+              <button class="btn btn-sm" id="radAll" style="margin-top:2px">Set all circles to this radius</button>
+              <span class="f-note">The bulk change. Individual rows can still be edited afterwards.</span></label>
+          </div>
+        </div>
+
+        <div id="mapWrap" style="margin-top:12px"><div id="map"></div></div>
+        <div class="map-hint">Orange circles are radius targets · blue pins are pincodes · navy pins are cities</div>
+
+        <div class="btnrow" style="margin-top:10px">
+          <button class="btn btn-sm" id="mapCentre">Centre on the project</button>
+          <button class="btn btn-sm" id="tgtAll">Select all</button>
+          <button class="btn btn-sm" id="tgtDelSel">Remove selected</button>
+          <select id="tgtMove" class="hdr-sel" title="Move the selected places to another set"></select>
+          <button class="btn btn-sm" id="mapClear">Clear everything</button>
+        </div>
+        <div id="tgtList" style="margin-top:10px"></div>
+
+        <details style="margin-top:14px">
+          <summary class="f-lab" style="cursor:pointer">Paste criterion IDs by hand</summary>
+          <label class="f" style="margin-top:8px"><span class="f-lab">Location IDs — one per line</span>
+            <textarea id="apLocIds" rows="3" spellcheck="false" inputmode="numeric" placeholder="1007785"></textarea>
+            <span class="f-note">For an ID you already have. These are added to whatever the list above
+              holds — the same numbers Editor shows in its Locations view.</span></label>
+        </details>
+      </div>
+    </div>
+    </div>
+    <div>
+      <div class="card">
+        <div class="card-hd"><h2>Which campaign gets which places</h2>
+          <span class="hint" id="cmpSetStat"></span></div>
+        <div class="card-bd">
+          <div class="callout">Google puts location on the <b>campaign</b>, never the ad group.
+            So a project running two micro-markets needs two campaigns with different places —
+            which is what a second set is for. One set is used by every campaign.</div>
+          <div id="cmpSetList"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
 <section class="panel" id="p-st">
   <div class="card">
     <div class="card-hd"><h2>Build everything</h2><span class="hint" id="stStat">nothing built yet</span></div>
@@ -1025,96 +1135,7 @@ Static Square</textarea>
       </div>
     </div>
 
-    <div class="card">
-      <div class="card-hd"><h2>Locations</h2><span class="hint" id="mapStat">nothing targeted yet</span></div>
-      <div class="card-bd">
-        <div class="callout">Three ways to target, one list. A <b>city or locality</b> and a <b>pincode</b>
-          both need Google's criterion ID, which is looked up for you. A <b>radius</b> needs no ID —
-          it is a point and a distance. Everything here goes on the <b>campaign</b>, Search and
-          Demand Gen alike.</div>
-
-        <!-- Sets. Google targets location on the campaign, so this is what
-             lets one project run Vadgaon in one campaign and Wakad in another. -->
-        <div class="setbar">
-          <span class="setbar-lab">Location set</span>
-          <div class="setchips" id="locChips"></div>
-          <button class="btn btn-sm" id="locAdd">+ New set</button>
-          <button class="btn btn-sm" id="locRename">Rename</button>
-          <button class="btn btn-sm" id="locDrop">Delete</button>
-        </div>
-        <div class="f-note" id="locHint" style="margin:-4px 0 10px"></div>
-
-        <div class="locbar" role="tablist">
-          <button class="locbar-b on" data-loc="city">City / locality</button>
-          <button class="locbar-b" data-loc="pin">Pincodes</button>
-          <button class="locbar-b" data-loc="rad">Radius</button>
-        </div>
-
-        <div class="locpane on" data-pane="city">
-          <label class="f"><span class="f-lab">Search a place</span>
-            <div class="ticket" style="grid-template-columns:1fr 150px">
-              <input type="text" id="geoQ" spellcheck="false" placeholder="Mundhwa, or Pune, or Maharashtra">
-              <select id="geoCc">
-                <option value="IN">India</option><option value="AE">UAE</option>
-              </select>
-            </div>
-            <span class="f-note">Google is asked for matching places and returns the criterion ID with each
-              one. City beats region unless you really want the whole state.</span></label>
-          <div class="btnrow">
-            <button class="btn btn-sm btn-pri" id="geoGo">Search</button>
-            <button class="btn btn-sm" id="apGeo">Use the project's location</button>
-          </div>
-          <div id="apGeoOut" style="margin-top:12px"></div>
-        </div>
-
-        <div class="locpane" data-pane="pin">
-          <label class="f"><span class="f-lab">Pincodes — one per line, or comma separated</span>
-            <textarea id="pinList" rows="4" spellcheck="false" inputmode="numeric" placeholder="411001&#10;411014&#10;411028"></textarea>
-            <span class="f-note">Each one is placed on the map and then looked up with Google for its
-              criterion ID. A pincode with no ID cannot be targeted, and the list below says which
-              ones are still missing one.</span></label>
-          <div class="btnrow">
-            <button class="btn btn-sm btn-pri" id="pinAdd">Add these pincodes</button>
-            <button class="btn btn-sm" id="pinRetry">Look up the missing IDs again</button>
-          </div>
-        </div>
-
-        <div class="locpane" data-pane="rad">
-          <div class="f-note" style="margin-bottom:10px">Click anywhere on the map to drop a circle.
-            Drag its pin to move it. Change one circle's radius in its own row, or set them all at once below.</div>
-          <div class="row2">
-            <label class="f"><span class="f-lab">Radius for a new circle</span>
-              <div class="ticket" style="grid-template-columns:1fr 84px">
-                <input type="number" id="radKm" value="5" min="1" max="80" step="1">
-                <select id="radUnit"><option value="KILOMETERS">km</option><option value="MILES">miles</option></select>
-              </div></label>
-            <label class="f"><span class="f-lab">Apply to every circle</span>
-              <button class="btn btn-sm" id="radAll" style="margin-top:2px">Set all circles to this radius</button>
-              <span class="f-note">The bulk change. Individual rows can still be edited afterwards.</span></label>
-          </div>
-        </div>
-
-        <div id="mapWrap" style="margin-top:12px"><div id="map"></div></div>
-        <div class="map-hint">Orange circles are radius targets · blue pins are pincodes · navy pins are cities</div>
-
-        <div class="btnrow" style="margin-top:10px">
-          <button class="btn btn-sm" id="mapCentre">Centre on the project</button>
-          <button class="btn btn-sm" id="tgtAll">Select all</button>
-          <button class="btn btn-sm" id="tgtDelSel">Remove selected</button>
-          <select id="tgtMove" class="hdr-sel" title="Move the selected places to another set"></select>
-          <button class="btn btn-sm" id="mapClear">Clear everything</button>
-        </div>
-        <div id="tgtList" style="margin-top:10px"></div>
-
-        <details style="margin-top:14px">
-          <summary class="f-lab" style="cursor:pointer">Paste criterion IDs by hand</summary>
-          <label class="f" style="margin-top:8px"><span class="f-lab">Location IDs — one per line</span>
-            <textarea id="apLocIds" rows="3" spellcheck="false" inputmode="numeric" placeholder="1007785"></textarea>
-            <span class="f-note">For an ID you already have. These are added to whatever the list above
-              holds — the same numbers Editor shows in its Locations view.</span></label>
-        </details>
-      </div>
-    </div>
+    
 
     <div class="card">
       <div class="card-hd"><h2>Negative keywords</h2><span class="hint" id="negStat">—</span></div>

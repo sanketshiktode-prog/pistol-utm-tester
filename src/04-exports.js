@@ -77,7 +77,7 @@ fillStrategies(); fillUnits(); syncTicket();
    own setup, so if Leaflet failed to load — a blocked CDN, a dead network —
    the whole Locations card came up blank and looked broken rather than
    simply mapless. They are drawn here, before and regardless of the map. */
-onBoot(()=>{ drawLocSets(); drawTargets(); });   /* both live in a later file */
+onBoot(()=>{ drawLocSets(); drawTargets(); drawCampaignSets(); });   /* both live in a later file */
 
 /* ═══════════ tabs ═══════════ */
 /* Every panel carries the heading its tab used to be, so the page reads

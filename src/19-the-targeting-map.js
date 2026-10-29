@@ -26,6 +26,72 @@ function addTarget(t){ TARGETS.push(Object.assign({set:LOCSET_ON},t)); saveTarge
 function removeTarget(i){ TARGETS.splice(i,1); saveTargets(); drawTargets(); }
 
 const TGT_KIND={ geo:["CITY","k-city"], pin:["PINCODE","k-pin"], radius:["RADIUS","k-rad"] };
+/* ═══ which campaign gets which places ═══
+   This used to appear only once there were two sets AND a structure had
+   been built, inside the Google deploy card. So the answer to "how do I
+   give campaigns different places" was a control nobody could find. It is
+   its own panel now and it is always drawn: with one set it says so and
+   offers to add another; with no structure yet it lists the campaigns the
+   brief will produce rather than nothing at all. */
+function drawCampaignSets(){
+  const box=$("#cmpSetList"), st=$("#cmpSetStat");
+  if(!box)return;
+
+  /* names from the built plan when there is one, from the brief when not */
+  let names=[], built=true;
+  try{
+    const pl=apPlan();
+    names=(pl&&pl.campaigns||[]).map(c=>c.name);
+  }catch(e){}
+  if(!names.length){
+    built=false;
+    try{ names=(PLAN||[]).map(p=>p.campaign).filter(Boolean); }catch(e){}
+  }
+
+  if(st)st.textContent=LOCSETS.length===1
+    ? "one set, every campaign"
+    : `${LOCSETS.length} sets · ${names.length} campaign${names.length===1?"":"s"}`;
+
+  if(LOCSETS.length===1){
+    box.innerHTML=`<div class="empty">Every campaign uses
+      “${esc(LOCSETS[0].name)}” — ${locTargets(LOCSETS[0].id).length}
+      place${locTargets(LOCSETS[0].id).length===1?"":"s"}.<br>
+      <button class="btn btn-sm" id="cmpSetAdd" style="margin-top:10px">
+        + Add a second set</button></div>`;
+    return;
+  }
+  if(!names.length){
+    box.innerHTML=`<div class="empty">No campaigns yet. Fill in the brief and the
+      strategies on step 01 — they will appear here to be assigned.</div>`;
+    return;
+  }
+  box.innerHTML=(built?"":`<div class="f-note" style="margin-bottom:10px">From the brief —
+      these are the campaigns that will be built.</div>`)+
+    names.map(n=>{
+      const cr=locCriteria(locSetFor(n));
+      const where=cr.locationIds.length||cr.proximity.length
+        ? `${cr.locationIds.length?cr.locationIds.length+" place"+(cr.locationIds.length===1?"":"s"):""}${
+            cr.locationIds.length&&cr.proximity.length?" · ":""}${
+            cr.proximity.length?cr.proximity.length+" radius":""}`
+        : "nothing targeted";
+      return `<div class="cmpset">
+        <div><div class="nm">${esc(n)}</div><div class="sub">${esc(where)}</div></div>
+        <select class="hdr-sel" data-cset="${esc(n)}" style="max-width:100%">${
+          LOCSETS.map(s2=>`<option value="${esc(s2.id)}"${
+            s2.id===locSetFor(n)?" selected":""}>${esc(s2.name)}</option>`).join("")}</select>
+      </div>`;
+    }).join("");
+}
+on("#cmpSetList","change",e=>{
+  const sel=e.target&&e.target.closest("select[data-cset]"); if(!sel)return;
+  LOCPICK[sel.dataset.cset]=sel.value; saveLocPick();
+  drawCampaignSets();
+  try{ drawApPlan(); }catch(e2){}
+});
+on("#cmpSetList","click",e=>{
+  if(e.target&&e.target.id==="cmpSetAdd"){ const b=$("#locAdd"); if(b)b.click(); }
+});
+
 /* ═══ the set strip, and which set the map is editing ═══ */
 function drawLocSets(){
   const box=$("#locChips");
@@ -49,7 +115,7 @@ $$("#locChips").forEach(()=>{});
 on("#locChips","click",e=>{
   const b=e.target.closest(".setchip"); if(!b)return;
   LOCSET_ON=b.dataset.set;
-  drawLocSets(); drawTargets(); drawApSettings(); drawApPlan();
+  drawLocSets(); drawTargets(); drawCampaignSets(); drawApSettings(); drawApPlan();
 });
 on("#locAdd","click",()=>{
   const name=(prompt("Name this set of places:","")||"").trim();
@@ -58,7 +124,7 @@ on("#locAdd","click",()=>{
     return toast("There is already a set with that name");
   const id=locNewId();
   LOCSETS.push({id,name}); saveLocSets(); LOCSET_ON=id;
-  drawLocSets(); drawTargets(); drawApPlan();
+  drawLocSets(); drawTargets(); drawCampaignSets(); drawApPlan();
   toast(`“${name}” added — places you add now go into it`);
 });
 on("#locRename","click",()=>{
@@ -81,7 +147,7 @@ on("#locDrop","click",()=>{
   used.forEach(k=>{delete LOCPICK[k];});
   LOCSET_ON=LOCSETS[0].id;
   saveLocSets(); saveTargets(); saveLocPick();
-  drawLocSets(); drawTargets(); drawApSettings(); drawApPlan();
+  drawLocSets(); drawTargets(); drawCampaignSets(); drawApSettings(); drawApPlan();
   toast(`“${cur.name}” deleted`);
 });
 on("#tgtMove","change",()=>{
@@ -90,7 +156,7 @@ on("#tgtMove","change",()=>{
   if(!moved.length){ $("#tgtMove").value=""; return toast("Tick some places first"); }
   moved.forEach(t=>{t.set=to;t.sel=false;});
   saveTargets(); $("#tgtMove").value="";
-  drawLocSets(); drawTargets(); drawApSettings(); drawApPlan();
+  drawLocSets(); drawTargets(); drawCampaignSets(); drawApSettings(); drawApPlan();
   toast(`${moved.length} moved to “${locSetName(to)}”`);
 });
 
