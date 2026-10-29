@@ -744,7 +744,14 @@ function oauthSecret_()    { return metaProp_('ADS_OAUTH_SECRET', ''); }
 function oauthRedirect_()  {
   const set = metaProp_('ADS_OAUTH_REDIRECT', '');
   if (set) return set;
-  try { return ScriptApp.getService().getUrl(); } catch (e) { return ''; }
+  var u = '';
+  try { u = ScriptApp.getService().getUrl() || ''; } catch (e) { return ''; }
+  /* Inside a Workspace account getUrl() answers with the domain-scoped form,
+     script.google.com/a/<domain>/macros/s/<id>/exec, while the Console lists
+     the plain one — and redirect_uri has to match to the character. Both
+     reach the same script, so the plain form is used and the /a/<domain>
+     segment dropped. ADS_OAUTH_REDIRECT still overrides all of this. */
+  return u.replace(/^(https:\/\/script\.google\.com)\/a\/[^\/]+\//, '$1/');
 }
 function oauthReady_() {
   return !!(oauthClientId_() && oauthSecret_() && oauthRedirect_());

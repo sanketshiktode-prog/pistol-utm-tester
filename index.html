@@ -303,7 +303,13 @@ html{scroll-behavior:smooth}
 .mdaud-g input,.mdaud-g select,.mdaud-g textarea{font-size:12px;padding:7px 9px;border-radius:9px}
 .mdaud-sum{font-family:var(--mono);font-size:10.5px;color:var(--ink-soft);margin-top:9px}
 .picker-bar{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-top:14px;
-  padding:12px 14px;background:var(--paper);border:1px solid var(--line);border-radius:12px}
+  padding:12px 14px;background:var(--paper);border:1px solid var(--line);border-radius:12px;
+  /* a redirect URI is one unbroken 120-character token: without this it
+     refuses to wrap, pushes the bar wider than its column and prints
+     straight across the card beside it */
+  min-width:0;overflow-wrap:anywhere}
+.picker-bar .hint{min-width:0;flex:1 1 240px;margin-left:0;white-space:normal}
+.picker-bar code{overflow-wrap:anywhere;word-break:break-all}
 .linky{border:0;background:none;padding:0 0 0 8px;font:inherit;font-size:11px;
   color:var(--ink-soft);text-decoration:underline;cursor:pointer}
 .linky:hover{color:var(--ink)}
@@ -447,7 +453,7 @@ html{scroll-behavior:smooth}
     <div class="subject">Google Ads</div>
     <div class="spacer"></div>
     <div class="badge-env" id="varCount">0 VARIANTS</div>
-    <span class="pill p-mute" id="buildTag" title="build">b-29oct-6</span>
+    <span class="pill p-mute" id="buildTag" title="build">b-29oct-7</span>
     <div id="userChip" class="hidden" style="display:flex;align-items:center;gap:9px">
       <div class="divider-v"></div>
       <span id="userName" style="font-size:12.5px;font-weight:500"></span>
