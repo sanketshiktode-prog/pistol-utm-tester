@@ -99,6 +99,12 @@ const locSetFor=campaign=>{
   const id=LOCPICK[campaign];
   return (id&&LOCSETS.some(s=>s.id===id))?id:LOCSETS[0].id;
 };
+/* Meta is a row in the same list as the Google campaigns, under a name no
+   campaign can take, so "same places as Search" and "its own" are the same
+   control rather than two ideas. Meta took every target regardless of set
+   before this, which is why its locations never matched anything. */
+const META_SET="☰ Meta campaign";
+const locTargetsForMeta=()=>locTargets(locSetFor(META_SET));
 function locNewId(){
   let n=2, id;
   do{ id="s"+(n++); }while(LOCSETS.some(s=>s.id===id));

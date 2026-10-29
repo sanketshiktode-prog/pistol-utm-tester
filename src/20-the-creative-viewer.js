@@ -290,7 +290,10 @@ function mdBody(){
        the lead will come back under, so the two match in reporting */
     brief:{proj:b.proj,dev:b.dev,micro:b.micro,city:b.city,
            enquiry:(val("inEnq")||"").trim()},
-    targets:TARGETS,
+    /* Meta takes the set it was given on the Targeting tab, the same way
+       each Google campaign does. It used to take every target there was,
+       whichever set they belonged to. */
+    targets:(typeof locTargetsForMeta==="function"?locTargetsForMeta():TARGETS),
     copy,
     settings:{
       accountId:val("mdAcct"), pageId:val("mdPage"), formId:val("mdForm"),

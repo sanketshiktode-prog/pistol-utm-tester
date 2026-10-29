@@ -268,6 +268,9 @@ html{scroll-behavior:smooth}
 .cmpset:last-child{border-bottom:0}
 .cmpset .nm{font-size:13px;font-weight:500;min-width:0;overflow-wrap:anywhere}
 .cmpset .sub{font-size:11px;color:var(--ink-soft);font-family:var(--mono)}
+/* Meta is in this list too, and is not a Google campaign */
+.cmpset.meta{border-color:var(--accent)}
+.cmpset.meta .nm{color:var(--accent)}
 /* audiences, one ad set each */
 /* Thirteen of these open at once was a page of identical boxes with no way
    to say which three to run. A closed one is a single row: tick, name, what

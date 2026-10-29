@@ -2538,7 +2538,7 @@ function aiReview(body, v) {
 /* Which copy of this file the Apps Script is actually running. The tab
    shows it beside its own build, because "the fix is pushed" and "the fix
    is running" were indistinguishable from the screen for an hour. */
-const BACKEND_BUILD = 'b-30oct-1';
+const BACKEND_BUILD = 'b-30oct-2';
 
 const META_DEFAULT_VERSION = 'v23.0';
 const META_AGE_MIN = 28, META_AGE_MAX = 64;
@@ -2657,6 +2657,104 @@ function metaPerms_() {
 
    The answers are stable, so they are cached: a project with thirteen
    audiences and five hundred names otherwise re-asks on every deploy. */
+/* Meta: "Select an Instagram account or Facebook Page to represent your
+   business on Instagram." The creative runs on Instagram placements, and
+   an Instagram placement needs something to post AS. The Page alone is
+   not enough once the creative names instagram_positions.
+
+   Every Page can have one: either a real Instagram business account
+   connected to it, or a page-backed one, which Meta makes from the Page
+   itself and which is what an advertiser without an Instagram account
+   is meant to use. Both are looked for, and the page-backed one is
+   created if neither exists. The answer is cached — it does not change
+   between deploys, and it is two calls every time if it is not. */
+/* A city or a region is a Google geo target id on this side, and Meta has
+   never heard of those — they were being dropped, so "city level targeting
+   is not being taken". Meta has its own list and its own keys, and this
+   turns a name into one. Cached: the key for Pune does not change. */
+function metaGeoKeys_(labels) {
+  const want = (labels || []).map(function (x) { return String(x || '').trim(); })
+    .filter(Boolean);
+  if (!want.length) return { ok: true, found: [], missing: [] };
+
+  const found = [], missing = [];
+  const cache = CacheService.getScriptCache();
+  const key = function (n) { return 'geo-' + n.toLowerCase().slice(0, 180); };
+
+  want.forEach(function (label) {
+    const hit = cache.get(key(label));
+    if (hit === '-') { missing.push(label); return; }
+    if (hit) { try { found.push(JSON.parse(hit)); return; } catch (e) {} }
+
+    /* the first part is the place; "Pune, Maharashtra, India" searches
+       far better as "Pune" and Meta returns it with its own region */
+    const q = label.split(',')[0].trim() || label;
+    const r = metaCall_('search?type=adgeolocation&location_types=' +
+      encodeURIComponent(JSON.stringify(['city', 'region', 'country', 'zip'])) +
+      '&limit=10&q=' + encodeURIComponent(q), {}, 'get');
+    if (r.error) return { error: r.error };
+    const hits = (r.data || []).filter(function (d) { return d && d.key && d.type; });
+    if (!hits.length) { cache.put(key(label), '-', 21600); missing.push(label); return; }
+    /* prefer one whose country the label also mentions, so "Hyderabad,
+       India" does not land on Hyderabad, Pakistan */
+    const low = label.toLowerCase();
+    const best = hits.filter(function (d) {
+      return d.country_name && low.indexOf(String(d.country_name).toLowerCase()) > -1;
+    })[0] || hits[0];
+    const one = { type: best.type, key: String(best.key),
+                  name: best.name || label, country: best.country_code || '' };
+    cache.put(key(label), JSON.stringify(one), 21600);
+    found.push(one);
+  });
+  return { ok: true, found: found, missing: missing };
+}
+
+/* Meta groups geography by type, each under its own plural. */
+function metaGeoBuckets_(found) {
+  const geo = {};
+  const put = function (k, v) { (geo[k] = geo[k] || []).push(v); };
+  (found || []).forEach(function (g) {
+    if (g.type === 'city')         put('cities', { key: g.key, distance_unit: 'kilometer' });
+    else if (g.type === 'region')  put('regions', { key: g.key });
+    else if (g.type === 'country') (geo.countries = geo.countries || []).push(g.key);
+    else if (g.type === 'zip')     put('zips', { key: g.key });
+    else if (g.type === 'subcity') put('geo_markets', { key: g.key });
+  });
+  return geo;
+}
+
+function metaInstagram_(pageId) {
+  const id = String(pageId || '').trim();
+  if (!id) return { error: 'No Facebook page is set.' };
+  const cache = CacheService.getScriptCache(), key = 'ig-' + id;
+  const hit = cache.get(key);
+  if (hit) return { ok: true, id: hit, from: 'cache' };
+
+  /* a real Instagram account connected to the Page */
+  const linked = metaCall_(id + '?fields=instagram_business_account', {}, 'get');
+  if (!linked.error && linked.instagram_business_account && linked.instagram_business_account.id) {
+    const got = String(linked.instagram_business_account.id);
+    cache.put(key, got, 21600);
+    return { ok: true, id: got, from: 'connected' };
+  }
+
+  /* one Meta makes from the Page itself */
+  const backed = metaCall_(id + '/page_backed_instagram_accounts', {}, 'get');
+  if (!backed.error && backed.data && backed.data.length && backed.data[0].id) {
+    const got = String(backed.data[0].id);
+    cache.put(key, got, 21600);
+    return { ok: true, id: got, from: 'page-backed' };
+  }
+
+  const made = metaCall_(id + '/page_backed_instagram_accounts', {});
+  if (!made.error && made.id) {
+    cache.put(key, String(made.id), 21600);
+    return { ok: true, id: String(made.id), from: 'created' };
+  }
+  return { error: (made.error || backed.error || linked.error ||
+    'the page has no Instagram account and one could not be made for it') };
+}
+
 function metaInterests_(names) {
   const want = (names || []).map(function (n) { return String(n || '').trim(); })
     .filter(Boolean);
@@ -2813,21 +2911,50 @@ function metaPlan(body) {
     .filter(Boolean).join(' ')).replace(/_+/g, ' ').replace(/\s{2,}/g, ' ').trim();
   const adsetName = [proj, place, 'Lead Generation'].filter(Boolean).join(' – ');
 
+  /* A dropped pin and a pincode are both a point on the map, so both go
+     as custom locations. A pincode without a radius takes 5 km, which is
+     about what an Indian pincode covers. */
   const radii = (body.targets || []).filter(function (t) {
-    return t && t.kind === 'radius' && isFinite(Number(t.lat)) && isFinite(Number(t.lng));
+    return t && (t.kind === 'radius' || t.kind === 'pin') &&
+           isFinite(Number(t.lat)) && isFinite(Number(t.lng)) &&
+           (Number(t.lat) || Number(t.lng));
   }).map(function (t) {
     return {
       latitude: Number(t.lat), longitude: Number(t.lng),
-      radius: Math.max(1, Math.min(80, Number(t.radius) || 7)),
+      radius: Math.max(1, Math.min(80, Number(t.radius) || (t.kind === 'pin' ? 5 : 7))),
       distance_unit: 'kilometer'
     };
   });
+
+  /* A city or region is a Google id here and means nothing to Meta, so it
+     was being dropped without a word. Its name is looked up in Meta's own
+     list instead. */
+  const cityLabels = (body.targets || []).filter(function (t) {
+    return t && t.kind === 'geo' && String(t.label || '').trim();
+  }).map(function (t) { return String(t.label).trim(); });
+  var places = { found: [], missing: [] };
+  if (cityLabels.length) {
+    const look = metaGeoKeys_(cityLabels);
+    if (look.error) return { error: 'Meta could not be asked about the locations: ' + look.error };
+    places = look;
+    if (places.missing.length)
+      notes.push('Meta does not recognise ' + places.missing.length + ' location' +
+        (places.missing.length === 1 ? '' : 's') + ': ' + places.missing.join(', ') +
+        '. Drop a pin for ' + (places.missing.length === 1 ? 'it' : 'them') + ' instead.');
+  }
+  const buckets = metaGeoBuckets_(places.found);
+  const anyPlace = Object.keys(buckets).length > 0;
+
   /* Meta has no concept of an ad set that runs everywhere: with no
      geo_locations it is refused outright. Catching it here says which tab
      to go to, instead of a Graph error after the campaign already exists. */
-  if (!radii.length)
-    return { error: 'No location is set. Add a radius target on the Deploy tab — ' +
-                    'Meta refuses an ad set with no geography.' };
+  if (!radii.length && !anyPlace)
+    return { error: 'No location is set. Add a pin, a pincode or a city on the ' +
+                    'Targeting tab — Meta refuses an ad set with no geography.' };
+  if (radii.length + places.found.length)
+    notes.push('Targeting ' + (radii.length ? radii.length + ' pin' + (radii.length === 1 ? '' : 's') : '') +
+      (radii.length && places.found.length ? ' and ' : '') +
+      (places.found.length ? places.found.map(function (g) { return g.name; }).join(', ') : '') + '.');
 
   const excl = (s.excludeAudiences || []).map(function (x) { return String(x).trim(); })
     .filter(Boolean).map(function (id) { return { id: id }; });
@@ -2840,9 +2967,16 @@ function metaPlan(body) {
   function buildTargeting(a) {
     a = a || {};
     const t = {
-      geo_locations: radii.length
-        ? { custom_locations: radii, location_types: ['home'] }   /* residents */
-        : undefined,
+      /* pins and pincodes as points, cities and regions as Meta's own
+         keys, and both together when both are set */
+      geo_locations: (function () {
+        const g = {};
+        if (radii.length) g.custom_locations = radii;
+        for (var k in buckets) if (Object.prototype.hasOwnProperty.call(buckets, k)) g[k] = buckets[k];
+        if (!Object.keys(g).length) return undefined;
+        g.location_types = ['home'];                              /* residents */
+        return g;
+      })(),
       age_min: Number(a.ageMin) || Number(s.ageMin) || META_AGE_MIN,
       age_max: Number(a.ageMax) || Number(s.ageMax) || META_AGE_MAX,
       /* all genders, per the deck. That is the ABSENCE of the field — an
@@ -3022,9 +3156,25 @@ function metaPlan(body) {
       (ads.length === 1 ? '' : 's') + '.');
   }
 
+  /* Instagram has to be posted AS something. If the Page has no account
+     and none can be made, Instagram is dropped rather than the deploy —
+     a Facebook-only campaign is worth far more than a 400. */
+  var igId = '';
+  const ig = metaInstagram_(pageId);
+  if (ig.ok) { igId = ig.id; if (ig.from === 'created')
+    notes.push('Meta had no Instagram account for this page, so a page-backed one was made from the page itself.'); }
+  else {
+    notes.push('Instagram was left out: ' + ig.error + ' The campaign runs on Facebook only.');
+    [adset].concat(adsets).forEach(function (a) {
+      if (!a || !a.targeting) return;
+      a.targeting.publisher_platforms = ['facebook'];
+      delete a.targeting.instagram_positions;
+    });
+  }
+
   return {
     ok: true, campaign: campaign, adset: adset, adsets: adsets, ads: ads, link: link,
-    pageId: pageId, formId: formId, notes: notes,
+    pageId: pageId, formId: formId, igId: igId, notes: notes,
     accountId: String(s.accountId || '').replace(/^act_/, '')
   };
 }
@@ -3150,7 +3300,12 @@ function metaCreativeMulti_(plan, ad, hashes) {
 
   return {
     name: ad.name,
-    object_story_spec: { page_id: plan.pageId },
+    /* an Instagram placement has to post AS something; the Page alone is
+       what Meta refuses with "Select an Instagram account or Facebook
+       Page to represent your business on Instagram" */
+    object_story_spec: plan.igId
+      ? { page_id: plan.pageId, instagram_user_id: plan.igId }
+      : { page_id: plan.pageId },
     asset_feed_spec: {
       images: images,
       bodies:       [{ text: ad.primary,     adlabels: [{ name: 'body'  }] }],
@@ -3169,6 +3324,7 @@ function metaCreative_(plan, ad, hash) {
     name: ad.name,
     object_story_spec: {
       page_id: plan.pageId,
+      instagram_user_id: plan.igId || undefined,
       link_data: {
         image_hash: hash,
         /* Meta: "Lead Generation ads should always link to external content

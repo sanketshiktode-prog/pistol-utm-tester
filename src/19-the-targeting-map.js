@@ -48,24 +48,23 @@ function drawCampaignSets(){
     try{ names=(PLAN||[]).map(p=>p.campaign).filter(Boolean); }catch(e){}
   }
 
+  /* Meta sits in this list too. It is one more thing that gets a set, and
+     putting it anywhere else would have meant two controls for one idea. */
+  names=names.concat([META_SET]);
+
   if(st)st.textContent=LOCSETS.length===1
-    ? "one set, every campaign"
-    : `${LOCSETS.length} sets · ${names.length} campaign${names.length===1?"":"s"}`;
+    ? "one set, every campaign and Meta"
+    : `${LOCSETS.length} sets · ${names.length-1} campaign${names.length-1===1?"":"s"} + Meta`;
 
   if(LOCSETS.length===1){
-    box.innerHTML=`<div class="empty">Every campaign uses
+    box.innerHTML=`<div class="empty">Every campaign and the Meta campaign use
       “${esc(LOCSETS[0].name)}” — ${locTargets(LOCSETS[0].id).length}
       place${locTargets(LOCSETS[0].id).length===1?"":"s"}.<br>
       <button class="btn btn-sm" id="cmpSetAdd" style="margin-top:10px">
         + Add a second set</button></div>`;
     return;
   }
-  if(!names.length){
-    box.innerHTML=`<div class="empty">No campaigns yet. Fill in the brief and the
-      strategies on step 01 — they will appear here to be assigned.</div>`;
-    return;
-  }
-  box.innerHTML=(built?"":`<div class="f-note" style="margin-bottom:10px">From the brief —
+  box.innerHTML=(built||names.length>1?"":`<div class="f-note" style="margin-bottom:10px">From the brief —
       these are the campaigns that will be built.</div>`)+
     names.map(n=>{
       const cr=locCriteria(locSetFor(n));
@@ -74,7 +73,7 @@ function drawCampaignSets(){
             cr.locationIds.length&&cr.proximity.length?" · ":""}${
             cr.proximity.length?cr.proximity.length+" radius":""}`
         : "nothing targeted";
-      return `<div class="cmpset">
+      return `<div class="cmpset${n===META_SET?" meta":""}">
         <div><div class="nm">${esc(n)}</div><div class="sub">${esc(where)}</div></div>
         <select class="hdr-sel" data-cset="${esc(n)}" style="max-width:100%">${
           LOCSETS.map(s2=>`<option value="${esc(s2.id)}"${
