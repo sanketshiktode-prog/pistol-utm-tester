@@ -587,7 +587,54 @@ function historyRead(body, v) {
            truncated: rows.length === limit && bottom >= 2 };
 }
 
-function handleGet() {
+/* The OAuth callback lands here: Google sends the browser back to this web
+   app's own URL with a code. The page it gets is the last thing the person
+   sees of this, so it says plainly whether it worked. */
+function oauthCallback_(e) {
+  const p = (e && e.parameter) || {};
+  const page = function (title, body, good) {
+    return HtmlService.createHtmlOutput(
+      '<!doctype html><meta charset="utf-8">' +
+      '<meta name="viewport" content="width=device-width,initial-scale=1">' +
+      '<div style="font:15px/1.6 system-ui,sans-serif;max-width:520px;margin:12vh auto;padding:0 20px">' +
+      '<div style="font-size:28px;margin-bottom:10px">' + (good ? '\u2713' : '\u2715') + '</div>' +
+      '<h1 style="font-size:19px;margin:0 0 10px">' + title + '</h1>' +
+      '<p style="color:#4A5160;margin:0">' + body + '</p>' +
+      '<p style="color:#8F8A82;font-size:13px;margin-top:22px">You can close this tab.</p></div>');
+  };
+
+  if (p.error)
+    return page('Not connected', 'Google said: ' + String(p.error).slice(0, 200) +
+      '. Nothing was changed \u2014 you can try again from Trigger.', false);
+
+  var email = '';
+  try { email = CacheService.getScriptCache().get('oauth-state-' + String(p.state || '')) || ''; }
+  catch (err) {}
+  if (!email)
+    return page('That link has expired',
+      'Start again from Trigger. The link is good for fifteen minutes, which ' +
+      'is what stops somebody else\u2019s account being attached to yours.', false);
+
+  const got = oauthExchange_(String(p.code || ''));
+  if (got.error) return page('Not connected', got.error, false);
+
+  try {
+    PropertiesService.getScriptProperties().setProperty(oauthKey_(email), got.refresh);
+    CacheService.getScriptCache().remove('oauth-state-' + String(p.state || ''));
+  } catch (err) { return page('Not connected', 'Could not store it: ' + err, false); }
+
+  try { if (typeof write === 'function')
+    write([new Date(), email, '', '', 'ads-connect', 'connected their Google Ads', '']); } catch (err) {}
+
+  return page('Connected',
+    'Campaigns you deploy will now be created by <b>' + email +
+    '</b>, so Google Ads\u2019 own change history names you. ' +
+    'You still need access to the account you are deploying into.', true);
+}
+
+function handleGet(e) {
+  if (e && e.parameter && (e.parameter.code || e.parameter.state || e.parameter.error))
+    return oauthCallback_(e);
   return ContentService.createTextOutput('Search Ops Toolkit endpoint is running.');
 }
 
@@ -621,22 +668,168 @@ function adsCountDeploy(email) {
 
 /* Router entry. apps-script-log.gs calls this from doPost. */
 function adsRoute(body, v) {
+  /* the three connection actions are about the person, not an account, so
+     they come before the deploy gate */
+  if (body.action === 'ads-connect') {
+    if (!v || !v.ok) return { error: 'Sign in again.' };
+    return oauthUrl_(v.email);
+  }
+  if (body.action === 'ads-connection') {
+    const own = !!metaProp_(oauthKey_(v.email), '');
+    return { ok: true, connected: own, email: v.email,
+             possible: oauthReady_(),
+             required: metaProp_('ADS_REQUIRE_OWN', '') === '1' };
+  }
+  if (body.action === 'ads-disconnect') {
+    if (!v || !v.ok) return { error: 'Sign in again.' };
+    try {
+      PropertiesService.getScriptProperties().deleteProperty(oauthKey_(v.email));
+      CacheService.getScriptCache().remove('gads-at-' + oauthKey_(v.email));
+    } catch (e) {}
+    return { ok: true, connected: false };
+  }
+
   const stop = adsGate(v, body.action, body.customerId);
   if (stop) return { error: stop };
+
+  /* Everything below talks to Google Ads, so it acts as the person when
+     they have connected and as the script otherwise. */
+  const own = adsActAs_(v);
+  if (!own && metaProp_('ADS_REQUIRE_OWN', '') === '1' &&
+      (body.action === 'ads-deploy' || body.action === 'ads-validate'))
+    return { error: 'This account is set to require each person to deploy as ' +
+      'themselves. Press \u201cConnect my Google Ads\u201d first \u2014 your campaigns ' +
+      'will then appear under your own name in the change history.' };
+
   if (body.action === 'ads-check')  return adsCheck(body);
   if (body.action === 'ads-geo')    return adsGeo(body);
   if (body.action === 'ads-accounts') return adsAccounts(body);
   if (body.action === 'ads-lists')    return adsSharedSets(body);
   if (body.action === 'ads-segments') return adsSegments(body, v);
-  if (body.action === 'ads-deploy') return adsDeploy(body, v);
+  if (body.action === 'ads-deploy') {
+    const out = adsDeploy(body, v);
+    if (out && typeof out === 'object') {
+      out.deployedAs = own ? v.email : 'the shared credential';
+      out.ownCredential = own;
+    }
+    return out;
+  }
   return null;
 }
 
 /* ── plumbing ─────────────────────────────────────────────────────────────── */
 
+/* ═══════════ deploying as yourself ═══════════
+   Every campaign used to be created with the script owner's credential, so
+   Google Ads' own change history named one person for work done by twenty.
+   Trigger's log knew who pressed the button; Google did not, and Google's
+   is the history an account audit reads.
+
+   Each person can connect their own Google Ads here. Their refresh token is
+   kept in Script Properties and exchanged for a short-lived access token as
+   needed. Somebody who has not connected still deploys — with the shared
+   credential, said so plainly in the result and recorded as such in the
+   log — unless ADS_REQUIRE_OWN is set, which refuses instead. That switch
+   is for once everybody has connected; blocking twenty people on the first
+   day would just mean nobody deploys.
+
+   The person must also have access to the Google Ads account itself. A
+   connection proves who they are, not what they may touch. */
+const OAUTH_SCOPE = 'https://www.googleapis.com/auth/adwords';
+const oauthKey_   = e => 'gads-rt-' + String(e || '').toLowerCase();
+
+function oauthClientId_()  { return metaProp_('ADS_OAUTH_CLIENT_ID', '') || CLIENT_ID; }
+function oauthSecret_()    { return metaProp_('ADS_OAUTH_SECRET', ''); }
+function oauthRedirect_()  {
+  const set = metaProp_('ADS_OAUTH_REDIRECT', '');
+  if (set) return set;
+  try { return ScriptApp.getService().getUrl(); } catch (e) { return ''; }
+}
+function oauthReady_() {
+  return !!(oauthClientId_() && oauthSecret_() && oauthRedirect_());
+}
+
+function oauthUrl_(email) {
+  if (!oauthReady_()) return { error:
+    'Connecting your own account needs ADS_OAUTH_SECRET in Script Properties, ' +
+    'and this web app’s /exec URL listed as an authorised redirect URI on ' +
+    'the OAuth client. Until then everyone deploys with the shared credential.' };
+  /* The state is checked on the way back, so a link cannot be made to
+     attach somebody else's Google account to this address. */
+  const nonce = Utilities.getUuid();
+  try { CacheService.getScriptCache().put('oauth-state-' + nonce,
+        String(email || '').toLowerCase(), 900); } catch (e) {}
+  const p = {
+    client_id: oauthClientId_(), redirect_uri: oauthRedirect_(),
+    response_type: 'code', scope: OAUTH_SCOPE,
+    access_type: 'offline', prompt: 'consent',
+    include_granted_scopes: 'true', state: nonce,
+    login_hint: String(email || '')
+  };
+  const q = Object.keys(p).map(function (k) {
+    return encodeURIComponent(k) + '=' + encodeURIComponent(p[k]);
+  }).join('&');
+  return { ok: true, url: 'https://accounts.google.com/o/oauth2/v2/auth?' + q };
+}
+
+function oauthExchange_(code) {
+  const res = UrlFetchApp.fetch('https://oauth2.googleapis.com/token', {
+    method: 'post', muteHttpExceptions: true,
+    payload: { code: code, client_id: oauthClientId_(), client_secret: oauthSecret_(),
+               redirect_uri: oauthRedirect_(), grant_type: 'authorization_code' }
+  });
+  var b = {};
+  try { b = JSON.parse(res.getContentText()); } catch (e) {}
+  if (res.getResponseCode() !== 200 || !b.refresh_token)
+    return { error: (b.error_description || b.error || res.getContentText()).toString().slice(0, 300) };
+  return { ok: true, refresh: b.refresh_token };
+}
+
+/* A short-lived token, cached well inside its hour so a long build does not
+   stop halfway through for a refresh. */
+function oauthAccessToken_(email) {
+  const key = oauthKey_(email);
+  const rt = metaProp_(key, '');
+  if (!rt) return '';
+  const ck = 'gads-at-' + key;
+  try { const hit = CacheService.getScriptCache().get(ck); if (hit) return hit; } catch (e) {}
+
+  const res = UrlFetchApp.fetch('https://oauth2.googleapis.com/token', {
+    method: 'post', muteHttpExceptions: true,
+    payload: { refresh_token: rt, client_id: oauthClientId_(),
+               client_secret: oauthSecret_(), grant_type: 'refresh_token' }
+  });
+  var b = {};
+  try { b = JSON.parse(res.getContentText()); } catch (e) {}
+  if (res.getResponseCode() !== 200 || !b.access_token) {
+    /* A revoked or expired grant is not a transient failure: the stored
+       token is dead and keeping it only produces this error again on every
+       call. It is dropped so the person is asked to connect again. */
+    if (/invalid_grant/i.test(String(b.error || ''))) {
+      try { PropertiesService.getScriptProperties().deleteProperty(key); } catch (e) {}
+    }
+    return '';
+  }
+  try { CacheService.getScriptCache().put(ck, b.access_token,
+        Math.max(60, Math.min(3000, (Number(b.expires_in) || 3600) - 600))); } catch (e) {}
+  return b.access_token;
+}
+
+/* Who the next Google Ads call acts as. Set per request, never left over
+   from the one before. */
+var ADS_ACTING = null;
+function adsActAs_(v) {
+  ADS_ACTING = null;
+  if (!v || !v.ok) return false;
+  const t = oauthAccessToken_(v.email);
+  if (!t) return false;
+  ADS_ACTING = { token: t, email: v.email };
+  return true;
+}
+
 function adsHeaders() {
   const h = {
-    Authorization    : 'Bearer ' + ScriptApp.getOAuthToken(),
+    Authorization    : 'Bearer ' + ((ADS_ACTING && ADS_ACTING.token) || ScriptApp.getOAuthToken()),
     'developer-token': ADS.devToken
   };
   if (ADS.loginCid) h['login-customer-id'] = digits(ADS.loginCid);
@@ -1064,7 +1257,8 @@ function adsDeploy(body, v) {
         write([new Date(), v.email, v.name,
                typeof role === 'function' ? role(v.email) : '',
                dry ? 'ads-validate' : 'ads-deploy',
-               cid + ' / ' + c.name,
+               cid + ' / ' + c.name +
+                 (ADS_ACTING ? '' : ' (shared credential)'),
                results[results.length - 1].error ||
                  (r.error ? '' : (firstCampaign(r.body) ||
                    (ops.length + ' operations')))]);

@@ -194,12 +194,29 @@ function doPost(e) {
   }
 }
 
-/* Trigger only ever POSTs. A GET is either somebody opening the URL to
-   check it is alive, or a POST that got turned into one by a redirect —
-   and the second used to surface as "Unexpected token 'S'", because the
-   page tried to read a sentence of prose as JSON. So this answers in
-   JSON, and says plainly what it is. */
-function doGet() {
+/* A GET is one of three things: Google returning somebody from the OAuth
+   consent screen, somebody opening the URL to check it is alive, or a POST
+   that got turned into a GET by a redirect — and the last used to surface
+   as "Unexpected token 'S'", because the page tried to read a sentence of
+   prose as JSON.
+
+   The OAuth callback has to be handled by the backend, which owns the
+   token exchange, and its answer is a page for a person to read. Anything
+   else answers in JSON and says what it is. */
+function doGet(e) {
+  const isCallback = !!(e && e.parameter &&
+    (e.parameter.code || e.parameter.state || e.parameter.error));
+  if (isCallback) {
+    try { return backend_().handleGet(e); }
+    catch (err) {
+      return HtmlService.createHtmlOutput(
+        '<!doctype html><meta charset="utf-8">' +
+        '<div style="font:15px/1.6 system-ui,sans-serif;max-width:520px;margin:12vh auto;padding:0 20px">' +
+        '<h1 style="font-size:19px">Not connected</h1><p>The backend did not load: ' +
+        String(err).replace(/[<>]/g, '') + '</p></div>');
+    }
+  }
+
   var body = { ok: true, service: 'trigger-apps-script', method: 'GET',
                note: 'This is the health check. Trigger calls this script with POST; ' +
                      'if an app shows this message, its POST arrived as a GET.' };

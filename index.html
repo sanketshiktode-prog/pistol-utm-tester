@@ -447,7 +447,7 @@ html{scroll-behavior:smooth}
     <div class="subject">Google Ads</div>
     <div class="spacer"></div>
     <div class="badge-env" id="varCount">0 VARIANTS</div>
-    <span class="pill p-mute" id="buildTag" title="build">b-29oct-4</span>
+    <span class="pill p-mute" id="buildTag" title="build">b-29oct-5</span>
     <div id="userChip" class="hidden" style="display:flex;align-items:center;gap:9px">
       <div class="divider-v"></div>
       <span id="userName" style="font-size:12.5px;font-weight:500"></span>
@@ -1428,6 +1428,15 @@ Static Square</textarea>
           <button class="btn btn-sm btn-navy" id="apCheck">Check the connection</button>
         </div>
         <div id="apCheckOut" style="margin-top:12px"></div>
+
+        <!-- Deploying as yourself. Without this every campaign is created by
+             the script owner, so Google Ads' own change history names one
+             person for work done by twenty. -->
+        <div class="picker-bar" style="margin-top:14px">
+          <button class="btn btn-sm" id="gaConnect">Connect my Google Ads</button>
+          <button class="btn btn-sm" id="gaDisconnect" hidden>Disconnect</button>
+          <span class="hint" id="gaStat">Checking…</span>
+        </div>
       </div>
     </div>
 
@@ -3733,6 +3742,9 @@ function showUser(){
   const admin=USER.email.toLowerCase()===AUTH.admin.toLowerCase();
   $("#userRole").textContent=admin?"ADMIN":"USER";
   $("#userRole").className="pill "+(admin?"p-ok":"p-mute");
+  /* whether this person deploys as themselves is worth knowing before they
+     press Deploy, not after */
+  try{ gaConnStatus(); }catch(e){}
 }
 function onCredential(res){
   const p=b64url((res.credential||"").split(".")[1]||"");
@@ -3908,6 +3920,50 @@ on("#projPick","change",()=>{
   logEvent("project-open",v);
   projectApply(p,v);
 });
+/* ═══════════ deploying as yourself ═══════════
+   Google Ads records who made a change, and without this it records the
+   script owner for everybody. Connecting puts your own name on your own
+   campaigns in the account's change history — which is the history an
+   audit reads, not this tool's. */
+async function gaConnStatus(){
+  const stat=$("#gaStat"), go=$("#gaConnect"), off=$("#gaDisconnect");
+  if(!stat)return;
+  const r=await adsCall("ads-connection",{});
+  if(!r||r.error){ stat.innerHTML=`<span class="p-mute">${esc((r&&r.error)||"could not check")}</span>`; return; }
+  if(r.connected){
+    go.hidden=true; off.hidden=false;
+    stat.innerHTML=`<span class="p-ok">Connected as ${esc(r.email)}.</span> `+
+      `<span class="p-mute">Your campaigns are created by you, so the account’s `+
+      `change history names you.</span>`;
+    return;
+  }
+  go.hidden=false; off.hidden=true;
+  stat.innerHTML=r.possible
+    ? (r.required
+        ? `<span class="p-bad">This account requires it.</span> <span class="p-mute">Connect before deploying.</span>`
+        : `<span class="p-mute">Not connected — your campaigns will be created by the `+
+          `shared credential, and Google’s change history will say so.</span>`)
+    : `<span class="p-mute">Not set up on this script yet, so everyone deploys with the `+
+      `shared credential. It needs <code>ADS_OAUTH_SECRET</code> in Script Properties.</span>`;
+}
+on("#gaConnect","click",async()=>{
+  const stat=$("#gaStat");
+  stat.innerHTML=`<span class="p-mute">Asking Google…</span>`;
+  const r=await adsCall("ads-connect",{});
+  if(!r||r.error)return stat.innerHTML=`<span class="p-bad">${esc((r&&r.error)||"no answer")}</span>`;
+  /* opened rather than navigated, so a half-built campaign on this page is
+     not thrown away by leaving it */
+  const w=window.open(r.url,"_blank","noopener");
+  stat.innerHTML=w
+    ? `<span class="p-mute">Finish in the new tab, then press <b>Check the connection</b> here.</span>`
+    : `<span class="p-mute">Pop-up blocked. <a href="${esc(r.url)}" target="_blank" rel="noopener">Open it here</a>, then come back.</span>`;
+});
+on("#gaDisconnect","click",async()=>{
+  if(!confirm("Disconnect your Google Ads?\n\nYour campaigns will go back to being created by the shared credential."))return;
+  await adsCall("ads-disconnect",{});
+  gaConnStatus();
+});
+
 /* ═══════════ who deployed what ═══════════
    The log has always been written; it has never been readable by the people
    it is about. Twenty of them share this tool, so the question "who made
@@ -6802,6 +6858,7 @@ function explainErr(raw){
       caused by the one above \u2014 nothing partial was created.</div>`:"");
 }
 on("#apCheck","click",async()=>{
+  gaConnStatus();
   const cid=$("#apCid").value.replace(/[^0-9]/g,"");
   if(!cid)return toast("Put the customer ID in first");
   $("#apStat").innerHTML=`<span class="pill p-mute">checking\u2026</span>`;
