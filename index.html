@@ -453,7 +453,7 @@ html{scroll-behavior:smooth}
     <div class="subject">Google Ads</div>
     <div class="spacer"></div>
     <div class="badge-env" id="varCount">0 VARIANTS</div>
-    <span class="pill p-mute" id="buildTag" title="build">b-29oct-7</span>
+    <span class="pill p-mute" id="buildTag" title="build">b-29oct-8</span>
     <div id="userChip" class="hidden" style="display:flex;align-items:center;gap:9px">
       <div class="divider-v"></div>
       <span id="userName" style="font-size:12.5px;font-weight:500"></span>
@@ -9813,6 +9813,20 @@ on("#mdCheck","click",async()=>{
     else h+=mdLine("ok","✓",`<b>Instant Form:</b> ${esc(L.form.name||L.form.id)}`+
       (L.form.status&&L.form.status!=="ACTIVE"?` · <b>${esc(L.form.status)}</b>`:""));
   }
+
+  /* The permission list is what turns "the Page has not accepted the Terms"
+     — which it has — into the actual missing scope. */
+  const pm=r.perms||{};
+  if(pm.error) h+=mdLine("warn","!",`<b>Permissions:</b> could not read them — ${esc(pm.error)}`);
+  else if((pm.missing||[]).length) h+=mdLine("bad","✕",
+    `<b>The token is missing ${pm.missing.length} permission${pm.missing.length===1?"":"s"}:</b> `+
+    pm.missing.map(k=>`<code>${esc(k)}</code> — ${esc((pm.why||{})[k]||"")}`).join("<br>")+
+    `<br><span class="p-mute">Business Settings → System Users → your user → `+
+    `<b>Generate new token</b>, tick the missing ones, and put the new token in `+
+    `<code>META_TOKEN</code>. Asset access alone does not grant these.</span>`);
+  else if((pm.granted||[]).length) h+=mdLine("ok","✓",
+    `<b>Permissions:</b> everything lead ads need. `+
+    `<span class="p-mute">${esc(pm.granted.join(", "))}</span>`);
 
   h+=mdLine("warn","!","This is what Meta reports. <b>Validate against Meta</b> is what proves the whole structure.");
   $("#mdOut").innerHTML=h;

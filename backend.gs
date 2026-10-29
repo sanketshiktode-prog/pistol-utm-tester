@@ -2444,6 +2444,35 @@ function metaLook_(settings) {
    an ad account from one business, a Page from another, and a form that
    belonged to neither — each failing with an error that named none of
    them. A list cannot be mistyped and cannot offer what is not there. */
+/* What the token is actually allowed to do.
+
+   Meta refuses lead ads with "your Facebook Page accepts Facebook's Lead
+   Generation Terms of Service" when the acting token has no lead-gen
+   permission on the Page — whatever the Page's own terms say. So the Terms
+   get accepted again, and again, and the error does not move. The
+   permission is pages_manage_ads, and asking for the list outright is the
+   difference between a minute and an evening. */
+const META_NEED = {
+  ads_management     : 'create campaigns, ad sets and ads',
+  pages_show_list    : 'see your Pages at all',
+  pages_manage_ads   : 'run lead ads on a Page — WITHOUT THIS, Meta reports it ' +
+                       'as the Page not having accepted the Lead Ad Terms',
+  pages_read_engagement: 'read a Page’s own details'
+};
+function metaPerms_() {
+  const r = metaCall_('me/permissions?limit=200', {}, 'get');
+  if (r.error) return { error: r.error };
+  const granted = [], declined = [];
+  (r.data || []).forEach(function (p) {
+    (p.status === 'granted' ? granted : declined).push(p.permission);
+  });
+  const missing = Object.keys(META_NEED).filter(function (k) {
+    return granted.indexOf(k) === -1;
+  });
+  return { ok: true, granted: granted, declined: declined, missing: missing,
+           why: META_NEED };
+}
+
 function metaAssets_() {
   const out = { accounts: [], pages: [], notes: [] };
 
@@ -2513,6 +2542,8 @@ function metaRoute(body, v) {
     if (!base.ready) return base;
     try { base.look = metaLook_(body.settings); }
     catch (e) { base.look = { error: String(e) }; }
+    try { base.perms = metaPerms_(); }
+    catch (e) { base.perms = { error: String(e) }; }
     return base;
   }
   if (!metaToken_()) return { error:
