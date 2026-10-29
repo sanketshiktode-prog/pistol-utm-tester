@@ -2116,8 +2116,75 @@ function metaLook_(settings) {
   return out;
 }
 
+/* Everything the token can reach, so the three ids can be picked from a
+   list instead of typed. Typing them is where most of an evening went:
+   an ad account from one business, a Page from another, and a form that
+   belonged to neither — each failing with an error that named none of
+   them. A list cannot be mistyped and cannot offer what is not there. */
+function metaAssets_() {
+  const out = { accounts: [], pages: [], notes: [] };
+
+  const ac = metaCall_('me/adaccounts?fields=name,account_id,account_status,currency' +
+                       '&limit=200', {}, 'get');
+  if (ac.error) out.notes.push('Ad accounts: ' + ac.error);
+  else (ac.data || []).forEach(function (a) {
+    out.accounts.push({ id: String(a.account_id || '').replace(/^act_/, ''),
+                        name: a.name || '(unnamed)',
+                        active: a.account_status === 1,
+                        currency: a.currency || '' });
+  });
+
+  /* The Page token that comes back here is what makes the form list and
+     the lead-gen check readable at all, so it is asked for once and used
+     straight away rather than fetched again per Page. */
+  const pg = metaCall_('me/accounts?fields=name,id,access_token&limit=200', {}, 'get');
+  if (pg.error) out.notes.push('Pages: ' + pg.error);
+  else (pg.data || []).forEach(function (p) {
+    out.pages.push({ id: String(p.id), name: p.name || '(unnamed)',
+                     hasToken: !!p.access_token });
+  });
+
+  out.accounts.sort(function (x, y) { return x.name.localeCompare(y.name); });
+  out.pages.sort(function (x, y) { return x.name.localeCompare(y.name); });
+  return out;
+}
+
+/* The Instant Forms on one Page. Listing them needs the Page's own token,
+   which is why this is a second call rather than part of the first. */
+function metaForms_(pageId) {
+  const id = String(pageId || '').trim();
+  if (!id) return { error: 'No Page chosen.' };
+
+  var token = '';
+  const pg = metaCall_(id + '?fields=access_token', {}, 'get');
+  if (!pg.error && pg.access_token) token = pg.access_token;
+
+  const path = id + '/leadgen_forms?fields=id,name,status,leadgen_export_csv_url' +
+               '&limit=200' + (token ? '&access_token=' + encodeURIComponent(token) : '');
+  const r = metaCall_(path, {}, 'get');
+  if (r.error) return { error: r.error, needsPageToken: !token };
+  const forms = (r.data || []).map(function (f) {
+    return { id: String(f.id), name: f.name || '(unnamed)', status: f.status || '' };
+  });
+  /* an archived form takes an ad set but never shows, so the live ones
+     are offered first rather than mixed in by name */
+  forms.sort(function (a, b) {
+    const live = function (x) { return x.status === 'ACTIVE' ? 0 : 1; };
+    return live(a) - live(b) || a.name.localeCompare(b.name);
+  });
+  return { ok: true, forms: forms, viaPageToken: !!token };
+}
+
 function metaRoute(body, v) {
   const a = String(body.action || '');
+  if (a === 'meta-assets') {
+    if (!metaToken_()) return { error: 'No META_TOKEN in the Apps Script.' };
+    return Object.assign({ ok: true }, metaAssets_());
+  }
+  if (a === 'meta-forms') {
+    if (!metaToken_()) return { error: 'No META_TOKEN in the Apps Script.' };
+    return metaForms_(body.pageId);
+  }
   if (a === 'meta-check') {
     const base = { ok: true, ready: !!metaToken_(), version: metaVersion_() };
     if (!base.ready) return base;

@@ -31,7 +31,7 @@
 html,body{margin:0;padding:0}
 body{background:var(--paper);color:var(--ink);font-family:var(--ui);font-size:14px;line-height:1.5;-webkit-font-smoothing:antialiased}
 
-.topbar{background:var(--surface);border-bottom:1px solid var(--line);position:sticky;top:0;z-index:40}
+.topbar{background:var(--surface);border-bottom:1px solid var(--line);position:sticky;top:0;z-index:40;box-shadow:0 1px 3px rgba(20,22,28,.04)}
 .topbar-in{max-width:1440px;margin:0 auto;padding:14px 24px;display:flex;align-items:center;gap:16px;flex-wrap:wrap}
 .logo{height:26px;width:auto;display:block}
 .logo-fallback{font-family:var(--disp);font-weight:800;font-size:17px;letter-spacing:-.02em}
@@ -47,17 +47,19 @@ body{background:var(--paper);color:var(--ink);font-family:var(--ui);font-size:14
 .tg-mark-lg{width:64px;height:64px;border-radius:15px}
 .topbar .spacer{flex:1}
 .badge-env{font-family:var(--mono);font-size:11px;font-weight:600;color:var(--orange);background:var(--orange-wash);
-  border:1px solid #FFD9BC;padding:4px 9px;border-radius:3px;letter-spacing:.04em}
+  border:1px solid #FFD9BC;padding:4px 9px;border-radius:7px;letter-spacing:.04em}
 
 .wrap{max-width:1440px;margin:0 auto;padding:24px}
 .split{display:grid;grid-template-columns:380px minmax(0,1fr);gap:20px;align-items:start}
 @media(max-width:1040px){.split{grid-template-columns:1fr}}
-.card{background:var(--surface);border:1px solid var(--line);border-radius:6px}
-.card + .card{margin-top:16px}
-.card-hd{padding:13px 16px;border-bottom:1px solid var(--line-soft);display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:16px;
+  box-shadow:0 1px 2px rgba(20,22,28,.04),0 1px 1px rgba(20,22,28,.03)}
+.card + .card{margin-top:20px}
+.card-hd{padding:16px 20px 14px;border-bottom:1px solid var(--line-soft);display:flex;
+  align-items:center;gap:10px;flex-wrap:wrap}
 .card-hd h2{font-family:var(--disp);font-size:12px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;margin:0}
 .card-hd .hint{font-size:11.5px;color:var(--ink-soft);margin-left:auto;font-family:var(--mono)}
-.card-bd{padding:16px}
+.card-bd{padding:20px}
 .sticky-col{position:sticky;top:80px}
 @media(max-width:1040px){.sticky-col{position:static}}
 
@@ -70,11 +72,16 @@ label.f:last-child,div.f:last-child{margin-bottom:0}
   color:var(--navy);cursor:pointer;text-decoration:underline;background:none;border:0;padding:0;font-family:var(--ui)}
 input[type=text],input[type=url],select,textarea{
   width:100%;font-family:var(--mono);font-size:13px;color:var(--ink);background:var(--surface);
-  border:1px solid var(--line);border-radius:4px;padding:9px 10px;outline:none}
+  border:1px solid var(--line);border-radius:10px;padding:11px 13px;outline:none;
+  transition:border-color .12s ease, box-shadow .12s ease}
 select{font-family:var(--ui);font-size:13.5px}
-select[multiple]{padding:4px;font-family:var(--ui);font-size:13px}
-select[multiple] option{padding:5px 7px;border-radius:3px}
-input:focus,select:focus,textarea:focus{border-color:var(--orange);box-shadow:0 0 0 3px rgba(251,106,2,.13)}
+select[multiple]{padding:6px;font-family:var(--ui);font-size:13px}
+select[multiple] option{padding:7px 10px;border-radius:8px;margin-bottom:2px}
+/* the browser default for a chosen option is a flat grey slab that reads as
+   disabled rather than selected */
+select[multiple] option:checked{background:var(--navy-wash);color:var(--navy);font-weight:600;
+  box-shadow:inset 2px 0 0 var(--navy)}
+input:focus,select:focus,textarea:focus{border-color:var(--orange);box-shadow:0 0 0 3px rgba(251,106,2,.15)}
 textarea{resize:vertical;line-height:1.55;font-size:12px}
 .f-note{font-size:11.5px;color:var(--ink-soft);margin-top:5px}
 /* A grid item defaults to min-width:auto, so a long filename inside an upload
@@ -83,24 +90,28 @@ textarea{resize:vertical;line-height:1.55;font-size:12px}
 .row2>*{min-width:0}
 .ticket{display:grid;grid-template-columns:1fr 74px 22px 1fr 74px;gap:8px;align-items:center}
 .ticket .dash{text-align:center;color:var(--ink-soft);font-family:var(--mono)}
-.seg{display:flex;border:1px solid var(--line);border-radius:4px;overflow:hidden}
-.seg button{flex:1;border:0;background:var(--surface);padding:9px 8px;font-family:var(--disp);
+.seg{display:flex;border:1px solid var(--line);border-radius:10px;overflow:hidden}
+.seg button{flex:1;border:0;background:var(--surface);padding:10px 8px;font-family:var(--disp);
   font-weight:600;font-size:12.5px;color:var(--ink-soft);cursor:pointer}
 .seg button + button{border-left:1px solid var(--line)}
 .seg button[aria-pressed="true"]{background:var(--navy);color:#fff}
 
-.btn{font-family:var(--disp);font-weight:600;font-size:13px;border-radius:4px;border:1px solid var(--line);
-  background:var(--surface);color:var(--ink);padding:9px 14px;cursor:pointer}
-.btn:hover{border-color:#C3C8D0}
+.btn{font-family:var(--disp);font-weight:600;font-size:13px;border-radius:10px;border:1px solid var(--line);
+  background:var(--surface);color:var(--ink);padding:10px 17px;cursor:pointer;
+  transition:background .12s ease,border-color .12s ease,transform .06s ease;
+  box-shadow:0 1px 1px rgba(20,22,28,.03)}
+.btn:hover{border-color:#C3C8D0;background:#FAFBFC}
+.btn:active{transform:translateY(1px)}
+.btn:disabled{opacity:.5;cursor:not-allowed;transform:none}
 .btn-pri{background:var(--orange);border-color:var(--orange);color:#fff}
 .btn-pri:hover{background:#E45E00;border-color:#E45E00}
 .btn-navy{background:var(--navy);border-color:var(--navy);color:#fff}
 .btn-navy:hover{background:#122038}
-.btn-sm{padding:5px 9px;font-size:11.5px}
-.btnrow{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.btn-sm{padding:6px 12px;font-size:11.5px;border-radius:8px}
+.btnrow{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
 
 .out{font-family:var(--mono);font-size:12.5px;line-height:1.7;word-break:break-all;
-  background:#FAFBFC;border:1px solid var(--line);border-radius:4px;padding:12px 13px}
+  background:#FAFBFC;border:1px solid var(--line);border-radius:12px;padding:14px 16px}
 .out.sm{font-size:11.5px}
 .kv{width:100%;border-collapse:collapse}
 .kv th{text-align:left;font-size:10.5px;letter-spacing:.07em;text-transform:uppercase;color:var(--ink-soft);
@@ -113,7 +124,7 @@ textarea{resize:vertical;line-height:1.55;font-size:12px}
 .kv tbody tr.pick{cursor:pointer}
 .kv tbody tr.pick:hover td{background:#FAFBFC}
 .param-name{font-family:var(--mono);font-weight:600;color:var(--navy);background:var(--navy-wash);
-  padding:3px 7px;border-radius:3px;display:inline-block;font-size:12.5px}
+  padding:3px 7px;border-radius:7px;display:inline-block;font-size:12.5px}
 .count{font-family:var(--mono);font-size:11px;color:var(--ink-soft)}
 .count.bad{color:var(--bad);font-weight:600}
 
@@ -136,14 +147,14 @@ textarea{resize:vertical;line-height:1.55;font-size:12px}
 .legend span{display:flex;align-items:center;gap:6px}
 .legend i{width:7px;height:7px;border-radius:50%;display:inline-block}
 
-.check{display:flex;gap:10px;padding:9px 12px;border-radius:4px;font-size:12.5px;margin-bottom:8px;align-items:flex-start}
+.check{display:flex;gap:10px;padding:9px 12px;border-radius:9px;font-size:12.5px;margin-bottom:8px;align-items:flex-start}
 .check:last-child{margin-bottom:0}
 .check .ic{font-family:var(--mono);font-weight:700;font-size:12px;flex:none;margin-top:1px}
 .c-ok{background:var(--ok-wash);color:#0A5E41}
 .c-warn{background:var(--warn-wash);color:#7A4A00}
 .c-bad{background:var(--bad-wash);color:#8E1A22}
 .check b{font-weight:600}
-.pill{font-family:var(--mono);font-size:10.5px;font-weight:600;padding:3px 7px;border-radius:3px;white-space:nowrap}
+.pill{font-family:var(--mono);font-size:10.5px;font-weight:600;padding:3px 7px;border-radius:7px;white-space:nowrap}
 .p-mute{background:var(--line-soft);color:var(--ink-soft)}
 
 .empty{padding:34px 16px;text-align:center;color:var(--ink-soft);font-size:13px}
@@ -156,7 +167,7 @@ textarea{resize:vertical;line-height:1.55;font-size:12px}
 
 /* landing page + FAQ panels */
 .kpis{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:14px}
-.kpi{border:1px solid var(--line-soft);border-radius:6px;padding:11px 13px;background:var(--surface)}
+.kpi{border:1px solid var(--line-soft);border-radius:11px;padding:11px 13px;background:var(--surface)}
 .kpi b{display:block;font-family:var(--disp);font-size:26px;line-height:1.1;font-weight:800}
 .kpi span{font-size:10.5px;font-weight:600;letter-spacing:.07em;text-transform:uppercase;color:var(--ink-soft)}
 .kpi.good b{color:var(--ok)} .kpi.bad b{color:var(--bad)}
@@ -171,7 +182,7 @@ textarea{resize:vertical;line-height:1.55;font-size:12px}
 .dpair span:last-child{word-break:break-word}
 @media(max-width:760px){.kpis{grid-template-columns:repeat(2,1fr)}}
 
-code{font-family:var(--mono);background:rgba(0,0,0,.05);padding:1px 4px;border-radius:3px;font-size:.94em}
+code{font-family:var(--mono);background:rgba(0,0,0,.05);padding:1px 4px;border-radius:7px;font-size:.94em}
 
 /* strategy manager */
 .modal{position:fixed;inset:0;background:rgba(20,22,28,.5);z-index:60;display:none;padding:40px 20px;overflow:auto}
@@ -183,27 +194,52 @@ code{font-family:var(--mono);background:rgba(0,0,0,.05);padding:1px 4px;border-r
 .modal-bd{padding:20px}
 .srow{display:grid;grid-template-columns:1fr 150px 34px;gap:8px;margin-bottom:8px;align-items:center}
 .srow input{font-size:12.5px;padding:7px 9px}
-.srow .del{border:1px solid var(--line);background:var(--surface);border-radius:4px;cursor:pointer;
+.srow .del{border:1px solid var(--line);background:var(--surface);border-radius:9px;cursor:pointer;
   height:34px;color:var(--ink-soft);font-size:13px}
 .srow .del:hover{border-color:var(--bad);color:var(--bad)}
 .shd{display:grid;grid-template-columns:1fr 150px 34px;gap:8px;margin-bottom:6px}
 .shd span{font-size:10.5px;letter-spacing:.07em;text-transform:uppercase;color:var(--ink-soft);font-weight:600}
 
 .toast{position:fixed;bottom:22px;left:50%;transform:translateX(-50%) translateY(70px);background:var(--ink);
-  color:#fff;font-family:var(--disp);font-weight:600;font-size:13px;padding:11px 18px;border-radius:5px;
+  color:#fff;font-family:var(--disp);font-weight:600;font-size:13px;padding:11px 18px;border-radius:10px;
   opacity:0;transition:.22s;z-index:99;pointer-events:none}
 .toast.on{opacity:1;transform:translateX(-50%) translateY(0)}
 @media (prefers-reduced-motion:reduce){.toast{transition:none}}
 :focus-visible{outline:2px solid var(--orange);outline-offset:2px}
 .foot{max-width:1440px;margin:0 auto;padding:8px 24px 40px;font-size:11.5px;color:var(--ink-soft)}
-.tabs{position:sticky;top:55px;z-index:39;background:var(--surface);border-bottom:1px solid var(--line)}
+/* The rail sits under the top bar, and the top bar is not a fixed height
+   — a long name wraps it onto two lines and the rail went underneath it,
+   clipping the section names. Both heights are measured at runtime into
+   --barh and --railh; everything that has to clear them reads those. */
+.tabs{position:sticky;top:var(--barh,55px);z-index:39;background:var(--surface);
+  border-bottom:1px solid var(--line)}
 .tabs-in{max-width:1440px;margin:0 auto;padding:0 24px;display:flex;gap:2px;overflow-x:auto}
 .tab{font-family:var(--disp);font-weight:600;font-size:13px;padding:12px 16px;border:0;background:none;
   color:var(--ink-soft);cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-1px;white-space:nowrap}
 .tab:hover{color:var(--ink)}
 .tab[aria-selected="true"]{color:var(--ink);border-bottom-color:var(--orange)}
+.tabs-in::-webkit-scrollbar{height:0}
+@media (prefers-reduced-motion:reduce){html{scroll-behavior:auto}}
+html{scroll-behavior:smooth}
 .tab .num{font-family:var(--mono);font-size:10px;color:var(--orange);margin-right:6px}
-.panel{display:none}.panel.on{display:block}
+/* ═══ one page, not nine tabs ═══
+   The nine panels were only ever hidden by display:none, which made them
+   feel like nine places to lose your work in. They are one page now; the
+   bar above is a rail that follows the scroll and jumps to a section.
+   scroll-margin keeps a heading clear of the two sticky bars. */
+.panel{display:block;scroll-margin-top:calc(var(--barh,55px) + var(--railh,44px) + 14px)}
+.panel + .panel{margin-top:38px}
+.panel:last-of-type{padding-bottom:40px}
+.sec-head{display:flex;align-items:center;gap:12px;margin:0 0 14px}
+.sec-head .n{font-family:var(--mono);font-size:11px;font-weight:600;color:var(--orange);
+  background:var(--orange-wash);border:1px solid #FFD9BC;border-radius:8px;padding:3px 9px}
+.sec-head h1{font-family:var(--disp);font-size:21px;font-weight:700;letter-spacing:-.02em;margin:0}
+.sec-head .rule{flex:1 1 auto;height:1px;background:var(--line)}
+.picker-bar{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-top:14px;
+  padding:12px 14px;background:var(--paper);border:1px solid var(--line);border-radius:12px}
+.linky{border:0;background:none;padding:0 0 0 8px;font:inherit;font-size:11px;
+  color:var(--ink-soft);text-decoration:underline;cursor:pointer}
+.linky:hover{color:var(--ink)}
 .chk{display:flex;align-items:center;gap:7px;font-size:13px;margin-bottom:8px;cursor:pointer}
 .chk input{width:auto;margin:0}
 .out.pre{white-space:pre;overflow-x:auto;word-break:normal;line-height:1.6;max-height:420px;overflow-y:auto}
@@ -216,13 +252,13 @@ code{font-family:var(--mono);background:rgba(0,0,0,.05);padding:1px 4px;border-r
 .acrow .len.bad{color:var(--bad);font-weight:600}
 .acrow .len.edge{color:var(--warn);font-weight:600}
 .acrow select{font-size:12.5px;padding:7px 6px}
-.acrow .del{border:1px solid var(--line);background:var(--surface);border-radius:4px;cursor:pointer;
+.acrow .del{border:1px solid var(--line);background:var(--surface);border-radius:9px;cursor:pointer;
   height:34px;color:var(--ink-soft);font-size:13px;padding:0}
 .acrow .del:hover{border-color:var(--bad);color:var(--bad)}
 .achd{display:grid;grid-template-columns:26px 1fr 62px 78px 30px;gap:8px;margin-bottom:6px}
 .achd span{font-size:10.5px;letter-spacing:.07em;text-transform:uppercase;color:var(--ink-soft);font-weight:600}
 .achd span:nth-child(3),.achd span:nth-child(4){text-align:right}
-.preview{border:1px solid var(--line);border-radius:5px;padding:14px 15px;background:#FAFBFC}
+.preview{border:1px solid var(--line);border-radius:10px;padding:14px 15px;background:#FAFBFC}
 .preview .pv-url{font-size:12.5px;color:#0A5E41;font-family:var(--ui)}
 .preview .pv-h{font-size:18px;color:#1A0DAB;line-height:1.3;margin:4px 0 5px;font-family:var(--ui)}
 .preview .pv-d{font-size:13px;color:#4D5156;font-family:var(--ui)}
@@ -245,11 +281,11 @@ code{font-family:var(--mono);background:rgba(0,0,0,.05);padding:1px 4px;border-r
 .drop-txt{flex:1 1 auto;min-width:0;display:flex;flex-direction:column;line-height:1.25;overflow:hidden}
 .drop-txt b{font-size:13.5px;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .drop-sub{font-size:11.5px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.drop-thumb{flex:0 0 auto;width:40px;height:40px;border-radius:6px;object-fit:cover;
+.drop-thumb{flex:0 0 auto;width:40px;height:40px;border-radius:11px;object-fit:cover;
   border:1px solid var(--line);background:#F2F3F5}
 .drop-sm{padding:11px 13px}
 .drop-sm .drop-ic{flex:0 0 28px;height:28px;font-size:14px}
-.hdr-sel{height:30px;max-width:190px;border:1px solid var(--line);border-radius:6px;
+.hdr-sel{height:30px;max-width:190px;border:1px solid var(--line);border-radius:11px;
   background:#fff;font:inherit;font-size:12.5px;color:var(--ink);padding:0 8px;cursor:pointer}
 
 /* Lightbox for the rendered creatives. They are the deliverable, so they
@@ -280,15 +316,15 @@ code{font-family:var(--mono);background:rgba(0,0,0,.05);padding:1px 4px;border-r
 .tgt-row{display:flex;align-items:center;gap:8px;padding:7px 9px;border:1px solid var(--line);
   border-radius:7px;margin-top:6px;background:#fff;font-size:12.5px}
 .tgt-row .nm{flex:1 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.tgt-row .rad{width:62px;height:26px;border:1px solid var(--line);border-radius:5px;
+.tgt-row .rad{width:62px;height:26px;border:1px solid var(--line);border-radius:10px;
   font:inherit;font-size:12px;text-align:right;padding:0 5px}
 .tgt-row .x{border:0;background:none;color:var(--bad,#C0392B);cursor:pointer;font-size:15px;padding:0 3px}
-.tgt-kind{flex:0 0 auto;font-family:var(--mono);font-size:10.5px;padding:2px 6px;border-radius:4px;
+.tgt-kind{flex:0 0 auto;font-family:var(--mono);font-size:10.5px;padding:2px 6px;border-radius:9px;
   background:#EEF1F5;color:var(--ink-soft)}
 /* the Demand Gen copy review: label, field, count, flag */
 .dgc-row{display:grid;grid-template-columns:34px 1fr 54px 48px;gap:8px;align-items:center;margin-bottom:5px}
 .dgc-lab{font-family:var(--mono);font-size:10.5px;color:var(--muted)}
-.dgc-in{width:100%;border:1px solid var(--line);border-radius:6px;padding:7px 9px;
+.dgc-in{width:100%;border:1px solid var(--line);border-radius:11px;padding:7px 9px;
   font:inherit;font-size:12.5px;resize:vertical;min-height:34px;line-height:1.35}
 .dgc-in.over{border-color:var(--bad,#C0392B);background:#FDF3F2}
 .dgc-n{font-family:var(--mono);font-size:10.5px;color:var(--muted);text-align:right}
@@ -297,7 +333,7 @@ code{font-family:var(--mono);background:rgba(0,0,0,.05);padding:1px 4px;border-r
 /* the Demand Gen copy review: label, field, count, flag */
 .dgc-row{display:grid;grid-template-columns:34px 1fr 54px 48px;gap:8px;align-items:center;margin-bottom:5px}
 .dgc-lab{font-family:var(--mono);font-size:10.5px;color:var(--muted)}
-.dgc-in{width:100%;border:1px solid var(--line);border-radius:6px;padding:7px 9px;
+.dgc-in{width:100%;border:1px solid var(--line);border-radius:11px;padding:7px 9px;
   font:inherit;font-size:12.5px;resize:vertical;min-height:34px;line-height:1.35}
 .dgc-in.over{border-color:var(--bad,#C0392B);background:#FDF3F2}
 .dgc-n{font-family:var(--mono);font-size:10.5px;color:var(--muted);text-align:right}
@@ -305,13 +341,13 @@ code{font-family:var(--mono);background:rgba(0,0,0,.05);padding:1px 4px;border-r
 .dgc-f{font-size:10px}
 /* the palette and typeface pickers on the Creative studio */
 .swatches{display:flex;gap:6px;margin:8px 0 4px}
-.swatches i{width:30px;height:30px;border-radius:5px;border:1px solid rgba(0,0,0,.14);display:block}
+.swatches i{width:30px;height:30px;border-radius:10px;border:1px solid rgba(0,0,0,.14);display:block}
 .type-prev{margin:8px 0 4px;padding:10px 12px;border:1px solid var(--line);border-radius:7px;
   background:#fff;overflow:hidden}
 .type-prev .tp-d{font-size:21px;font-weight:700;letter-spacing:.01em;line-height:1.15}
 .type-prev .tp-p{font-size:24px;font-weight:800;line-height:1.1;margin-top:2px}
 .type-prev .tp-b{font-size:11.5px;letter-spacing:.06em;text-transform:uppercase;margin-top:5px;color:var(--ink-soft)}
-.hero-nm{flex:1 1 auto;min-width:0;border:1px solid var(--line);border-radius:5px;
+.hero-nm{flex:1 1 auto;min-width:0;border:1px solid var(--line);border-radius:10px;
   font:inherit;font-size:12.5px;padding:4px 7px;background:#fff}
 .tgt-kind.k-city{background:#E6EBF4;color:#14213D}
 .tgt-kind.k-pin{background:#E2EEF7;color:#17618F}
@@ -344,7 +380,7 @@ code{font-family:var(--mono);background:rgba(0,0,0,.05);padding:1px 4px;border-r
     <div class="subject">Google Ads</div>
     <div class="spacer"></div>
     <div class="badge-env" id="varCount">0 VARIANTS</div>
-    <span class="pill p-mute" id="buildTag" title="build">b-25oct-2</span>
+    <span class="pill p-mute" id="buildTag" title="build">b-29oct-1</span>
     <div id="userChip" class="hidden" style="display:flex;align-items:center;gap:9px">
       <div class="divider-v"></div>
       <span id="userName" style="font-size:12.5px;font-weight:500"></span>
@@ -370,7 +406,7 @@ code{font-family:var(--mono);background:rgba(0,0,0,.05);padding:1px 4px;border-r
 </div></nav>
 
 <main class="wrap">
-<section class="panel on" id="p-url">
+<section class="panel" id="p-url">
 <div class="split">
 
   <div class="sticky-col">
@@ -1199,12 +1235,24 @@ Static Square</textarea>
         28–64, all genders, broker lists excluded, feeds, stories and reels. Exactly the account's
         own setup. <b>Everything is created paused.</b></div>
 
+      <div class="picker-bar">
+        <button class="btn btn-sm" id="mdLoad">Load my accounts</button>
+        <span class="hint" id="mdLoadStat">Pick the account, Page and form from your own Meta,
+          instead of typing ids that have to match each other.</span>
+      </div>
+
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:14px">
-        <div class="f"><span class="f-lab">Ad account id</span>
+        <div class="f"><span class="f-lab">Ad account
+            <button class="linky" id="mdAcctType" type="button">type the id instead</button></span>
+          <select id="mdAcctPick" hidden></select>
           <input id="mdAcct" placeholder="act_1234567890" spellcheck="false"></div>
-        <div class="f"><span class="f-lab">Facebook Page id</span>
+        <div class="f"><span class="f-lab">Facebook Page
+            <button class="linky" id="mdPageType" type="button">type the id instead</button></span>
+          <select id="mdPagePick" hidden></select>
           <input id="mdPage" placeholder="the page the ads run from" spellcheck="false"></div>
-        <div class="f"><span class="f-lab">Instant Form id</span>
+        <div class="f"><span class="f-lab">Instant Form
+            <button class="linky" id="mdFormType" type="button">type the id instead</button></span>
+          <select id="mdFormPick" hidden></select>
           <input id="mdForm" placeholder="the lead form to open" spellcheck="false"></div>
         <div class="f"><span class="f-lab">Daily budget <span class="pill p-mute">₹ per ad set</span></span>
           <input id="mdBudget" value="450" inputmode="decimal" spellcheck="false"></div>
@@ -1882,6 +1930,97 @@ const SAVE_FIELDS=["inLp","inEnq","acUrl","acProj","acDev","acMicro","acCity","a
   "asBizName","csKw","csUrl","csYt","csApp","audSources","crDev","crProj","crLoc","crCfg",
   "crPrice","crOffer","crRera","crDisc","crAccent","crScrim","crLayout","kwRaw","kwCamp","kwAdg"];
 const projects=()=>store.get(PROJ_STORE,{})||{};
+
+/* ═══════════ the pictures a project is made of ═══════════
+   Hero photographs and rendered creatives are megabytes, and localStorage
+   gives about five for everything. So a saved project used to carry the
+   brief, the keywords and the copy, and then said "the images are not
+   saved, choose them again" — which meant opening a project a week later
+   began by hunting for the same photographs.
+
+   They live in IndexedDB instead, which has no such ceiling, keyed by the
+   project's name. The brief still goes to localStorage: it is small, it is
+   read synchronously all over the page, and it is what has to survive even
+   if the pictures cannot be written. */
+const ASSET_DB="pp-trigger", ASSET_STORE="projectAssets";
+const AssetDB={
+  _open(){
+    return new Promise((res,rej)=>{
+      let rq; try{ rq=indexedDB.open(ASSET_DB,1); }catch(e){ return rej(e); }
+      rq.onupgradeneeded=()=>{ const db=rq.result;
+        if(!db.objectStoreNames.contains(ASSET_STORE))db.createObjectStore(ASSET_STORE); };
+      rq.onsuccess=()=>res(rq.result);
+      rq.onerror=()=>rej(rq.error||new Error("IndexedDB refused to open"));
+      setTimeout(()=>rej(new Error("IndexedDB did not answer")),8000);
+    });
+  },
+  async put(name,value){
+    const db=await this._open();
+    return new Promise((res,rej)=>{
+      const tx=db.transaction(ASSET_STORE,"readwrite");
+      tx.objectStore(ASSET_STORE).put(value,name);
+      tx.oncomplete=()=>res(true);
+      tx.onerror=()=>rej(tx.error||new Error("could not write"));
+      tx.onabort=()=>rej(tx.error||new Error("the write was refused — disk or quota"));
+    });
+  },
+  async get(name){
+    const db=await this._open();
+    return new Promise((res,rej)=>{
+      const rq=db.transaction(ASSET_STORE,"readonly").objectStore(ASSET_STORE).get(name);
+      rq.onsuccess=()=>res(rq.result||null);
+      rq.onerror=()=>rej(rq.error||new Error("could not read"));
+    });
+  },
+  async del(name){
+    const db=await this._open();
+    return new Promise(res=>{
+      const tx=db.transaction(ASSET_STORE,"readwrite");
+      tx.objectStore(ASSET_STORE).delete(name);
+      tx.oncomplete=()=>res(true); tx.onerror=()=>res(false); tx.onabort=()=>res(false);
+    });
+  }
+};
+
+/* What is worth keeping, and what is cheap to rebuild. The hero photographs
+   are irreplaceable — they came off somebody's desktop. The renders are
+   derived from them, but re-rendering costs a click and a wait, so they are
+   kept too. CR_OUT is rebuilt from the sets on the way back in rather than
+   stored twice. */
+function assetSnapshot(){
+  const heroes=(typeof HEROES!=="undefined"?HEROES:[])
+    .map(h=>({name:h.name, src:(h.img&&h.img.src)||""}))
+    .filter(h=>h.src.indexOf("data:")===0);
+  const sets=(typeof CR_SETS!=="undefined"?CR_SETS:[]);
+  return heroes.length||sets.length ? {heroes, sets, saved:Date.now()} : null;
+}
+const loadImg=src=>new Promise(res=>{
+  const im=new Image();
+  im.onload=()=>res(im); im.onerror=()=>res(null);
+  im.src=src;
+});
+async function assetApply(a){
+  if(!a)return 0;
+  if(typeof HEROES==="undefined")return 0;
+  HEROES.length=0;
+  for(const h of (a.heroes||[])){
+    const im=await loadImg(h.src);
+    if(im)HEROES.push({name:h.name,img:im});
+  }
+  if(typeof CR_SETS!=="undefined"){ CR_SETS.length=0; (a.sets||[]).forEach(s=>CR_SETS.push(s)); }
+  /* the gallery reads CR_OUT, which is the same pictures flattened */
+  if(typeof CR_OUT!=="undefined"){
+    CR_OUT.length=0;
+    (a.sets||[]).forEach(s=>{
+      (s.sizes||[]).forEach(nm=>{
+        const im=s.images&&s.images[nm];
+        if(im&&im.data)CR_OUT.push({name:nm,url:"data:image/jpeg;base64,"+im.data,
+          hero:s.name,k:CR_OUT.length,w:0,h:0,ratio:"",bytes:Math.round(im.data.length*3/4)});
+      });
+    });
+  }
+  return HEROES.length;
+}
 function projectSnapshot(){
   const f={};
   SAVE_FIELDS.forEach(id=>{ const el=$("#"+id); if(el)f[id]=el.value; });
@@ -1899,8 +2038,9 @@ function projectSnapshot(){
   });
   return {saved:Date.now(), channel:CH, fields:f, multi, checks, keys};
 }
-function projectApply(p){
+function projectApply(p,name){
   if(!p)return;
+  if(name)p=Object.assign({},p,{name});
   PROJECT_KEYS.forEach(k=>{try{sessionStorage.removeItem(k);localStorage.removeItem(k);}catch(e){}});
   Object.keys(p.keys||{}).forEach(k=>{try{sessionStorage.setItem(k,p.keys[k]);}catch(e){}});
   try{sessionStorage.setItem("pp_restore",JSON.stringify(p));}catch(e){}
@@ -1937,7 +2077,16 @@ function projectRestore(){
   if(($("#acProj")&&$("#acProj").value.trim())||($("#inEnq")&&$("#inEnq").value.trim())){
     const b=$("#stBuild"); if(b)setTimeout(()=>b.click(),60);
   }
-  toast("Project opened \u2014 the images are not saved, choose them again");
+  if(!p.name||!p.hasAssets)return toast("Project opened");
+  toast("Project opened \u2014 fetching its images\u2026");
+  AssetDB.get(p.name).then(async a=>{
+    const n=await assetApply(a);
+    if(!n)return toast("Project opened \u2014 its images could not be read, choose them again",7000);
+    if(typeof drawHeroes==="function")drawHeroes();
+    if(typeof drawSets==="function")drawSets();
+    if(typeof crShowSaved==="function")crShowSaved();
+    toast(`Project opened with ${n} hero image${n===1?"":"s"}`);
+  }).catch(()=>toast("Project opened \u2014 its images could not be read, choose them again",7000));
 }
 function drawProjects(){
   const sel=$("#projPick"); if(!sel)return;
@@ -2562,11 +2711,79 @@ document.addEventListener("keydown",e=>{if(e.key==="Escape")$("#modal").classLis
 fillStrategies(); fillUnits(); syncTicket();
 
 /* ═══════════ tabs ═══════════ */
-$$(".tab").forEach(t=>t.addEventListener("click",()=>{
-  $$(".tab").forEach(x=>x.setAttribute("aria-selected",String(x===t)));
-  $$(".panel").forEach(p=>p.classList.toggle("on",p.id===t.dataset.panel));
-  window.scrollTo(0,0);}));
-const goTab=id=>$$(".tab").find(t=>t.dataset.panel===id).click();
+/* Every panel carries the heading its tab used to be, so the page reads
+   as one document rather than nine unlabelled slabs. The headings are
+   built from the tabs themselves — one list, no second place to update. */
+$$(".tab").forEach(t=>{
+  const panel=$("#"+t.dataset.panel); if(!panel||panel.querySelector(".sec-head"))return;
+  const num=(t.querySelector(".num")||{}).textContent||"";
+  const name=t.textContent.replace(num,"").trim();
+  const h=document.createElement("div");
+  h.className="sec-head";
+  h.innerHTML=`<span class="n">${num}</span><h1>${esc(name)}</h1><span class="rule"></span>`;
+  panel.insertBefore(h,panel.firstChild);
+});
+
+const goTo=id=>{
+  const el=$("#"+id); if(!el)return;
+  el.scrollIntoView({behavior:"smooth",block:"start"});
+};
+$$(".tab").forEach(t=>t.addEventListener("click",()=>goTo(t.dataset.panel)));
+
+/* The rail follows the scroll instead of being clicked into place. The
+   topmost visible section wins, so a short section at the end of the page
+   still lights up when you reach it. */
+/* measured, not assumed: the top bar wraps on a narrow window or a long name */
+(function measureBars(){
+  const bar=$(".topbar"), rail=$(".tabs");
+  if(!bar||!rail)return;
+  const set=()=>{
+    const r=document.documentElement.style;
+    r.setProperty("--barh",Math.round(bar.getBoundingClientRect().height)+"px");
+    r.setProperty("--railh",Math.round(rail.getBoundingClientRect().height)+"px");
+  };
+  set();
+  if("ResizeObserver" in window){
+    const ro=new ResizeObserver(set); ro.observe(bar); ro.observe(rail);
+  }
+  window.addEventListener("resize",set);
+  /* webfonts land after first paint and change the bar's height with them */
+  if(document.fonts&&document.fonts.ready)document.fonts.ready.then(set);
+})();
+
+(function railFollowsScroll(){
+  const tabs=$$(".tab"), panels=tabs.map(t=>$("#"+t.dataset.panel)).filter(Boolean);
+  if(!panels.length||!("IntersectionObserver" in window))return;
+  const seen=new Map();
+  const paint=()=>{
+    let best=null, bestTop=Infinity;
+    panels.forEach(p=>{
+      if(!seen.get(p))return;
+      const top=p.getBoundingClientRect().top;
+      if(top<bestTop){ bestTop=top; best=p; }
+    });
+    if(!best)return;
+    tabs.forEach(t=>{
+      const on=t.dataset.panel===best.id;
+      t.setAttribute("aria-selected",String(on));
+      if(on&&t.scrollIntoView)t.scrollIntoView({block:"nearest",inline:"nearest"});
+    });
+  };
+  const io=new IntersectionObserver(es=>{
+    es.forEach(e=>seen.set(e.target,e.isIntersecting));
+    paint();
+  },{rootMargin:(()=>{
+    const h=parseInt(getComputedStyle(document.documentElement)
+      .getPropertyValue("--barh")||"55")+
+      parseInt(getComputedStyle(document.documentElement)
+      .getPropertyValue("--railh")||"44");
+    return `-${h+8}px 0px -55% 0px`;
+  })(),threshold:0});
+  panels.forEach(p=>io.observe(p));
+})();
+
+/* kept so the dozen call sites that jump between sections still work */
+const goTab=id=>goTo(id);
 
 /* ═══════════ 02 keyword wrapper ═══════════ */
 const MTNAME={E:"Exact",P:"Phrase",B:"Broad"};
@@ -3041,7 +3258,7 @@ function drawSl(){
   if(!AS.base){ const b=assetBase(); if(b){ AS.base=b; const e=$("#asBase"); if(e)e.value=b; saveAs(); } }
   $("#slRows").innerHTML=AS.sl.length?AS.sl.map((r,i)=>{
     const [t,d1,d2]=r, u=slUrl(t,r[3]);
-    return `<div style="border:1px solid var(--line);border-radius:5px;padding:12px;margin-bottom:10px">
+    return `<div style="border:1px solid var(--line);border-radius:12px;padding:12px;margin-bottom:10px">
       <div class="acrow" style="grid-template-columns:26px 1fr 62px 30px">
         <span class="sr">${i+1}</span>
         <input type="text" data-slt="${i}" value="${esc(t)}" class="${t.length>SL_T?"over":""}" placeholder="Enter sitelink text">
@@ -3078,7 +3295,7 @@ function drawCo(){
 function drawSn(){
   $("#snRows").innerHTML=AS.sn.length?AS.sn.map((s,i)=>{
     const [hd,vals]=s;
-    return `<div style="border:1px solid var(--line);border-radius:5px;padding:12px;margin-bottom:10px">
+    return `<div style="border:1px solid var(--line);border-radius:12px;padding:12px;margin-bottom:10px">
       <div class="acrow" style="grid-template-columns:26px 1fr 30px">
         <span class="sr">${i+1}</span>
         <select data-snh="${i}">${SN_HEADERS.map(x=>`<option value="${esc(x)}"${x===hd?" selected":""}>${esc(x)}</option>`).join("")}</select>
@@ -3480,18 +3697,34 @@ on("#newProject","click",()=>{
   if(!confirm("Clear the brief, ad groups, keywords and assets and start a new project?\n\nYour strategy list, Gemini key and campaign settings are kept."))return;
   clearProject(); logEvent("new-project",""); location.reload();
 });
-on("#projSave","click",()=>{
+on("#projSave","click",async()=>{
   const guess=($("#acProj")&&$("#acProj").value.trim())||($("#inEnq")&&$("#inEnq").value.trim())||"";
   const name=(prompt("Save this project as:",guess)||"").trim();
   if(!name)return;
   const all=projects();
   if(all[name]&&!confirm(`"${name}" already exists. Replace it?`))return;
-  all[name]=projectSnapshot();
+  const assets=assetSnapshot();
+  all[name]=Object.assign(projectSnapshot(),
+    {hasAssets:!!assets, heroCount:assets?assets.heroes.length:0});
   store.set(PROJ_STORE,all);
   if(store.get(PROJ_STORE,{})[name]===undefined)
     return toast("Could not save \u2014 browser storage is full. Delete an old project and retry.");
   drawProjects(); $("#projPick").value=name;
-  toast(`Saved as "${name}"`);
+
+  /* The brief is already safe at this point. The pictures are a second,
+     larger write that can fail on its own \u2014 a full disk, a private window
+     \u2014 and if it does the project is still a project, just without them.
+     Saying so beats a save that silently keeps half of itself. */
+  if(!assets)return toast(`Saved as "${name}"`),logEvent("project-save",name);
+  toast(`Saved as "${name}" \u2014 storing ${assets.heroes.length} image${
+    assets.heroes.length===1?"":"s"}\u2026`);
+  try{
+    await AssetDB.put(name,assets);
+    toast(`Saved as "${name}" with its images`);
+  }catch(e){
+    all[name].hasAssets=false; store.set(PROJ_STORE,all);
+    toast(`Saved as "${name}", but the images could not be stored: ${e.message||e}`,8000);
+  }
   logEvent("project-save",name);
 });
 on("#projPick","change",()=>{
@@ -3504,6 +3737,7 @@ on("#projPick","change",()=>{
     if(!name||!all[name])return;
     if(!confirm(`Delete "${name}"? This cannot be undone.`))return;
     delete all[name]; store.set(PROJ_STORE,all); drawProjects();
+    AssetDB.del(name).catch(()=>{});   /* or its pictures sit there for ever */
     return toast(`Deleted "${name}"`);
   }
   const p=projects()[v];
@@ -3511,7 +3745,7 @@ on("#projPick","change",()=>{
   if(!confirm(`Open "${v}"?\n\nAnything unsaved in the current project is lost.`)){
     sel.value=""; return; }
   logEvent("project-open",v);
-  projectApply(p);
+  projectApply(p,v);
 });
 on("#signOut","click",()=>{
   clearProject();
@@ -5303,7 +5537,7 @@ on("#stRebuild","click",()=>{
 function drawPlan(){
   if(!PLAN.length){$("#stTree").innerHTML=`<div class="empty">Fill the brief, then press Build.</div>`;return;}
   $("#stTree").innerHTML=PLAN.map(p=>`
-    <div style="border:1px solid var(--line);border-radius:5px;margin-bottom:14px">
+    <div style="border:1px solid var(--line);border-radius:12px;margin-bottom:14px">
       <div style="padding:11px 13px;background:var(--navy-wash);border-bottom:1px solid var(--line-soft);
         font-family:var(--mono);font-size:12.5px;font-weight:600;color:var(--navy)">${esc(p.campaign)}</div>
       ${p.groups.map(g=>`<div style="padding:11px 13px;border-bottom:1px solid var(--line-soft)">
@@ -6368,7 +6602,7 @@ function drawImgs(){
   const box=$("#imgPreview"); if(!box)return;
   box.innerHTML=keys.length?keys.map(k=>`<div>
       <img src="${IMGS[k].preview}" alt="${esc(IMG_SPEC[k].label)}"
-        style="width:100%;border:1px solid var(--line);border-radius:6px;display:block">
+        style="width:100%;border:1px solid var(--line);border-radius:11px;display:block">
       <div class="mini" style="margin-top:5px">${esc(IMG_SPEC[k].label)} \u00b7 ${IMGS[k].w}\u00d7${IMGS[k].h}
         <span class="p-mute">from ${esc(IMGS[k].src)}</span></div></div>`).join("")
     :`<div class="empty" style="padding:14px">No images yet.</div>`;
@@ -8232,7 +8466,7 @@ on("#crRender","click",async()=>{
       `<div class="row2">`+mine.map(o=>`
       <div style="margin-bottom:14px">
         <img src="${o.url}" alt="${esc(o.name)}" data-k="${o.k}" class="cr-open"
-          style="width:100%;border:1px solid var(--line);border-radius:6px;display:block">
+          style="width:100%;border:1px solid var(--line);border-radius:11px;display:block">
         <div class="mini" style="margin-top:6px">${esc(o.name)} · ${o.w}×${o.h} · ${o.ratio}
           <span class="p-mute">${(o.bytes/1024).toFixed(0)} KB</span></div>
       </div>`).join("")+`</div>`;
@@ -8366,6 +8600,28 @@ on("#aiLoop","click",async()=>{
 let CR_SETS=[];      /* rebuilt on every render, one per hero image */
 let CR_KEPT=[];      /* held by hand, across renders */
 function allSets(){ return CR_KEPT.concat(CR_SETS); }
+/* Repaints the gallery from whatever is in CR_OUT, for renders that came
+   back from a saved project rather than from pressing Render. Without it a
+   reopened project shows its heroes and its set list but an empty canvas,
+   which reads as if nothing was restored. */
+function crShowSaved(){
+  const box=$("#crOut"); if(!box||!CR_OUT.length)return;
+  const byHero={};
+  CR_OUT.forEach(o=>{ (byHero[o.hero]=byHero[o.hero]||[]).push(o); });
+  box.innerHTML=Object.keys(byHero).map((hero,hi)=>
+    `<div class="f-lab" style="margin:${hi?18:4}px 0 8px">
+       <span class="tgt-kind k-city">AD ${hi+1}</span> ${esc(hero)}</div>
+     <div class="row2">`+byHero[hero].map(o=>`
+      <div style="margin-bottom:14px">
+        <img src="${o.url}" alt="${esc(o.name)}" data-k="${o.k}" class="cr-open"
+          style="width:100%;border:1px solid var(--line);border-radius:10px;display:block">
+        <div class="mini" style="margin-top:6px">${esc(o.name)}
+          <span class="p-mute">${(o.bytes/1024).toFixed(0)} KB · from the saved project</span></div>
+      </div>`).join("")+`</div>`).join("");
+  const sz=$("#crSizes");
+  if(sz)sz.innerHTML=`<span class="pill p-ok">${CR_OUT.length} restored — press Render to redraw them</span>`;
+}
+
 function drawSets(){
   const all=allSets(), st=$("#setStat");
   if(st)st.innerHTML=all.length
@@ -8894,6 +9150,77 @@ async function mdRun(action,what){
   const r=await adsCall(action,body);
   mdShow(r,what);
 }
+
+/* ═══════════ picking the three ids instead of typing them ═══════════
+   The ids have to agree with one another: the form belongs to the Page,
+   the Page and the ad account have to be reachable by the same token. Typed
+   by hand they disagree silently and Meta reports it with an error naming
+   none of the three. Chosen from the token's own lists they cannot. */
+const mdPickers={acct:"mdAcctPick",page:"mdPagePick",form:"mdFormPick"};
+function mdShowPick(which,on){
+  const sel=$("#"+mdPickers[which]), inp=$("#md"+which[0].toUpperCase()+which.slice(1));
+  if(!sel||!inp)return;
+  sel.hidden=!on; inp.hidden=on;
+  const link=$("#md"+which[0].toUpperCase()+which.slice(1)+"Type");
+  if(link)link.textContent=on?"type the id instead":"choose from a list";
+}
+function mdFill(which,items,chosen,label){
+  const sel=$("#"+mdPickers[which]); if(!sel)return;
+  sel.innerHTML=`<option value="">— ${label} —</option>`+
+    items.map(i=>`<option value="${esc(i.id)}"${i.id===chosen?" selected":""}>${
+      esc(i.text)}</option>`).join("");
+  mdShowPick(which,true);
+}
+/* the select is what a person touches; the input stays the single source
+   the rest of the tab reads, so nothing downstream had to change */
+["acct","page","form"].forEach(which=>{
+  on("#"+mdPickers[which],"change",()=>{
+    const sel=$("#"+mdPickers[which]);
+    const inp=$("#md"+which[0].toUpperCase()+which.slice(1));
+    if(!sel||!inp)return;
+    inp.value=sel.value;
+    inp.dispatchEvent(new Event("change",{bubbles:true}));
+    if(which==="page")mdLoadForms(sel.value);
+  });
+  on("#md"+which[0].toUpperCase()+which.slice(1)+"Type","click",()=>{
+    const sel=$("#"+mdPickers[which]);
+    mdShowPick(which,!sel||sel.hidden);
+  });
+});
+
+async function mdLoadForms(pageId){
+  const sel=$("#mdFormPick"); if(!sel||!pageId)return;
+  sel.innerHTML=`<option value="">— loading forms —</option>`; sel.hidden=false;
+  const r=await adsCall("meta-forms",{pageId});
+  if(r.error||!r.forms||!r.forms.length){
+    mdShowPick("form",false);
+    const why=r.error?`: ${r.error}`:" — this Page has none yet";
+    $("#mdLoadStat").innerHTML=`<span class="p-mute">Could not list the forms${esc(why)}. `+
+      `Type the id, or make one in Meta Business Suite → Instant Forms.</span>`;
+    return;
+  }
+  mdFill("form",r.forms.map(f=>({id:f.id,
+    text:f.name+(f.status&&f.status!=="ACTIVE"?` · ${f.status.toLowerCase()}`:"")})),
+    val("mdForm"),"choose a form");
+}
+
+on("#mdLoad","click",async()=>{
+  const st=$("#mdLoadStat");
+  st.innerHTML=`<span class="p-mute">Asking Meta what this token can reach…</span>`;
+  const r=await adsCall("meta-assets",{});
+  if(r.error){ st.innerHTML=`<span class="p-bad">${esc(r.error)}</span>`; return; }
+  const n=(r.accounts||[]).length, m=(r.pages||[]).length;
+  if(n)mdFill("acct",r.accounts.map(a=>({id:a.id,
+    text:a.name+(a.currency?` · ${a.currency}`:"")+(a.active?"":" · inactive")})),
+    val("mdAcct").replace(/^act_/,""),"choose an ad account");
+  if(m)mdFill("page",r.pages.map(p=>({id:p.id,text:p.name})),val("mdPage"),"choose a Page");
+  const notes=(r.notes||[]).length?` <span class="p-mute">${esc(r.notes.join(" · "))}</span>`:"";
+  st.innerHTML=(n||m)
+    ? `<span class="p-ok">${n} ad account${n===1?"":"s"}, ${m} Page${m===1?"":"s"}.</span>`+
+      ` <span class="p-mute">Choosing a Page loads its forms.</span>`+notes
+    : `<span class="p-bad">This token can reach no ad accounts or Pages.</span>`+notes;
+  if(val("mdPage"))mdLoadForms(val("mdPage"));
+});
 
 on("#mdCheck","click",async()=>{
   const b=mdBody();
