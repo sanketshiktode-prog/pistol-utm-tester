@@ -87,6 +87,11 @@ function handlePost(e) {
     return json(historyRead(body, v));
   }
 
+  if (String(body.action || '').indexOf('proj-') === 0) {
+    if (!v.ok) return json({ error: 'Sign in again — ' + v.reason });
+    return json(projRoute(body, v) || { error: 'Unknown action: ' + body.action });
+  }
+
   if (String(body.action || '').indexOf('ads-') === 0) {
     if (!v.ok) return json({ error: 'Sign in again \u2014 ' + v.reason });
     if (typeof adsRoute !== 'function')
@@ -511,6 +516,172 @@ function histOk_(action, note) {
   return /^customers\/\d+\/campaigns\/\d+/.test(n)      /* Google resource name */
       || /^campaign\s+\d+/.test(n)                       /* Meta: campaign <id> */
       || /^\d+\s+operations$/.test(n);                    /* a dry run */
+}
+
+/* ═══════════ saved projects, on the server ═══════════
+   They lived in the browser's own storage, so a project saved on the
+   office desktop did not exist on the laptop, nobody could pick up
+   somebody else's work, and an admin could not see what the team had
+   built. They live in a Drive folder now, one file per project and a
+   second file for its pictures, which are far too large to sit beside
+   the brief in something that gets listed.
+
+   Each file carries its owner and its real name in the description, so
+   listing never has to open one. A user sees their own; the admin sees
+   everybody's. */
+const PROJ_FOLDER_NAME = 'Trigger — saved projects';
+const PROJ_PREFIX = 'pp.';
+
+function projFolder_() {
+  const props = PropertiesService.getScriptProperties();
+  const id = props.getProperty('PROJ_FOLDER');
+  if (id) {
+    try { return DriveApp.getFolderById(id); }
+    catch (e) { /* deleted or moved to another account — make a new one */ }
+  }
+  const it = DriveApp.getFoldersByName(PROJ_FOLDER_NAME);
+  const f = it.hasNext() ? it.next() : DriveApp.createFolder(PROJ_FOLDER_NAME);
+  props.setProperty('PROJ_FOLDER', f.getId());
+  return f;
+}
+const projSlug_ = s => String(s || '').toLowerCase().replace(/[^a-z0-9]+/g, '-')
+  .replace(/^-+|-+$/g, '').slice(0, 60) || 'x';
+/* A slug alone is not a name. "Greenscapes — Phase 2" and "Greenscapes
+   Phase 2" slug to the same thing, and the second save would have
+   silently replaced the first. The tag is of the exact name, so two
+   names that look alike still get two files. */
+function projTag_(s) {
+  const str = String(s || '');
+  let h = 5381;
+  for (var i = 0; i < str.length; i++) h = ((h * 33) ^ str.charCodeAt(i)) >>> 0;
+  return h.toString(36).slice(0, 7);
+}
+function projFile_(owner, name, kind) {
+  return PROJ_PREFIX + projSlug_(owner) + '.' + projSlug_(name) + '-' + projTag_(name) +
+         (kind === 'assets' ? '.assets' : '') + '.json';
+}
+/* The description is the index: owner, the name as it was typed, when, and
+   whether there are pictures. Reading it costs nothing next to opening a
+   file that may be eight megabytes. */
+function projMeta_(file) {
+  try { return JSON.parse(file.getDescription() || '{}'); }
+  catch (e) { return {}; }
+}
+function projWrite_(folder, fname, body, meta) {
+  const it = folder.getFilesByName(fname);
+  let f = it.hasNext() ? it.next() : null;
+  if (f) f.setContent(body);
+  else f = folder.createFile(fname, body, 'application/json');
+  if (meta) f.setDescription(JSON.stringify(meta));
+  return f;
+}
+function projFind_(folder, fname) {
+  const it = folder.getFilesByName(fname);
+  return it.hasNext() ? it.next() : null;
+}
+const projMayTouch_ = (v, owner) =>
+  !owner || String(owner).toLowerCase() === String(v.email || '').toLowerCase() ||
+  (typeof role === 'function' && role(v.email) === 'admin');
+
+function projRoute(body, v) {
+  if (!v || !v.ok) return { error: 'Sign in again.' };
+  const action = String(body.action || '');
+  const me = String(v.email || '').toLowerCase();
+  const admin = typeof role === 'function' && role(v.email) === 'admin';
+  let folder;
+  try { folder = projFolder_(); }
+  catch (e) { return { error: 'Could not reach the projects folder in Drive: ' + e }; }
+
+  if (action === 'proj-list') {
+    const out = [];
+    const it = folder.getFiles();
+    while (it.hasNext()) {
+      const f = it.next();
+      const fname = f.getName();
+      if (fname.indexOf(PROJ_PREFIX) !== 0) continue;
+      if (fname.indexOf('.assets.json') > -1) continue;
+      const m = projMeta_(f);
+      if (!m.name) continue;
+      const owner = String(m.owner || '').toLowerCase();
+      if (!admin && owner !== me) continue;
+      out.push({
+        name: m.name, owner: m.owner || '', ownerName: m.ownerName || '',
+        saved: m.saved || 0, hasAssets: !!m.hasAssets,
+        heroCount: m.heroCount || 0, mine: owner === me
+      });
+    }
+    out.sort(function (a, b) { return (b.saved || 0) - (a.saved || 0); });
+    return { ok: true, projects: out, you: v.email, admin: admin };
+  }
+
+  if (action === 'proj-put') {
+    const name = String(body.name || '').trim();
+    if (!name) return { error: 'Name the project before saving it.' };
+    const project = body.project;
+    if (!project || typeof project !== 'object') return { error: 'Nothing to save.' };
+    const assets = body.assets && typeof body.assets === 'object' ? body.assets : null;
+    const meta = {
+      name: name, owner: v.email, ownerName: v.name || '',
+      saved: Date.now(), hasAssets: !!assets,
+      heroCount: assets && assets.heroes ? assets.heroes.length : 0
+    };
+    try {
+      projWrite_(folder, projFile_(v.email, name), JSON.stringify(project), meta);
+    } catch (e) { return { error: 'Could not save the project: ' + e }; }
+    /* The brief is safe by here. The pictures are a second, much larger
+       write that can fail on its own, and if it does the project is still
+       a project — just without them, which is what the answer says. */
+    if (!assets) {
+      const old = projFind_(folder, projFile_(v.email, name, 'assets'));
+      if (old) { try { old.setTrashed(true); } catch (e) {} }
+      return { ok: true, saved: meta.saved, assets: false };
+    }
+    try {
+      projWrite_(folder, projFile_(v.email, name, 'assets'), JSON.stringify(assets), null);
+    } catch (e) {
+      meta.hasAssets = false; meta.heroCount = 0;
+      try { projWrite_(folder, projFile_(v.email, name), JSON.stringify(project), meta); }
+      catch (e2) {}
+      return { ok: true, saved: meta.saved, assets: false,
+               note: 'The project was saved, but its images could not be: ' + e };
+    }
+    return { ok: true, saved: meta.saved, assets: true, heroCount: meta.heroCount };
+  }
+
+  if (action === 'proj-get' || action === 'proj-assets') {
+    const name = String(body.name || '').trim();
+    const owner = String(body.owner || v.email || '');
+    if (!name) return { error: 'Which project?' };
+    if (!projMayTouch_(v, owner))
+      return { error: 'That project belongs to ' + owner + '.' };
+    const f = projFind_(folder, projFile_(owner, name, action === 'proj-assets' ? 'assets' : ''));
+    if (!f) return action === 'proj-assets'
+      ? { ok: true, assets: null }
+      : { error: 'No project called "' + name + '" is saved.' };
+    let data;
+    try { data = JSON.parse(f.getBlob().getDataAsString()); }
+    catch (e) { return { error: 'That project could not be read back: ' + e }; }
+    return action === 'proj-assets'
+      ? { ok: true, assets: data }
+      : { ok: true, project: data, meta: projMeta_(f) };
+  }
+
+  if (action === 'proj-del') {
+    const name = String(body.name || '').trim();
+    const owner = String(body.owner || v.email || '');
+    if (!name) return { error: 'Which project?' };
+    if (!projMayTouch_(v, owner))
+      return { error: 'That project belongs to ' + owner + '.' };
+    let gone = 0;
+    ['', 'assets'].forEach(function (k) {
+      const f = projFind_(folder, projFile_(owner, name, k));
+      if (f) { try { f.setTrashed(true); gone++; } catch (e) {} }
+    });
+    if (!gone) return { error: 'No project called "' + name + '" is saved.' };
+    return { ok: true, deleted: name };
+  }
+
+  return { error: 'Unknown project action: ' + action };
 }
 
 function historyRead(body, v) {
@@ -2367,7 +2538,7 @@ function aiReview(body, v) {
 /* Which copy of this file the Apps Script is actually running. The tab
    shows it beside its own build, because "the fix is pushed" and "the fix
    is running" were indistinguishable from the screen for an hour. */
-const BACKEND_BUILD = 'b-29oct-14';
+const BACKEND_BUILD = 'b-29oct-15';
 
 const META_DEFAULT_VERSION = 'v23.0';
 const META_AGE_MIN = 28, META_AGE_MAX = 64;

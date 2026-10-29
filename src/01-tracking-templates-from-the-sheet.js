@@ -236,7 +236,7 @@ function projectRestore(){
   }
   if(!p.name||!p.hasAssets)return toast("Project opened");
   toast("Project opened \u2014 fetching its images\u2026");
-  AssetDB.get(p.name).then(async a=>{
+  (typeof projFetchAssets==="function"?projFetchAssets(p):AssetDB.get(p.name)).then(async a=>{
     const n=await assetApply(a);
     if(!n)return toast("Project opened \u2014 its images could not be read, choose them again",7000);
     if(typeof drawHeroes==="function")drawHeroes();
@@ -247,11 +247,20 @@ function projectRestore(){
 }
 function drawProjects(){
   const sel=$("#projPick"); if(!sel)return;
-  const all=projects();
-  const names=Object.keys(all).sort((a,b2)=>(all[b2].saved||0)-(all[a].saved||0));
-  sel.innerHTML=`<option value="">\u2014 saved projects \u2014</option>`+
-    names.map(n=>`<option value="${esc(n)}">${esc(n)}</option>`).join("")+
-    (names.length?`<option value="__del">Delete a saved project\u2026</option>`:"");
+  const keep=sel.value;
+  /* the server's list when there is one, this browser's when there is not */
+  if(typeof projOptions==="function"){
+    const o=projOptions();
+    sel.innerHTML=`<option value="">\u2014 saved projects \u2014</option>`+o.html+
+      (o.any?`<option value="__del">Delete a saved project\u2026</option>`:"");
+  }else{
+    const all=projects();
+    const names=Object.keys(all).sort((a,b2)=>(all[b2].saved||0)-(all[a].saved||0));
+    sel.innerHTML=`<option value="">\u2014 saved projects \u2014</option>`+
+      names.map(n=>`<option value="l:${esc(n)}">${esc(n)}</option>`).join("")+
+      (names.length?`<option value="__del">Delete a saved project\u2026</option>`:"");
+  }
+  if(keep&&[...sel.options].some(o=>o.value===keep))sel.value=keep;
 }
 const csvq=v=>`"${String(v??"").replace(/"/g,'""')}"`;
 

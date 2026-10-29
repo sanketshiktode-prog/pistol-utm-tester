@@ -280,48 +280,87 @@ on("#projSave","click",async()=>{
   const name=(prompt("Save this project as:",guess)||"").trim();
   if(!name)return;
   const all=projects();
-  if(all[name]&&!confirm(`"${name}" already exists. Replace it?`))return;
+  const mineUp=typeof projRemoteFind==="function"&&projRemoteFind(name);
+  if((all[name]||mineUp)&&!confirm(`"${name}" already exists. Replace it?`))return;
   const assets=assetSnapshot();
-  all[name]=Object.assign(projectSnapshot(),
+  const snap=Object.assign(projectSnapshot(),
     {hasAssets:!!assets, heroCount:assets?assets.heroes.length:0});
-  store.set(PROJ_STORE,all);
-  if(store.get(PROJ_STORE,{})[name]===undefined)
-    return toast("Could not save \u2014 browser storage is full. Delete an old project and retry.");
-  drawProjects(); $("#projPick").value=name;
 
-  /* The brief is already safe at this point. The pictures are a second,
-     larger write that can fail on its own \u2014 a full disk, a private window
-     \u2014 and if it does the project is still a project, just without them.
-     Saying so beats a save that silently keeps half of itself. */
-  if(!assets)return toast(`Saved as "${name}"`),logEvent("project-save",name);
-  toast(`Saved as "${name}" \u2014 storing ${assets.heroes.length} image${
-    assets.heroes.length===1?"":"s"}\u2026`);
-  try{
-    await AssetDB.put(name,assets);
-    toast(`Saved as "${name}" with its images`);
-  }catch(e){
-    all[name].hasAssets=false; store.set(PROJ_STORE,all);
-    toast(`Saved as "${name}", but the images could not be stored: ${e.message||e}`,8000);
+  /* This browser first, so nothing is lost while the script answers, and
+     so a backend that is down or a sign-in that has lapsed still leaves a
+     saved project behind. */
+  all[name]=snap; store.set(PROJ_STORE,all);
+  const localOk=store.get(PROJ_STORE,{})[name]!==undefined;
+  if(assets)AssetDB.put(name,assets).catch(()=>{});
+
+  /* Then the server, which is the copy the laptop and the admin can see.
+     The pictures are the large part of it: eight megabytes of artwork in
+     one POST is close to what the script will take, so it says so rather
+     than failing halfway. */
+  const mb=assets?JSON.stringify(assets).length/1048576:0;
+  if(typeof projPutRemote!=="function"||!USER){
+    if(!localOk)return toast("Could not save \u2014 browser storage is full. Delete an old project and retry.");
+    drawProjects(); $("#projPick").value="l:"+name;
+    logEvent("project-save",name);
+    return toast(`Saved as "${name}" in this browser \u2014 sign in to put it on the server`,7000);
   }
+  toast(assets
+    ? `Saving "${name}" and ${assets.heroes.length} image${assets.heroes.length===1?"":"s"}\u2026`
+    : `Saving "${name}"\u2026`);
+  const r=await projPutRemote(name,snap,assets);
+  if(r.error){
+    drawProjects(); $("#projPick").value="l:"+name;
+    logEvent("project-save",name);
+    return toast(localOk
+      ? `Saved in this browser only \u2014 the server refused it: ${r.error}`
+      : `Could not save: ${r.error}`,9000);
+  }
+  await projPull(true);
+  $("#projPick").value="r:"+(USER.email||"")+":"+name;
   logEvent("project-save",name);
+  toast(r.assets
+    ? `Saved as "${name}" with its images \u2014 on the server, so any machine can open it`
+    : r.note
+      ? `Saved as "${name}". ${r.note}`
+      : `Saved as "${name}" \u2014 on the server, so any machine can open it`,
+    r.note?9000:5000);
+  if(mb>8)toast(`That is ${mb.toFixed(0)} MB of artwork. Past about eight the script starts refusing the write.`,9000);
 });
-on("#projPick","change",()=>{
+on("#projPick","change",async()=>{
   const sel=$("#projPick"), v=sel.value;
   if(!v)return;
   if(v==="__del"){
-    const all=projects();
-    const name=(prompt("Delete which project?\n\n"+Object.keys(all).join("\n"))||"").trim();
+    const here=Object.keys(projects());
+    const up=(typeof PROJ_REMOTE!=="undefined"?PROJ_REMOTE:[]).filter(p=>p.mine||PROJ_ADMIN);
+    const list=up.map(p=>projLabel(p)).concat(here.filter(n=>!up.some(p=>p.name===n)));
+    const name=(prompt("Delete which project?\n\n"+list.join("\n"))||"").trim();
     sel.value="";
-    if(!name||!all[name])return;
+    if(!name)return;
+    const rem=up.find(p=>p.name===name||projLabel(p)===name);
     if(!confirm(`Delete "${name}"? This cannot be undone.`))return;
-    delete all[name]; store.set(PROJ_STORE,all); drawProjects();
-    AssetDB.del(name).catch(()=>{});   /* or its pictures sit there for ever */
+    if(rem){
+      const r=await adsCall("proj-del",{name:rem.name,owner:rem.owner});
+      if(r&&r.error)return toast(`Could not delete it: ${r.error}`,7000);
+      await projPull(true);
+    }
+    const all=projects();
+    if(all[name]){ delete all[name]; store.set(PROJ_STORE,all); AssetDB.del(name).catch(()=>{}); }
+    drawProjects();
     return toast(`Deleted "${name}"`);
   }
-  const p=projects()[v];
+  /* "r:<owner>:<name>" is the server's, "l:<name>" this browser's */
+  if(v.indexOf("r:")===0){
+    const rest=v.slice(2), cut=rest.indexOf(":");
+    const owner=rest.slice(0,cut), name=rest.slice(cut+1);
+    if(!confirm(`Open "${name}"?\n\nAnything unsaved in the current project is lost.`)){
+      sel.value=""; return; }
+    return projOpenRemote(owner,name);
+  }
+  const name=v.indexOf("l:")===0?v.slice(2):v;
+  const p=projects()[name];
   if(!p){ sel.value=""; return toast("That project is no longer saved"); }
-  if(!confirm(`Open "${v}"?\n\nAnything unsaved in the current project is lost.`)){
+  if(!confirm(`Open "${name}"?\n\nAnything unsaved in the current project is lost.`)){
     sel.value=""; return; }
-  logEvent("project-open",v);
-  projectApply(p,v);
+  logEvent("project-open",name);
+  projectApply(p,name);
 });

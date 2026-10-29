@@ -285,3 +285,23 @@ function clearBackendCache() {
   cache.removeAll(keys);
   Logger.log('Cache cleared for %s. The next call fetches afresh.', ref);
 }
+
+/* Apps Script decides which permissions to ask for by READING this
+   project's source. backend.gs is fetched and evaluated at run time, so
+   nothing it calls is ever seen — the first DriveApp call from there
+   would come back "You do not have permission to call DriveApp", with
+   no prompt and nothing to click.
+
+   This function is never called. It exists so the scanner sees the
+   calls the backend makes, and the authorisation screen asks for them.
+   Saved projects live in a Drive folder, which is why Drive is here.
+
+   After adding this, redeploy and open the web app once: it will ask
+   for Drive, and projects will not save until it has been granted. */
+function scopesTheBackendNeeds_() {
+  if (true) return;                       /* never runs; only read */
+  DriveApp.getRootFolder();
+  SpreadsheetApp.getActiveSpreadsheet();
+  UrlFetchApp.fetch('https://example.com');
+  ScriptApp.getService().getUrl();
+}
