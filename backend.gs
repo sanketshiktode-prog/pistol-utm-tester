@@ -2367,7 +2367,7 @@ function aiReview(body, v) {
 /* Which copy of this file the Apps Script is actually running. The tab
    shows it beside its own build, because "the fix is pushed" and "the fix
    is running" were indistinguishable from the screen for an hour. */
-const BACKEND_BUILD = 'b-29oct-11';
+const BACKEND_BUILD = 'b-29oct-12';
 
 const META_DEFAULT_VERSION = 'v23.0';
 const META_AGE_MIN = 28, META_AGE_MAX = 64;
@@ -2478,6 +2478,54 @@ function metaPerms_() {
            why: META_NEED };
 }
 
+/* ═══════════ interest names to ids ═══════════
+   The audience library is written in names — "Luxury Watches", "HDFC
+   Bank" — because a name can be read and checked and an id copied by hand
+   cannot. Meta will turn a whole list into ids in one call, and says which
+   it did not recognise, which is the part worth showing somebody.
+
+   The answers are stable, so they are cached: a project with thirteen
+   audiences and five hundred names otherwise re-asks on every deploy. */
+function metaInterests_(names) {
+  const want = (names || []).map(function (n) { return String(n || '').trim(); })
+    .filter(Boolean);
+  if (!want.length) return { ok: true, found: [], missing: [] };
+
+  const found = [], missing = [], ask = [];
+  const cache = CacheService.getScriptCache();
+  const key = function (n) { return 'int-' + n.toLowerCase().slice(0, 180); };
+
+  var hits = {};
+  try { hits = cache.getAll(want.map(key)) || {}; } catch (e) {}
+  want.forEach(function (n) {
+    const hit = hits[key(n)];
+    if (hit === undefined) { ask.push(n); return; }
+    if (hit === '-') missing.push(n);
+    else found.push({ id: hit, name: n });
+  });
+
+  /* Meta takes the list in one go and answers for each entry. Chunked
+     because the URL is a GET and a list of five hundred will not fit. */
+  for (var i = 0; i < ask.length; i += 40) {
+    const chunk = ask.slice(i, i + 40);
+    const r = metaCall_('search?type=adinterestvalid&interest_list=' +
+      encodeURIComponent(JSON.stringify(chunk)), {}, 'get');
+    if (r.error) return { error: r.error, found: found, missing: missing.concat(ask.slice(i)) };
+    const put = {};
+    (r.data || []).forEach(function (d) {
+      const nm = String(d.name || '');
+      if (d.valid && d.id) { found.push({ id: String(d.id), name: nm }); put[key(nm)] = String(d.id); }
+      else { missing.push(nm); put[key(nm)] = '-'; }
+    });
+    /* a name Meta did not mention at all is a miss too */
+    chunk.forEach(function (n) {
+      if (put[key(n)] === undefined) { missing.push(n); put[key(n)] = '-'; }
+    });
+    try { cache.putAll(put, 21600); } catch (e) {}
+  }
+  return { ok: true, found: found, missing: missing };
+}
+
 function metaAssets_() {
   const out = { accounts: [], pages: [], notes: [] };
 
@@ -2585,7 +2633,13 @@ function metaPlan(body) {
 
   /* The deck names things Project_Location_LeadGen, and the ad set carries
      the same with the objective spelled out. */
-  const campaignName = [proj, place, 'LeadGen'].filter(Boolean).join('_').replace(/\s+/g, '_');
+  /* The campaign is called after the CRM enquiry, because that is the name
+     the lead comes back under and the two have to be matched by hand
+     otherwise. Underscores are out: they were an artefact of joining the
+     parts together and nobody wanted them. */
+  const enquiry = metaClean_(b.enquiry, 80);
+  const campaignName = (enquiry || [proj, place, 'Lead Generation']
+    .filter(Boolean).join(' ')).replace(/_+/g, ' ').replace(/\s{2,}/g, ' ').trim();
   const adsetName = [proj, place, 'Lead Generation'].filter(Boolean).join(' – ');
 
   const radii = (body.targets || []).filter(function (t) {
@@ -2643,9 +2697,23 @@ function metaPlan(body) {
       .filter(Boolean).map(function (id) { return { id: id }; });
     if (inc.length) t.custom_audiences = inc;
 
-    const ints = ((a.interests && a.interests.length) ? a.interests : (s.interests || []))
+    var ints = ((a.interests && a.interests.length) ? a.interests : (s.interests || []))
       .filter(Boolean)
       .map(function (i) { return { id: String(i.id), name: metaClean_(i.name, 60) }; });
+    /* an audience written in names — which is how the library is written */
+    if (!ints.length && a.interestNames) {
+      const look = metaInterests_(String(a.interestNames).split(',')
+        .map(function (x) { return x.trim(); }).filter(Boolean));
+      if (look.error) notes.push('Audience \u201c' + (a.name || '?') +
+        '\u201d: could not look up its interests \u2014 ' + look.error);
+      else {
+        ints = look.found.map(function (f) { return { id: f.id, name: f.name }; });
+        if (look.missing.length) notes.push('Audience \u201c' + (a.name || '?') + '\u201d: ' +
+          look.missing.length + ' interest' + (look.missing.length === 1 ? '' : 's') +
+          ' Meta does not know \u2014 ' + look.missing.slice(0, 6).join(', ') +
+          (look.missing.length > 6 ? '\u2026' : '') + '. The rest are targeted.');
+      }
+    }
     if (ints.length) t.flexible_spec = [{ interests: ints }];
     return t;
   }
@@ -2713,7 +2781,11 @@ function metaPlan(body) {
   const ads = (body.creatives || []).slice(0, 10).map(function (c, i) {
     return {
       name: metaClean_(c.name, 60) || ('Static ' + (i + 1)),
-      image: c.data || '',
+      /* one ad per hero: its shapes go to the placements they were drawn
+         for. `image` is the single-image fallback, kept for anything that
+         still sends one. */
+      shapes: c.images || null,
+      image: c.data || (c.images && (c.images.square || c.images.portrait || c.images.story)) || '',
       primary: metaClean_(c.primary || (body.copy || {}).primary, 1000),
       headline: metaClean_(c.headline || (body.copy || {}).headline, 40),
       description: metaClean_(c.description || (body.copy || {}).description, 30),
@@ -2851,6 +2923,57 @@ function metaUndo_(made) {
 /* One creative body, used by the deploy and by the dry run, so what the
    check approves is what the deploy sends. Two copies of this drifted
    apart once already. */
+/* Which shape belongs on which placement. The 4:5 is what a feed wants
+   and the 9:16 is what a story wants; the square is the fallback for
+   anything that has neither. */
+const META_PLACEMENTS = [
+  { label: 'feed', shapes: ['portrait', 'square'],
+    spec: { publisher_platforms: ['facebook', 'instagram'],
+            facebook_positions: ['feed'], instagram_positions: ['stream'] } },
+  { label: 'vertical', shapes: ['story'],
+    spec: { publisher_platforms: ['facebook', 'instagram'],
+            facebook_positions: ['story', 'facebook_reels'],
+            instagram_positions: ['story', 'reels'] } }
+];
+
+/* One ad carrying every shape, instead of one ad per shape. Three renders
+   of the same artwork as three ads is three sets of numbers for one
+   creative and three things to switch off. */
+function metaCreativeMulti_(plan, ad, hashes) {
+  const images = [], rules = [];
+  META_PLACEMENTS.forEach(function (p) {
+    const shape = p.shapes.filter(function (sn) { return hashes[sn]; })[0];
+    if (!shape) return;
+    images.push({ hash: hashes[shape], adlabels: [{ name: p.label }] });
+    rules.push({
+      customization_spec: p.spec,
+      image_label: { name: p.label },
+      body_label: { name: 'body' },
+      title_label: { name: 'title' },
+      description_label: { name: 'desc' },
+      link_url_label: { name: 'url' }
+    });
+  });
+  /* one shape only, or none that mapped: the plain single-image creative
+     does the job and is far less to get wrong */
+  if (images.length < 2) return null;
+
+  return {
+    name: ad.name,
+    object_story_spec: { page_id: plan.pageId },
+    asset_feed_spec: {
+      images: images,
+      bodies:       [{ text: ad.primary,     adlabels: [{ name: 'body'  }] }],
+      titles:       [{ text: ad.headline,    adlabels: [{ name: 'title' }] }],
+      descriptions: [{ text: ad.description, adlabels: [{ name: 'desc'  }] }],
+      link_urls:    [{ website_url: plan.link, adlabels: [{ name: 'url' }] }],
+      call_to_action_types: [ad.cta || 'LEARN_MORE'],
+      ad_formats: ['SINGLE_IMAGE'],
+      asset_customization_rules: rules
+    }
+  };
+}
+
 function metaCreative_(plan, ad, hash) {
   const c = {
     name: ad.name,
@@ -2986,7 +3109,9 @@ function metaRun(body, v, validateOnly) {
           plan.notes.push('Meta took the image but returned no hash, so the creative is unchecked.');
         } else {
           const probe = metaCall_(act + '/adcreatives',
-            withOpts(metaCreative_(plan, ad0, h0)));
+            withOpts((metaProp_('META_ONE_AD_PER_SIZE', '') === '1' ? null
+              : metaCreativeMulti_(plan, ad0, { square: h0, portrait: h0, story: h0 }))
+              || metaCreative_(plan, ad0, h0)));
           if (probe.error)
             return { error: 'Creative: ' + probe.error, plan: plan, made: made };
           made.creative = '(validated)';
@@ -3016,17 +3141,30 @@ function metaRun(body, v, validateOnly) {
     const ad = plan.ads[i];
     if (!ad.image) { plan.notes.push('Ad ' + (i + 1) + ' had no image and was skipped.'); continue; }
 
-    const up = metaCall_(act + '/adimages', { bytes: ad.image });
-    if (up.error) return { error: 'Image for ad ' + (i + 1) + ': ' + up.error + metaUndo_(made), plan: plan, made: made };
-    /* the response is keyed by a name Meta chooses, so the hash is read out
-       of whatever single entry came back */
-    var hash = '';
-    const imgs = up.images || {};
-    for (var key in imgs) if (imgs[key] && imgs[key].hash) { hash = imgs[key].hash; break; }
-    if (!hash) return { error: 'Meta accepted the image for ad ' + (i + 1) + ' but returned no hash.' + metaUndo_(made), plan: plan, made: made };
-    made.images.push(hash);
+    /* Every shape this hero was rendered in goes up, so one ad can carry
+       all of them. Uploading is cheap and the hashes are reused. */
+    const hashes = {};
+    const shapes = ad.shapes && Object.keys(ad.shapes).length
+      ? ad.shapes : { square: ad.image };
+    for (var sn in shapes) {
+      if (!shapes[sn]) continue;
+      const up = metaCall_(act + '/adimages', { bytes: shapes[sn] });
+      if (up.error) return { error: 'Image (' + sn + ') for ad ' + (i + 1) + ': ' +
+        up.error + metaUndo_(made), plan: plan, made: made };
+      var h = '';
+      const imgs = up.images || {};
+      for (var key in imgs) if (imgs[key] && imgs[key].hash) { h = imgs[key].hash; break; }
+      if (!h) return { error: 'Meta accepted the ' + sn + ' image for ad ' + (i + 1) +
+        ' but returned no hash.' + metaUndo_(made), plan: plan, made: made };
+      hashes[sn] = h;
+      made.images.push(h);
+    }
+    const hash = hashes.square || hashes.portrait || hashes.story;
+    if (!hash) return { error: 'Ad ' + (i + 1) + ' had no usable image.' + metaUndo_(made),
+                        plan: plan, made: made };
 
-    const creative = metaCreative_(plan, ad, hash);
+    const creative = (metaProp_('META_ONE_AD_PER_SIZE', '') === '1'
+      ? null : metaCreativeMulti_(plan, ad, hashes)) || metaCreative_(plan, ad, hash);
 
 
     const cr = metaCall_(act + '/adcreatives', creative);

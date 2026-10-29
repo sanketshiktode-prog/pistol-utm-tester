@@ -46,6 +46,44 @@ const mdLine=(l,ic,h)=>`<div class="check c-${l}"><span class="ic">${ic}</span><
 /* The renders that belong in a Meta ad. The square carries the feeds and
    the story carries stories and reels; the two wide Google sizes have no
    placement here and are left out rather than squeezed in. */
+/* One ad per hero, not one per size.
+
+   Three renders of the same artwork used to become three ads, which is
+   three sets of numbers for one creative and three things to switch off.
+   They are one ad now, and the shapes go to the placements they were drawn
+   for: the 4:5 to the feeds, the 9:16 to stories and reels. */
+async function mdCreativeSets(){
+  const want=["square","portrait","story"];
+  const out=[];
+  const shrink=async b64=>{
+    const small=await aiShrink("data:image/jpeg;base64,"+b64,1200);
+    return small||b64;
+  };
+  const sets=(typeof allSets==="function"?allSets():[])||[];
+  for(const st of sets){
+    const imgs=(st&&st.images)||{};
+    const one={name:String(st.name||"Ad").slice(0,60), images:{}};
+    for(const nm of want) if(imgs[nm]&&imgs[nm].data)
+      one.images[nm]=await shrink(imgs[nm].data);
+    if(Object.keys(one.images).length){ out.push(one); if(out.length>=10)break; }
+  }
+  if(out.length)return out;
+
+  /* nothing kept as a set — group the loose renders by the hero they came
+     from, which is what CR_OUT records */
+  const byHero={};
+  for(const o of (CR_OUT||[])){
+    const nm=String(o.name||"").toLowerCase();
+    const shape=want.find(w=>nm.indexOf(w)>-1);
+    if(!shape||!o.url)continue;
+    const hero=String(o.hero||"Ad").slice(0,60);
+    (byHero[hero]=byHero[hero]||{name:hero,images:{}});
+    if(!byHero[hero].images[shape])
+      byHero[hero].images[shape]=await shrink(String(o.url).split(",")[1]||"");
+  }
+  return Object.keys(byHero).slice(0,10).map(k=>byHero[k]);
+}
+
 async function mdCreatives(){
   /* A set keeps its renders in an object keyed by size, not a list, and the
      two wide Google shapes have no Meta placement — so only the square, the
@@ -93,6 +131,8 @@ const audIds=t=>String(t||"").split(/[\n,]/).map(x=>x.trim()).filter(Boolean);
 
 function audSummary(a){
   const bits=[];
+  if(a.interestNames&&a.interestNames.trim())
+    bits.push(audIds(a.interestNames).length+" interests by name");
   if(a.interests&&a.interests.trim())bits.push(audIds(a.interests).length+" interest ids");
   if(a.include&&a.include.trim())bits.push(audIds(a.include).length+" included");
   if(a.exclude&&a.exclude.trim())bits.push(audIds(a.exclude).length+" excluded");
@@ -111,7 +151,12 @@ function drawAuds(){
         <button class="x" data-ax="${i}" title="Remove">✕</button>
       </div>
       <div class="mdaud-g">
-        <label><span class="l">Interest ids</span>
+        <label class="wide"><span class="l">Interests
+            <span class="p-mute" style="text-transform:none;letter-spacing:0;font-weight:400">by name</span></span>
+          <input data-af="interestNames" value="${esc(a.interestNames||"")}"
+            placeholder="Luxury Watches, HDFC Bank…"></label>
+        <label><span class="l">Interest ids
+            <span class="p-mute" style="text-transform:none;letter-spacing:0;font-weight:400">if you have them</span></span>
           <input data-af="interests" value="${esc(a.interests||"")}" placeholder="6003… , 6004…"></label>
         <label><span class="l">Custom audiences in</span>
           <input data-af="include" value="${esc(a.include||"")}" placeholder="lookalike ids"></label>
@@ -183,6 +228,9 @@ function audPayload(){
     const o={name:a.name.trim()};
     const ints=audIds(a.interests);
     if(ints.length)o.interests=ints.map(id=>({id,name:""}));
+    /* names are looked up server side, where the answer is cached and the
+       ones Meta does not know can be reported */
+    else if(a.interestNames&&a.interestNames.trim())o.interestNames=a.interestNames.trim();
     const inc=audIds(a.include); if(inc.length)o.include=inc;
     const exc=audIds(a.exclude); if(exc.length)o.exclude=exc;
     if(a.ageMin)o.ageMin=Number(a.ageMin)||undefined;
@@ -207,7 +255,10 @@ function mdBody(){
     primary:(MT.p&&MT.p[0])||"", headline:(MT.h&&MT.h[0])||"", description:(MT.d&&MT.d[0])||""
   };
   return {
-    brief:{proj:b.proj,dev:b.dev,micro:b.micro,city:b.city},
+    /* the CRM enquiry name is what the campaign is called: it is the name
+       the lead will come back under, so the two match in reporting */
+    brief:{proj:b.proj,dev:b.dev,micro:b.micro,city:b.city,
+           enquiry:(val("inEnq")||"").trim()},
     targets:TARGETS,
     copy,
     settings:{
@@ -274,9 +325,9 @@ async function mdRun(action,what){
   const body=mdBody();
   if(action==="meta-deploy"){
     box.innerHTML=mdLine("warn","…","Shrinking the creatives…");
-    body.creatives=await mdCreatives();
+    body.creatives=await mdCreativeSets();
     if(!body.creatives.length)
-      return mdShow({error:"No square or story render was found. Render in the Creative studio first."},what);
+      return mdShow({error:"No render was found. Render in the Creative studio first."},what);
   }
   const r=await adsCall(action,body);
   mdShow(r,what);
