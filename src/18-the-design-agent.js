@@ -169,25 +169,40 @@ function drawSets(){
 }
 on("#setKeep","click",()=>{
   if(!CR_OUT.length)return toast("Render first");
-  /* whatever is on screen, held as an extra ad — so one hero can run twice
-     under two different looks */
-  const first=CR_OUT[0].hero;
-  const mine=CR_OUT.filter(o=>o.hero===first);
-  const im={};
-  mine.forEach(o=>{ const d=String(o.url||"").split(",")[1]; if(d)im[o.name]={data:d}; });
-  const lg=dgLogo(); if(lg)im.logo=lg;
-  const auto=`${first||"Creative"} · ${crLayoutId()}`;
-  let nm=($("#setName").value||"").trim()||auto;
-  if(allSets().some(x=>x.name.toLowerCase()===nm.toLowerCase())){
-    let n=2; while(allSets().some(x=>x.name.toLowerCase()===`${nm} ${n}`.toLowerCase()))n++;
-    nm=`${nm} ${n}`;
-  }
-  CR_KEPT.push({name:nm,images:im,
-    thumb:(mine.find(o=>o.name==="square")||mine[0]||{}).url||"",
-    sizes:mine.map(o=>o.name),layout:crLayoutId()});
+  /* Whatever is on screen, pinned as ads of its own, so changing the look
+     and rendering again adds rather than replaces. It used to keep only the
+     first hero — with three heroes on screen, two were silently dropped and
+     what came back was the first layout, which is what he saw. */
+  const typed=($("#setName").value||"").trim();
+  const heroes=[];
+  CR_OUT.forEach(o=>{ if(heroes.indexOf(o.hero)<0)heroes.push(o.hero); });
+  const lg=dgLogo();
+  const names=[];
+  heroes.forEach(hero=>{
+    const mine=CR_OUT.filter(o=>o.hero===hero);
+    const im={};
+    mine.forEach(o=>{ const d=String(o.url||"").split(",")[1]; if(d)im[o.name]={data:d}; });
+    if(lg)im.logo=lg;
+    /* one name typed and three heroes on screen would collide, so the hero
+       keeps it apart and the typed name stays the label */
+    const base=typed
+      ? (heroes.length>1?`${typed} · ${hero}`:typed)
+      : `${hero||"Creative"} · ${crLayoutId()}`;
+    let nm=base;
+    if(allSets().some(x=>x.name.toLowerCase()===nm.toLowerCase())){
+      let n=2; while(allSets().some(x=>x.name.toLowerCase()===`${base} ${n}`.toLowerCase()))n++;
+      nm=`${base} ${n}`;
+    }
+    CR_KEPT.push({name:nm,images:im,
+      thumb:(mine.find(o=>o.name==="square")||mine[0]||{}).url||"",
+      sizes:mine.map(o=>o.name),layout:crLayoutId()});
+    names.push(nm);
+  });
   $("#setName").value="";
   drawSets(); drawApSettings(); drawApPlan();
-  toast(`"${nm}" kept — ${allSets().length} ads per ad group`);
+  toast(names.length===1
+    ? `"${names[0]}" saved — ${allSets().length} ads per ad group`
+    : `${names.length} saved — ${allSets().length} ads per ad group`);
 });
 on("#setList","click",e=>{
   const x=e.target.closest("[data-sk]"); if(!x)return;

@@ -143,7 +143,12 @@ function assetSnapshot(){
     .map(h=>({name:h.name, src:(h.img&&h.img.src)||""}))
     .filter(h=>h.src.indexOf("data:")===0);
   const sets=(typeof CR_SETS!=="undefined"?CR_SETS:[]);
-  return heroes.length||sets.length ? {heroes, sets, saved:Date.now()} : null;
+  /* The ones pinned by hand were never written, so a project reopened
+     yesterday came back with only the last automatic render — which is
+     exactly "the first layout is saved and run by default". */
+  const kept=(typeof CR_KEPT!=="undefined"?CR_KEPT:[]);
+  return heroes.length||sets.length||kept.length
+    ? {heroes, sets, kept, saved:Date.now()} : null;
 }
 const loadImg=src=>new Promise(res=>{
   const im=new Image();
@@ -159,10 +164,11 @@ async function assetApply(a){
     if(im)HEROES.push({name:h.name,img:im});
   }
   if(typeof CR_SETS!=="undefined"){ CR_SETS.length=0; (a.sets||[]).forEach(s=>CR_SETS.push(s)); }
+  if(typeof CR_KEPT!=="undefined"){ CR_KEPT.length=0; (a.kept||[]).forEach(s=>CR_KEPT.push(s)); }
   /* the gallery reads CR_OUT, which is the same pictures flattened */
   if(typeof CR_OUT!=="undefined"){
     CR_OUT.length=0;
-    (a.sets||[]).forEach(s=>{
+    (a.kept||[]).concat(a.sets||[]).forEach(s=>{
       (s.sizes||[]).forEach(nm=>{
         const im=s.images&&s.images[nm];
         if(im&&im.data)CR_OUT.push({name:nm,url:"data:image/jpeg;base64,"+im.data,

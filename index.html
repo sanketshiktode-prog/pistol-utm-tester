@@ -32,7 +32,7 @@
     <div class="subject">Google Ads</div>
     <div class="spacer"></div>
     <div class="badge-env" id="varCount">0 VARIANTS</div>
-    <span class="pill p-mute" id="buildTag" title="build">b-29oct-13</span>
+    <span class="pill p-mute" id="buildTag" title="build">b-29oct-14</span>
     <div id="userChip" class="hidden" style="display:flex;align-items:center;gap:9px">
       <div class="divider-v"></div>
       <span id="userName" style="font-size:12.5px;font-weight:500"></span>
@@ -1417,14 +1417,15 @@ Static Square</textarea>
           replacing one another. Rename an ad by renaming its hero on the left.</div>
         <div class="ticket" style="grid-template-columns:1fr 190px;margin-top:12px">
           <input type="text" id="setName" placeholder="Name this one — Elevation Gold, Clubhouse Dark">
-          <button class="btn btn-sm btn-pri" id="setKeep">Keep this render too</button>
+          <button class="btn btn-sm btn-pri" id="setKeep">Save this render</button>
         </div>
-        <div class="f-note" style="margin-top:6px">Rendering already makes one ad per hero image. <b>Keep</b>
-          holds on to what is on screen as an extra ad, so the same hero can run twice with a different
-          layout or palette: render, keep, change the look, render, keep.</div>
+        <div class="f-note" style="margin-top:6px">Rendering makes one ad per hero image, and the next
+          render replaces it. <b>Save</b> pins what is on screen — every hero, at this layout and palette
+          — so changing the look and rendering again adds an ad instead of replacing one: render, save,
+          change the look, render, save.</div>
         <div id="setList" style="margin-top:12px"></div>
-        <div class="f-note" style="margin-top:8px">These live for this browser session only — far too
-          large for a saved project, so render again next time.</div>
+        <div class="f-note" style="margin-top:8px">Saved ones go into the project and come back when it
+          is reopened. The unsaved render below them is this session only — press Save to keep it.</div>
       </div>
     </div>
 
