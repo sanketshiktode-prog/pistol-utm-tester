@@ -2538,7 +2538,7 @@ function aiReview(body, v) {
 /* Which copy of this file the Apps Script is actually running. The tab
    shows it beside its own build, because "the fix is pushed" and "the fix
    is running" were indistinguishable from the screen for an hour. */
-const BACKEND_BUILD = 'b-30oct-2';
+const BACKEND_BUILD = 'b-30oct-3';
 
 const META_DEFAULT_VERSION = 'v23.0';
 const META_AGE_MIN = 28, META_AGE_MAX = 64;
@@ -3156,6 +3156,10 @@ function metaPlan(body) {
       (ads.length === 1 ? '' : 's') + '.');
   }
 
+  if (metaProp_('META_ASSET_FEED', '') !== '1' && ads.length)
+    notes.push('One ad per hero image, carrying the 4:5. Meta crops it for stories and reels — ' +
+      'a per-placement image is its asset feed, which this objective does not support.');
+
   /* Instagram has to be posted AS something. If the Page has no account
      and none can be made, Instagram is dropped rather than the deploy —
      a Facebook-only campaign is worth far more than a 400. */
@@ -3232,6 +3236,23 @@ function metaCall_(path, payload, method) {
    and the run after this one makes a second copy beside it. Deleting the
    campaign takes its ad sets and ads with it. Uploaded images are left
    where they are: they cost nothing, and another ad may share the hash. */
+/* Creatives are built before the campaign now, so a failure there has
+   creatives to clear up and no campaign. They serve nothing on their own
+   and cost nothing, but leaving them behind fills the library with the
+   wreckage of every failed attempt. */
+function metaUndoCreatives_(built) {
+  if (!built || !built.length) return '';
+  var gone = 0;
+  built.forEach(function (b) {
+    const r = metaCall_(String(b.id), {}, 'delete');
+    if (!r.error) gone++;
+  });
+  return gone === built.length
+    ? ' No campaign was created, and the creatives built so far were removed.'
+    : ' No campaign was created. ' + (built.length - gone) +
+      ' unused creative(s) were left in the library.';
+}
+
 function metaUndo_(made) {
   if (!made || !made.campaign || made.campaign === '(validated)') return '';
   const d = metaCall_(String(made.campaign), {}, 'delete');
@@ -3257,10 +3278,24 @@ const META_PLACEMENTS = [
             instagram_positions: ['story', 'reels'] } }
 ];
 
-/* One ad carrying every shape, instead of one ad per shape. Three renders
-   of the same artwork as three ads is three sets of numbers for one
-   creative and three things to switch off. */
+/* One ad carrying every shape, instead of one ad per shape.
+
+   This is Meta's asset feed, and Meta counts it as DYNAMIC CREATIVE:
+   "The campaign objective is not currently supported by dynamic
+   creative." A lead ad that opens an instant form — OUTCOME_LEADS with
+   destination_type ON_AD, which is every campaign this tool builds — is
+   one of the objectives it does not support. There is no shape of this
+   request that gets round that; it is the objective, not the request.
+
+   So it is off. One ad per hero still happens, and it carries ONE image:
+   the 4:5, which Meta crops itself for stories and reels. That is what
+   an advertiser does by hand for a lead ad, and it is the same single ad
+   per hero either way.
+
+   META_ASSET_FEED=1 turns it back on, for the day Meta supports it or
+   for a campaign built with another objective. */
 function metaCreativeMulti_(plan, ad, hashes) {
+  if (metaProp_('META_ASSET_FEED', '') !== '1') return null;
   const images = [], rules = [];
   META_PLACEMENTS.forEach(function (p) {
     const shape = p.shapes.filter(function (sn) { return hashes[sn]; })[0];
@@ -3377,6 +3412,65 @@ function metaRun(body, v, validateOnly) {
     return out;
   };
 
+  /* 0. the images and the creatives, before anything exists.
+
+     Three nights running a deploy built a campaign, then an ad set, and
+     then fell over on the creative — and each time the campaign had to
+     be rolled back and the whole thing started over. The creative is the
+     part Meta argues with and it was being built last.
+
+     It is built first now. A creative is an account-level object: it
+     belongs to no campaign, serves nothing on its own, and the ads that
+     follow point at it. So if Meta is going to refuse one, it refuses it
+     here, with no campaign to undo. Nothing extra is sent — this is the
+     same upload and the same creative that used to happen further down,
+     moved in front of the campaign. */
+  const BUILT = [];
+  if (!validateOnly) {
+    for (var ci = 0; ci < plan.ads.length; ci++) {
+      const cad = plan.ads[ci];
+      if (!cad.image) { plan.notes.push('Ad ' + (ci + 1) + ' had no image and was skipped.'); continue; }
+
+      /* One image per hero, not one per shape. The asset feed that used
+         all of them is dynamic creative, which this objective does not
+         support, so the other two would be uploads nothing can use. The
+         4:5 is the one to keep: Meta crops it for stories and reels, and
+         it is the shape the feeds want. */
+      const hashes = {};
+      const all = cad.shapes && Object.keys(cad.shapes).length
+        ? cad.shapes : { square: cad.image };
+      var shapes = all;
+      if (metaProp_('META_ASSET_FEED', '') !== '1') {
+        const best = ['portrait', 'square', 'story'].filter(function (k) { return all[k]; })[0];
+        shapes = {}; if (best) shapes[best] = all[best];
+      }
+      for (var sn in shapes) {
+        if (!shapes[sn]) continue;
+        const up = metaCall_(act + '/adimages', { bytes: shapes[sn] });
+        if (up.error) return { error: 'Image (' + sn + ') for ad ' + (ci + 1) + ': ' +
+          up.error + metaUndoCreatives_(BUILT), plan: plan, made: made };
+        var h = '';
+        const imgs = up.images || {};
+        for (var key in imgs) if (imgs[key] && imgs[key].hash) { h = imgs[key].hash; break; }
+        if (!h) return { error: 'Meta accepted the ' + sn + ' image for ad ' + (ci + 1) +
+          ' but returned no hash.' + metaUndoCreatives_(BUILT), plan: plan, made: made };
+        hashes[sn] = h;
+        made.images.push(h);
+      }
+      const hash = hashes.portrait || hashes.square || hashes.story;
+      if (!hash) return { error: 'Ad ' + (ci + 1) + ' had no usable image.' +
+        metaUndoCreatives_(BUILT), plan: plan, made: made };
+
+      const cr = metaCall_(act + '/adcreatives',
+        metaCreativeMulti_(plan, cad, hashes) || metaCreative_(plan, cad, hash));
+      if (cr.error) return { error: 'Creative for ad ' + (ci + 1) + ': ' + cr.error +
+        metaUndoCreatives_(BUILT) +
+        ' No campaign was created \u2014 the creative is built before the campaign now.',
+        plan: plan, made: made };
+      BUILT.push({ ad: cad, id: cr.id, index: ci });
+    }
+  }
+
   /* 1. campaign */
   const c = metaCall_(act + '/campaigns', withOpts(plan.campaign));
   if (c.error) return { error: 'Campaign: ' + c.error, plan: plan, made: made };
@@ -3455,8 +3549,7 @@ function metaRun(body, v, validateOnly) {
           plan.notes.push('Meta took the image but returned no hash, so the creative is unchecked.');
         } else {
           const probe = metaCall_(act + '/adcreatives',
-            withOpts((metaProp_('META_ONE_AD_PER_SIZE', '') === '1' ? null
-              : metaCreativeMulti_(plan, ad0, { square: h0, portrait: h0, story: h0 }))
+            withOpts(metaCreativeMulti_(plan, ad0, { square: h0, portrait: h0, story: h0 })
               || metaCreative_(plan, ad0, h0)));
           if (probe.error)
             return { error: 'Creative: ' + probe.error, plan: plan, made: made };
@@ -3482,39 +3575,9 @@ function metaRun(body, v, validateOnly) {
   }
   made.adset = made.adsets[0] && made.adsets[0].id;
 
-  /* 3. the images, then a creative and an ad for each */
-  for (var i = 0; i < plan.ads.length; i++) {
-    const ad = plan.ads[i];
-    if (!ad.image) { plan.notes.push('Ad ' + (i + 1) + ' had no image and was skipped.'); continue; }
-
-    /* Every shape this hero was rendered in goes up, so one ad can carry
-       all of them. Uploading is cheap and the hashes are reused. */
-    const hashes = {};
-    const shapes = ad.shapes && Object.keys(ad.shapes).length
-      ? ad.shapes : { square: ad.image };
-    for (var sn in shapes) {
-      if (!shapes[sn]) continue;
-      const up = metaCall_(act + '/adimages', { bytes: shapes[sn] });
-      if (up.error) return { error: 'Image (' + sn + ') for ad ' + (i + 1) + ': ' +
-        up.error + metaUndo_(made), plan: plan, made: made };
-      var h = '';
-      const imgs = up.images || {};
-      for (var key in imgs) if (imgs[key] && imgs[key].hash) { h = imgs[key].hash; break; }
-      if (!h) return { error: 'Meta accepted the ' + sn + ' image for ad ' + (i + 1) +
-        ' but returned no hash.' + metaUndo_(made), plan: plan, made: made };
-      hashes[sn] = h;
-      made.images.push(h);
-    }
-    const hash = hashes.square || hashes.portrait || hashes.story;
-    if (!hash) return { error: 'Ad ' + (i + 1) + ' had no usable image.' + metaUndo_(made),
-                        plan: plan, made: made };
-
-    const creative = (metaProp_('META_ONE_AD_PER_SIZE', '') === '1'
-      ? null : metaCreativeMulti_(plan, ad, hashes)) || metaCreative_(plan, ad, hash);
-
-
-    const cr = metaCall_(act + '/adcreatives', creative);
-    if (cr.error) return { error: 'Creative for ad ' + (i + 1) + ': ' + cr.error + metaUndo_(made), plan: plan, made: made };
+  /* 3. the ads, pointing at the creatives that already exist */
+  for (var i = 0; i < BUILT.length; i++) {
+    const ad = BUILT[i].ad, cr = { id: BUILT[i].id }, n = BUILT[i].index + 1;
 
     /* The creative is an account-level object, so the same one is put under
        every ad set rather than uploaded and built again per audience. The
@@ -3526,7 +3589,7 @@ function metaRun(body, v, validateOnly) {
       const a2 = metaCall_(act + '/ads', {
         name: adName, adset_id: into.id, creative: { creative_id: cr.id }, status: 'PAUSED'
       });
-      if (a2.error) return { error: 'Ad ' + (i + 1) +
+      if (a2.error) return { error: 'Ad ' + n +
         (into.audience ? ' in \u201c' + into.audience + '\u201d' : '') + ': ' +
         a2.error + metaUndo_(made), plan: plan, made: made };
       made.ads.push({ id: a2.id, name: adName, adset: into.id, audience: into.audience });
