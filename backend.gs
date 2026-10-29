@@ -2720,6 +2720,46 @@ function metaPlan(body) {
     if (!a.primary)  notes.push('Ad ' + (i + 1) + ' has no primary text.');
   });
 
+  /* ═══ the rules Meta enforces, checked before anything is sent ═══
+
+     Every one of these was found the same way: a deploy that half-built a
+     campaign, failed on the next call, rolled back, and reported a Graph
+     error naming none of the fields the person could see. They cost an
+     evening each. They are cheap to check here and they never reach Meta
+     again.
+
+     A rule only belongs in this list once Meta has actually refused
+     something for it, with the wording it used. Guessing at rules would
+     block deploys that would have worked. */
+  const link = metaClean_(body.link || s.link || '', 400);
+  const stop = [];
+
+  if (!link)
+    stop.push('No landing page URL. A lead ad has to link to external content — ' +
+      'Meta refuses one that points at a Facebook Page — so set the landing page ' +
+      'on the Brief, or publish one on step 02.');
+  else if (!/^https?:\/\//i.test(link))
+    stop.push('The landing page URL has to start with http:// or https:// — got "' +
+      link.slice(0, 60) + '".');
+  else if (/(^|\/\/)(www\.)?(facebook|fb)\.(com|me)\b/i.test(link))
+    stop.push('The landing page points at Facebook. Meta refuses a lead ad whose ' +
+      'creative links to a Page rather than to the advertiser’s own site.');
+
+  if (Number(s.ageMin) && Number(s.ageMin) < 18)
+    stop.push('The minimum age is ' + s.ageMin + '. Meta does not allow under 18.');
+  if (Number(s.ageMin) && Number(s.ageMax) && Number(s.ageMin) > Number(s.ageMax))
+    stop.push('The age range runs backwards: ' + s.ageMin + ' to ' + s.ageMax + '.');
+
+  (s.audiences || []).forEach(function (a) {
+    if (a && a.dailyBudget !== undefined && !metaMinor_(a.dailyBudget))
+      stop.push('Audience “' + (a.name || '?') + '” has a daily budget of ' +
+        a.dailyBudget + ', which is not a number Meta will take.');
+  });
+
+  if (stop.length)
+    return { error: stop[0], blocked: stop,
+             note: 'Nothing was sent to Meta — these are checked here first.' };
+
   if (audiences.length) {
     const seen = {};
     audiences.forEach(function (a) {
@@ -2734,7 +2774,7 @@ function metaPlan(body) {
   }
 
   return {
-    ok: true, campaign: campaign, adset: adset, adsets: adsets, ads: ads,
+    ok: true, campaign: campaign, adset: adset, adsets: adsets, ads: ads, link: link,
     pageId: pageId, formId: formId, notes: notes,
     accountId: String(s.accountId || '').replace(/^act_/, '')
   };
@@ -2800,6 +2840,51 @@ function metaUndo_(made) {
     return ' A campaign was created before this failed and could not be removed (' +
            d.error + '). Delete ' + made.campaign + ' in Ads Manager before trying again.';
   return ' The half-built campaign was deleted, so nothing was left behind.';
+}
+
+/* One creative body, used by the deploy and by the dry run, so what the
+   check approves is what the deploy sends. Two copies of this drifted
+   apart once already. */
+function metaCreative_(plan, ad, hash) {
+  const c = {
+    name: ad.name,
+    object_story_spec: {
+      page_id: plan.pageId,
+      link_data: {
+        image_hash: hash,
+        /* Meta: "Lead Generation ads should always link to external content
+           (e.g. an advertiser's website), but this ad does not (e.g. it
+           links to a Facebook Page)." A Page URL here is exactly what it
+           refuses, which is what used to be here. */
+        link: plan.link,
+        message: ad.primary,
+        name: ad.headline,
+        description: ad.description,
+        call_to_action: {
+          type: ad.cta || 'LEARN_MORE',
+          value: { lead_gen_form_id: plan.formId }
+        }
+      }
+    }
+  };
+  /* Meta has retired standard_enhancements — sending it is now a 400,
+     "Including standard enhancements field in creative has been
+     deprecated. Please choose to set individual features instead."
+
+     The individual features that replaced it are a list Meta edits
+     whenever it likes, and naming one that has moved is the same 400
+     again. So nothing is sent by default: the account's own setting
+     decides, which is where somebody can see and change it. Anyone who
+     does want specific ones off puts their names in META_CREATIVE_OPTOUT,
+     comma separated, and they go through untouched. */
+  const optOut = metaProp_('META_CREATIVE_OPTOUT', '')
+    .split(',').map(function (x) { return x.trim(); }).filter(Boolean);
+  if (optOut.length) {
+    const feats = {};
+    optOut.forEach(function (f) { feats[f] = { enroll_status: 'OPT_OUT' }; });
+    c.degrees_of_freedom_spec = { creative_features_spec: feats };
+  }
+  return c;
 }
 
 function metaRun(body, v, validateOnly) {
@@ -2870,6 +2955,40 @@ function metaRun(body, v, validateOnly) {
     }
     made.adset = '(validated)';
     made.adsets = PLAN_SETS.map(function () { return '(validated)'; });
+
+    /* The creative and the ad were never checked, so "validated" meant the
+       campaign and the ad sets only — and the deploy then failed on the
+       creative, having already built a campaign. Everything the deploy
+       will create is checked here, with validate_only, so nothing is made.
+
+       The image is the one thing that cannot be dry-run: a creative needs
+       a hash, and a hash comes from an upload. Uploading one is harmless —
+       it is an asset in the library, costs nothing and serves nothing —
+       so the FIRST image goes up and the creative is checked against it.
+       The rest are left alone. */
+    if (plan.ads.length) {
+      const ad0 = plan.ads[0];
+      if (!ad0.image) {
+        plan.notes.push('The creative could not be checked: ad 1 has no image yet.');
+      } else {
+        const up = metaCall_(act + '/adimages', { bytes: ad0.image });
+        if (up.error) return { error: 'Image for ad 1: ' + up.error, plan: plan, made: made };
+        var h0 = '';
+        const im0 = up.images || {};
+        for (var ik in im0) if (im0[ik] && im0[ik].hash) { h0 = im0[ik].hash; break; }
+        if (!h0) {
+          plan.notes.push('Meta took the image but returned no hash, so the creative is unchecked.');
+        } else {
+          const probe = metaCall_(act + '/adcreatives',
+            withOpts(metaCreative_(plan, ad0, h0)));
+          if (probe.error)
+            return { error: 'Creative: ' + probe.error, plan: plan, made: made };
+          made.creative = '(validated)';
+          plan.notes.push('The creative was checked too, against a real uploaded image.');
+        }
+      }
+    }
+
     return { ok: true, validated: true, plan: plan, made: made, notes: plan.notes };
   }
 
@@ -2901,41 +3020,9 @@ function metaRun(body, v, validateOnly) {
     if (!hash) return { error: 'Meta accepted the image for ad ' + (i + 1) + ' but returned no hash.' + metaUndo_(made), plan: plan, made: made };
     made.images.push(hash);
 
-    const creative = {
-      name: ad.name,
-      object_story_spec: {
-        page_id: plan.pageId,
-        link_data: {
-          image_hash: hash,
-          link: 'https://www.facebook.com/' + plan.pageId,
-          message: ad.primary,
-          name: ad.headline,
-          description: ad.description,
-          call_to_action: {
-            type: ad.cta || 'LEARN_MORE',
-            value: { lead_gen_form_id: plan.formId }
-          }
-        }
-      }
-    };
+    const creative = metaCreative_(plan, ad, hash);
 
-    /* Meta has retired standard_enhancements — sending it is now a 400,
-       "Including standard enhancements field in creative has been
-       deprecated. Please choose to set individual features instead."
 
-       The individual features that replaced it are a list Meta edits
-       whenever it likes, and naming one that has moved is the same 400
-       again. So nothing is sent by default: the account's own setting
-       decides, which is where somebody can see and change it. Anyone who
-       does want specific ones off puts their names in META_CREATIVE_OPTOUT,
-       comma separated, and they go through untouched. */
-    const optOut = metaProp_('META_CREATIVE_OPTOUT', '')
-      .split(',').map(function (x) { return x.trim(); }).filter(Boolean);
-    if (optOut.length) {
-      const feats = {};
-      optOut.forEach(function (f) { feats[f] = { enroll_status: 'OPT_OUT' }; });
-      creative.degrees_of_freedom_spec = { creative_features_spec: feats };
-    }
     const cr = metaCall_(act + '/adcreatives', creative);
     if (cr.error) return { error: 'Creative for ad ' + (i + 1) + ': ' + cr.error + metaUndo_(made), plan: plan, made: made };
 

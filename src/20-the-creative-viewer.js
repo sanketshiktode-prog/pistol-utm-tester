@@ -212,6 +212,10 @@ function mdBody(){
     copy,
     settings:{
       accountId:val("mdAcct"), pageId:val("mdPage"), formId:val("mdForm"),
+      /* Meta refuses a lead ad whose creative links to a Facebook Page:
+         "Lead Generation ads should always link to external content."
+         So the project's own landing page goes with it. */
+      link:(PROJ&&PROJ.url)||val("inLp")||"",
       dailyBudget:Number(val("mdBudget"))||0,
       ageMin:Number(val("mdAgeMin"))||28, ageMax:Number(val("mdAgeMax"))||64,
       cta:val("mdCta"),
