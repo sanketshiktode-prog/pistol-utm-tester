@@ -2538,7 +2538,7 @@ function aiReview(body, v) {
 /* Which copy of this file the Apps Script is actually running. The tab
    shows it beside its own build, because "the fix is pushed" and "the fix
    is running" were indistinguishable from the screen for an hour. */
-const BACKEND_BUILD = 'b-30oct-3';
+const BACKEND_BUILD = 'b-30oct-4';
 
 const META_DEFAULT_VERSION = 'v23.0';
 const META_AGE_MIN = 28, META_AGE_MAX = 64;
@@ -2672,14 +2672,15 @@ function metaPerms_() {
    never heard of those — they were being dropped, so "city level targeting
    is not being taken". Meta has its own list and its own keys, and this
    turns a name into one. Cached: the key for Pune does not change. */
-function metaGeoKeys_(labels) {
+function metaGeoKeys_(labels, only) {
   const want = (labels || []).map(function (x) { return String(x || '').trim(); })
     .filter(Boolean);
   if (!want.length) return { ok: true, found: [], missing: [] };
 
+  const types = only ? [only] : ['city', 'region', 'country', 'zip'];
   const found = [], missing = [];
   const cache = CacheService.getScriptCache();
-  const key = function (n) { return 'geo-' + n.toLowerCase().slice(0, 180); };
+  const key = function (n) { return 'geo-' + (only || 'any') + '-' + n.toLowerCase().slice(0, 180); };
 
   want.forEach(function (label) {
     const hit = cache.get(key(label));
@@ -2690,7 +2691,7 @@ function metaGeoKeys_(labels) {
        far better as "Pune" and Meta returns it with its own region */
     const q = label.split(',')[0].trim() || label;
     const r = metaCall_('search?type=adgeolocation&location_types=' +
-      encodeURIComponent(JSON.stringify(['city', 'region', 'country', 'zip'])) +
+      encodeURIComponent(JSON.stringify(types)) +
       '&limit=10&q=' + encodeURIComponent(q), {}, 'get');
     if (r.error) return { error: r.error };
     const hits = (r.data || []).filter(function (d) { return d && d.key && d.type; });
@@ -2723,6 +2724,20 @@ function metaGeoBuckets_(found) {
   return geo;
 }
 
+/* Meta: "(#190) This method must be called with a Page Access Token."
+   Everything else here runs on the System User token, but a Page's own
+   edges will not take it. The page token is asked for with the System
+   User token - which is allowed - and used for the calls that need it. */
+function metaPageToken_(pageId) {
+  const cache = CacheService.getScriptCache(), key = 'pt-' + pageId;
+  const hit = cache.get(key);
+  if (hit) return hit;
+  const r = metaCall_(pageId + '?fields=access_token', {}, 'get');
+  if (r.error || !r.access_token) return '';
+  cache.put(key, String(r.access_token), 3000);
+  return String(r.access_token);
+}
+
 function metaInstagram_(pageId) {
   const id = String(pageId || '').trim();
   if (!id) return { error: 'No Facebook page is set.' };
@@ -2738,21 +2753,84 @@ function metaInstagram_(pageId) {
     return { ok: true, id: got, from: 'connected' };
   }
 
+  const pt = metaPageToken_(id);
+  const asPage = pt ? { access_token: pt } : {};
+
   /* one Meta makes from the Page itself */
-  const backed = metaCall_(id + '/page_backed_instagram_accounts', {}, 'get');
+  const backed = metaCall_(id + '/page_backed_instagram_accounts', asPage, 'get');
   if (!backed.error && backed.data && backed.data.length && backed.data[0].id) {
     const got = String(backed.data[0].id);
     cache.put(key, got, 21600);
     return { ok: true, id: got, from: 'page-backed' };
   }
 
-  const made = metaCall_(id + '/page_backed_instagram_accounts', {});
+  const made = metaCall_(id + '/page_backed_instagram_accounts', asPage);
   if (!made.error && made.id) {
     cache.put(key, String(made.id), 21600);
     return { ok: true, id: String(made.id), from: 'created' };
   }
-  return { error: (made.error || backed.error || linked.error ||
-    'the page has no Instagram account and one could not be made for it') };
+  const why = made.error || backed.error || linked.error ||
+    'the page has no Instagram account and one could not be made for it';
+  return { error: /#190|Page Access Token/i.test(String(why)) && !pt
+    ? 'the page access token could not be read with the System User token \u2014 ' +
+      'give the System User a role on the page in Business Settings'
+    : why };
+}
+
+/* The sheet writes a disambiguator after the name - "Property investing
+   (investing)", "BMW (vehicles)". That is the sheet telling a human which
+   BMW it means; it is not part of Meta's name, and an exact-match lookup
+   on it fails. Fifty-four of a hundred and seven Vehicles interests came
+   back unknown for this reason alone, and they were names like BMW and
+   Mercedes-Benz, which Meta plainly has. */
+const metaBareName_ = n => String(n || '').replace(/\s*\([^()]*\)\s*$/, '').trim();
+
+/* Meta's exact-match endpoint answers yes or no and nothing else. When it
+   says no, this asks the ordinary interest search, which matches the way
+   Ads Manager's own box does, and takes the top hit when it is the same
+   name. That is the difference between "Luxury Watches: unknown" and the
+   interest Ads Manager finds for the same words. */
+function metaInterestSearch_(name) {
+  const r = metaCall_('search?type=adinterest&limit=8&q=' +
+    encodeURIComponent(name), {}, 'get');
+  if (r.error) return null;
+  const want = name.toLowerCase();
+  const hits = (r.data || []).filter(function (d) { return d && d.id && d.name; });
+  if (!hits.length) return null;
+  const exact = hits.filter(function (d) { return String(d.name).toLowerCase() === want; })[0];
+  if (exact) return { id: String(exact.id), name: String(exact.name) };
+  /* not an exact match: take the top hit only when it is the same WORDS
+     with more after them. A letter-by-letter prefix is not enough -
+     "Banks" must not quietly become "Banksy". */
+  const top = hits[0];
+  if (metaSameWords_(want, String(top.name).toLowerCase()))
+    return { id: String(top.id), name: String(top.name) };
+  return null;
+}
+
+/* one is the other plus whole words, not plus letters */
+function metaSameWords_(a, b) {
+  if (a === b) return true;
+  const longer = a.length > b.length ? a : b;
+  const shorter = a.length > b.length ? b : a;
+  return longer.indexOf(shorter) === 0 && /[^a-z0-9]/.test(longer.charAt(shorter.length));
+}
+
+/* A job title is not an interest, and neither is an employer. Searching
+   the interest list for "Founder" or "Godrej Properties Limited" finds
+   nothing, which is why the JobTitles audience came back with nineteen
+   unknowns. These are their own targeting categories. */
+function metaCategory_(name, cls) {
+  const r = metaCall_('search?type=adTargetingCategory&class=' + encodeURIComponent(cls) +
+    '&limit=8&q=' + encodeURIComponent(name), {}, 'get');
+  if (r.error) return null;
+  const want = name.toLowerCase();
+  const hits = (r.data || []).filter(function (d) { return d && d.id && d.name; });
+  if (!hits.length) return null;
+  const exact = hits.filter(function (d) { return String(d.name).toLowerCase() === want; })[0];
+  const pick = exact || hits[0];
+  if (!exact && !metaSameWords_(want, String(pick.name).toLowerCase())) return null;
+  return { id: String(pick.id), name: String(pick.name) };
 }
 
 function metaInterests_(names) {
@@ -2774,25 +2852,69 @@ function metaInterests_(names) {
   });
 
   /* Meta takes the list in one go and answers for each entry. Chunked
-     because the URL is a GET and a list of five hundred will not fit. */
+     because the URL is a GET and a list of five hundred will not fit.
+     The bare name is what is asked about - the sheet's "(investing)" is
+     for the reader, not for Meta. */
+  const bareOf = {};
+  ask.forEach(function (n) { bareOf[n] = metaBareName_(n) || n; });
+  const stillOut = [];
+
   for (var i = 0; i < ask.length; i += 40) {
     const chunk = ask.slice(i, i + 40);
+    const bare = chunk.map(function (n) { return bareOf[n]; });
     const r = metaCall_('search?type=adinterestvalid&interest_list=' +
-      encodeURIComponent(JSON.stringify(chunk)), {}, 'get');
+      encodeURIComponent(JSON.stringify(bare)), {}, 'get');
     if (r.error) return { error: r.error, found: found, missing: missing.concat(ask.slice(i)) };
-    const put = {};
+    const byBare = {};
     (r.data || []).forEach(function (d) {
-      const nm = String(d.name || '');
-      if (d.valid && d.id) { found.push({ id: String(d.id), name: nm }); put[key(nm)] = String(d.id); }
-      else { missing.push(nm); put[key(nm)] = '-'; }
+      if (d && d.valid && d.id) byBare[String(d.name || '').toLowerCase()] = String(d.id);
     });
-    /* a name Meta did not mention at all is a miss too */
+    const put = {};
     chunk.forEach(function (n) {
-      if (put[key(n)] === undefined) { missing.push(n); put[key(n)] = '-'; }
+      const id = byBare[bareOf[n].toLowerCase()];
+      if (id) { found.push({ id: id, name: n }); put[key(n)] = id; }
+      else stillOut.push(n);
     });
     try { cache.putAll(put, 21600); } catch (e) {}
   }
+
+  /* Anything the exact list refused gets one search each, the way a person
+     would type it into Ads Manager. Capped, because this is one call per
+     name and five hundred names would take the request past its time. */
+  const CAP = 120;
+  const put2 = {};
+  stillOut.forEach(function (n, idx) {
+    if (idx >= CAP) { missing.push(n); return; }
+    const hit = metaInterestSearch_(bareOf[n]);
+    if (hit) { found.push({ id: hit.id, name: n }); put2[key(n)] = hit.id; }
+    else { missing.push(n); put2[key(n)] = '-'; }
+  });
+  try { cache.putAll(put2, 21600); } catch (e) {}
   return { ok: true, found: found, missing: missing };
+}
+
+/* Job titles and employers, which are not interests at all. An audience
+   says which it holds; anything it does not claim is looked up as an
+   interest, as before. */
+function metaTargetingByKind_(names, kind) {
+  const want = (names || []).map(function (n) { return String(n || '').trim(); }).filter(Boolean);
+  if (!want.length) return { ok: true, found: [], missing: [] };
+  const cls = kind === 'employers' ? 'work_employer' : 'work_position';
+  const field = kind === 'employers' ? 'work_employers' : 'work_positions';
+  const cache = CacheService.getScriptCache();
+  const key = function (n) { return cls + '-' + n.toLowerCase().slice(0, 180); };
+  const found = [], missing = [], put = {};
+  want.forEach(function (n) {
+    const bare = metaBareName_(n) || n;
+    const hit = cache.get(key(n));
+    if (hit === '-') { missing.push(n); return; }
+    if (hit) { found.push({ id: hit, name: n }); return; }
+    const got = metaCategory_(bare, cls);
+    if (got) { found.push({ id: got.id, name: n }); put[key(n)] = got.id; }
+    else { missing.push(n); put[key(n)] = '-'; }
+  });
+  try { cache.putAll(put, 21600); } catch (e) {}
+  return { ok: true, found: found, missing: missing, field: field };
 }
 
 function metaAssets_() {
@@ -2906,25 +3028,43 @@ function metaPlan(body) {
      the lead comes back under and the two have to be matched by hand
      otherwise. Underscores are out: they were an artefact of joining the
      parts together and nobody wanted them. */
-  const enquiry = metaClean_(b.enquiry, 80);
-  const campaignName = (enquiry || [proj, place, 'Lead Generation']
-    .filter(Boolean).join(' ')).replace(/_+/g, ' ').replace(/\s{2,}/g, ' ').trim();
-  const adsetName = [proj, place, 'Lead Generation'].filter(Boolean).join(' – ');
+  /* The naming convention, from the bug report: the campaign is the FULL
+     enquiry name, then Leadgen, then the date it was built — which is how
+     two launches of the same enquiry are told apart in Ads Manager. The
+     ad set leads with the audience, because the audience is what is being
+     compared when ad sets are read side by side, and the enquiry follows
+     it. */
+  const enquiry = metaClean_(b.enquiry, 80).replace(/_+/g, ' ').replace(/\s{2,}/g, ' ').trim();
+  const today = (function () {
+    const d = new Date();
+    const pad = function (n) { return (n < 10 ? '0' : '') + n; };
+    return pad(d.getDate()) + '/' + pad(d.getMonth() + 1) + '/' + String(d.getFullYear()).slice(2);
+  })();
+  const base = enquiry || [proj, place].filter(Boolean).join(' ') || 'Lead Generation';
+  const campaignName = metaClean_(base + ' - Leadgen - ' + today, 100);
+  const adsetName = base;
 
-  /* A dropped pin and a pincode are both a point on the map, so both go
-     as custom locations. A pincode without a radius takes 5 km, which is
-     about what an Indian pincode covers. */
+  /* A pincode is a pincode. It was being sent as a 5 km circle around the
+     pincode's centre, which targets whatever falls in that circle and
+     misses the parts of the pincode outside it - not what "target these
+     pincodes" means. Meta has postal codes of its own, so the pincode is
+     looked up there and sent as one. Only a pin dropped on the map is a
+     radius, because a radius is what it is. */
   const radii = (body.targets || []).filter(function (t) {
-    return t && (t.kind === 'radius' || t.kind === 'pin') &&
+    return t && t.kind === 'radius' &&
            isFinite(Number(t.lat)) && isFinite(Number(t.lng)) &&
            (Number(t.lat) || Number(t.lng));
   }).map(function (t) {
     return {
       latitude: Number(t.lat), longitude: Number(t.lng),
-      radius: Math.max(1, Math.min(80, Number(t.radius) || (t.kind === 'pin' ? 5 : 7))),
+      radius: Math.max(1, Math.min(80, Number(t.radius) || 7)),
       distance_unit: 'kilometer'
     };
   });
+
+  const pinCodes = (body.targets || []).filter(function (t) {
+    return t && t.kind === 'pin' && String(t.pin || '').trim();
+  }).map(function (t) { return String(t.pin).trim(); });
 
   /* A city or region is a Google id here and means nothing to Meta, so it
      was being dropped without a word. Its name is looked up in Meta's own
@@ -2932,6 +3072,26 @@ function metaPlan(body) {
   const cityLabels = (body.targets || []).filter(function (t) {
     return t && t.kind === 'geo' && String(t.label || '').trim();
   }).map(function (t) { return String(t.label).trim(); });
+  /* The pincodes go through the same lookup, as postal codes. A pincode
+     Meta has never heard of falls back to a circle around it, which is
+     better than dropping it, and says so. */
+  var zipFound = [], zipMissing = [];
+  if (pinCodes.length) {
+    const zl = metaGeoKeys_(pinCodes, 'zip');
+    if (zl.error) return { error: 'Meta could not be asked about the pincodes: ' + zl.error };
+    zipFound = zl.found; zipMissing = zl.missing;
+    if (zipMissing.length) {
+      notes.push('Meta has no postal code for ' + zipMissing.join(', ') +
+        ', so ' + (zipMissing.length === 1 ? 'it is' : 'they are') + ' targeted as a 5 km circle instead.');
+      (body.targets || []).forEach(function (t) {
+        if (t && t.kind === 'pin' && zipMissing.indexOf(String(t.pin || '').trim()) > -1 &&
+            (Number(t.lat) || Number(t.lng)))
+          radii.push({ latitude: Number(t.lat), longitude: Number(t.lng),
+                       radius: 5, distance_unit: 'kilometer' });
+      });
+    }
+  }
+
   var places = { found: [], missing: [] };
   if (cityLabels.length) {
     const look = metaGeoKeys_(cityLabels);
@@ -2942,7 +3102,7 @@ function metaPlan(body) {
         (places.missing.length === 1 ? '' : 's') + ': ' + places.missing.join(', ') +
         '. Drop a pin for ' + (places.missing.length === 1 ? 'it' : 'them') + ' instead.');
   }
-  const buckets = metaGeoBuckets_(places.found);
+  const buckets = metaGeoBuckets_(places.found.concat(zipFound));
   const anyPlace = Object.keys(buckets).length > 0;
 
   /* Meta has no concept of an ad set that runs everywhere: with no
@@ -2951,10 +3111,13 @@ function metaPlan(body) {
   if (!radii.length && !anyPlace)
     return { error: 'No location is set. Add a pin, a pincode or a city on the ' +
                     'Targeting tab — Meta refuses an ad set with no geography.' };
-  if (radii.length + places.found.length)
-    notes.push('Targeting ' + (radii.length ? radii.length + ' pin' + (radii.length === 1 ? '' : 's') : '') +
-      (radii.length && places.found.length ? ' and ' : '') +
-      (places.found.length ? places.found.map(function (g) { return g.name; }).join(', ') : '') + '.');
+  {
+    const bits = [];
+    if (radii.length) bits.push(radii.length + ' radius pin' + (radii.length === 1 ? '' : 's'));
+    if (zipFound.length) bits.push(zipFound.length + ' pincode' + (zipFound.length === 1 ? '' : 's'));
+    if (places.found.length) bits.push(places.found.map(function (g) { return g.name; }).join(', '));
+    if (bits.length) notes.push('Targeting ' + bits.join(' and ') + '.');
+  }
 
   const excl = (s.excludeAudiences || []).map(function (x) { return String(x).trim(); })
     .filter(Boolean).map(function (id) { return { id: id }; });
@@ -3005,21 +3168,34 @@ function metaPlan(body) {
     var ints = ((a.interests && a.interests.length) ? a.interests : (s.interests || []))
       .filter(Boolean)
       .map(function (i) { return { id: String(i.id), name: metaClean_(i.name, 60) }; });
+    var extra = null;
     /* an audience written in names — which is how the library is written */
     if (!ints.length && a.interestNames) {
-      const look = metaInterests_(String(a.interestNames).split(',')
-        .map(function (x) { return x.trim(); }).filter(Boolean));
+      const list = String(a.interestNames).split(',')
+        .map(function (x) { return x.trim(); }).filter(Boolean);
+      /* An audience says what its list holds. JobTitles holds job titles,
+         which are not interests - searching the interest list for
+         "Founder" finds nothing, which is why nineteen of them came back
+         unknown. */
+      const kind = String(a.kind || 'interests');
+      const look = kind === 'interests'
+        ? metaInterests_(list)
+        : metaTargetingByKind_(list, kind);
       if (look.error) notes.push('Audience \u201c' + (a.name || '?') +
-        '\u201d: could not look up its interests \u2014 ' + look.error);
+        '\u201d: could not look up its ' + kind + ' \u2014 ' + look.error);
       else {
-        ints = look.found.map(function (f) { return { id: f.id, name: f.name }; });
-        if (look.missing.length) notes.push('Audience \u201c' + (a.name || '?') + '\u201d: ' +
-          look.missing.length + ' interest' + (look.missing.length === 1 ? '' : 's') +
-          ' Meta does not know \u2014 ' + look.missing.slice(0, 6).join(', ') +
-          (look.missing.length > 6 ? '\u2026' : '') + '. The rest are targeted.');
+        const got = look.found.map(function (f) { return { id: f.id, name: f.name }; });
+        if (kind === 'interests') ints = got;
+        else if (got.length) extra = { field: look.field, list: got };
+        /* The report called the old wording clutter, and it was: thirteen
+           full-width blocks naming every miss. One line, a count, and the
+           first few, and the panel folds the rest away. */
+        if (look.missing.length) notes.push('MISS\u001f' + (a.name || '?') + '\u001f' +
+          look.missing.length + '\u001f' + list.length + '\u001f' + look.missing.join(', '));
       }
     }
     if (ints.length) t.flexible_spec = [{ interests: ints }];
+    if (extra) t[extra.field] = extra.list;
     return t;
   }
 
@@ -3058,7 +3234,8 @@ function metaPlan(body) {
   const adsets = specs.map(function (a, i) {
     const nm = a ? metaClean_(a.name, 60) : '';
     const one = {
-      name: nm ? (adsetName + ' \u2013 ' + nm) : adsetName,
+      /* audience first, then the enquiry */
+      name: metaClean_(nm ? (nm + ' - ' + adsetName) : adsetName, 100),
       status: 'PAUSED',
       billing_event: 'IMPRESSIONS',
       optimization_goal: 'LEAD_GENERATION',
@@ -3085,7 +3262,12 @@ function metaPlan(body) {
      stories and reels. */
   const ads = (body.creatives || []).slice(0, 10).map(function (c, i) {
     return {
-      name: metaClean_(c.name, 60) || ('Static ' + (i + 1)),
+      /* The ad was named after the hero image's FILE, so Ads Manager
+         showed "riverfront high rise oasis z0dx 1400w (1 - Developers
+         Dev". A file name is not an ad name. The enquiry leads, and what
+         follows is the name typed in the Creative studio when there was
+         one, or the ad's number when there was not. */
+      name: metaClean_(base + ' - ' + (metaClean_(c.label, 60) || ('Ad ' + (i + 1))), 100),
       /* one ad per hero: its shapes go to the placements they were drawn
          for. `image` is the single-image fallback, kept for anything that
          still sends one. */
@@ -3383,12 +3565,31 @@ function metaCreative_(plan, ad, hash) {
 
      The individual features that replaced it are a list Meta edits
      whenever it likes, and naming one that has moved is the same 400
-     again. So nothing is sent by default: the account's own setting
-     decides, which is where somebody can see and change it. Anyone who
-     does want specific ones off puts their names in META_CREATIVE_OPTOUT,
-     comma separated, and they go through untouched. */
-  const optOut = metaProp_('META_CREATIVE_OPTOUT', '')
+     again. So nothing was sent, and the account's own setting decided -
+     which meant Meta rewrote the copy and touched up the artwork:
+     "the text enhancements ruining my ads and making them look ugly".
+
+     These are the named ones that change what was written or drawn. They
+     are opted out by default now. If Meta retires one of these names the
+     creative is refused, and that refusal now happens before the
+     campaign exists, so it costs a message rather than a rollback.
+     META_CREATIVE_OPTOUT replaces the list outright; META_CREATIVE_KEEP
+     set to 1 sends none of it and leaves the account to decide. */
+  const OPTOUT_DEFAULT = [
+    'text_generation',        /* writes its own primary text */
+    'text_optimizations',     /* moves the copy between the fields */
+    'image_templates',        /* drops the artwork into a frame of its own */
+    'image_touchups',         /* crops, brightens, relights the render */
+    'image_brightness_and_contrast',
+    'enhance_cta',            /* rewrites the button and the headline */
+    'description_automation',
+    'adapt_to_placement',
+    'media_liquidity_animated_image'
+  ];
+  const named = metaProp_('META_CREATIVE_OPTOUT', '')
     .split(',').map(function (x) { return x.trim(); }).filter(Boolean);
+  const optOut = metaProp_('META_CREATIVE_KEEP', '') === '1' ? []
+    : (named.length ? named : OPTOUT_DEFAULT);
   if (optOut.length) {
     const feats = {};
     optOut.forEach(function (f) { feats[f] = { enroll_status: 'OPT_OUT' }; });

@@ -194,6 +194,9 @@ on("#setKeep","click",()=>{
       nm=`${base} ${n}`;
     }
     CR_KEPT.push({name:nm,images:im,
+      /* only a name he TYPED becomes the ad's name; the hero's file name
+         is for recognising the picture here, not for Ads Manager */
+      label:typed||"",
       thumb:(mine.find(o=>o.name==="square")||mine[0]||{}).url||"",
       sizes:mine.map(o=>o.name),layout:crLayoutId()});
     names.push(nm);

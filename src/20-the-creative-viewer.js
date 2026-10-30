@@ -62,7 +62,8 @@ async function mdCreativeSets(){
   const sets=(typeof allSets==="function"?allSets():[])||[];
   for(const st of sets){
     const imgs=(st&&st.images)||{};
-    const one={name:String(st.name||"Ad").slice(0,60), images:{}};
+    const one={name:String(st.name||"Ad").slice(0,60),
+               label:String(st.label||"").slice(0,60), images:{}};
     for(const nm of want) if(imgs[nm]&&imgs[nm].data)
       one.images[nm]=await shrink(imgs[nm].data);
     if(Object.keys(one.images).length){ out.push(one); if(out.length>=10)break; }
@@ -132,7 +133,8 @@ const audIds=t=>String(t||"").split(/[\n,]/).map(x=>x.trim()).filter(Boolean);
 function audSummary(a){
   const bits=[];
   if(a.interestNames&&a.interestNames.trim())
-    bits.push(audIds(a.interestNames).length+" interests by name");
+    bits.push(audIds(a.interestNames).length+" "+
+      (a.kind==="positions"?"job titles":a.kind==="employers"?"employers":"interests")+" by name");
   if(a.interests&&a.interests.trim())bits.push(audIds(a.interests).length+" interest ids");
   if(a.include&&a.include.trim())bits.push(audIds(a.include).length+" included");
   if(a.exclude&&a.exclude.trim())bits.push(audIds(a.exclude).length+" excluded");
@@ -167,10 +169,19 @@ function drawAuds(){
         <button class="x" data-ax="${i}" title="Remove">✕</button>
       </div>
       <div class="mdaud-g">
-        <label class="wide"><span class="l">Interests
+        <label class="wide"><span class="l">${a.kind==="positions"?"Job titles"
+            :a.kind==="employers"?"Employers":"Interests"}
             <span class="p-mute" style="text-transform:none;letter-spacing:0;font-weight:400">by name</span></span>
           <input data-af="interestNames" value="${esc(a.interestNames||"")}"
-            placeholder="Luxury Watches, HDFC Bank…"></label>
+            placeholder="${a.kind==="positions"?"Founder, Director, CEO…"
+              :a.kind==="employers"?"Godrej Properties, Lodha Group…"
+              :"Luxury Watches, HDFC Bank…"}"></label>
+        <label><span class="l">This list holds</span>
+          <select data-af="kind">
+            <option value="interests"${!a.kind||a.kind==="interests"?" selected":""}>Interests</option>
+            <option value="positions"${a.kind==="positions"?" selected":""}>Job titles</option>
+            <option value="employers"${a.kind==="employers"?" selected":""}>Employers</option>
+          </select></label>
         <label><span class="l">Interest ids
             <span class="p-mute" style="text-transform:none;letter-spacing:0;font-weight:400">if you have them</span></span>
           <input data-af="interests" value="${esc(a.interests||"")}" placeholder="6003… , 6004…"></label>
@@ -261,7 +272,12 @@ function audPayload(){
     if(ints.length)o.interests=ints.map(id=>({id,name:""}));
     /* names are looked up server side, where the answer is cached and the
        ones Meta does not know can be reported */
-    else if(a.interestNames&&a.interestNames.trim())o.interestNames=a.interestNames.trim();
+    else if(a.interestNames&&a.interestNames.trim()){
+      o.interestNames=a.interestNames.trim();
+      /* a job title is not an interest, and the server looks each kind up
+         in its own list */
+      if(a.kind&&a.kind!=="interests")o.kind=a.kind;
+    }
     const inc=audIds(a.include); if(inc.length)o.include=inc;
     const exc=audIds(a.exclude); if(exc.length)o.exclude=exc;
     if(a.ageMin)o.ageMin=Number(a.ageMin)||undefined;
