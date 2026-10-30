@@ -57,7 +57,15 @@ function copy(x){const d=()=>toast("Copied");
    so closing the tab leaves no residue for the next project to inherit. */
 const store={get(k,d){try{const v=localStorage.getItem(k);return v?JSON.parse(v):d;}catch(e){return d;}},
              set(k,v){try{localStorage.setItem(k,JSON.stringify(v));}catch(e){}}};
-const PROJECT_KEYS=["pp_proj","pp_adgroups","pp_adcur","pp_assets","pp_locmain","pp_localt","pp_campaign"];
+/* Everything the project is made of, so that opening it on another
+   machine opens the same project. The targeting was not in this list:
+   the places, the sets, which campaign got which set, the Meta
+   audiences and which ads were turned off all stayed in the browser
+   that made them — "The location sets are again saved for a specific
+   device not for users." They travel with the project now. */
+const PROJECT_KEYS=["pp_proj","pp_adgroups","pp_adcur","pp_assets","pp_locmain","pp_localt",
+  "pp_campaign","pp_targets","pp_locsets","pp_locpick","pp_meta_auds","pp_ads_off",
+  "pp_launch_pick"];
 const sess={get(k,d){try{const v=sessionStorage.getItem(k);return v?JSON.parse(v):d;}catch(e){return d;}},
             set(k,v){try{sessionStorage.setItem(k,JSON.stringify(v));}catch(e){}}};
 function clearProject(){
@@ -199,9 +207,18 @@ function projectApply(p,name){
   if(!p)return;
   if(name)p=Object.assign({},p,{name});
   PROJECT_KEYS.forEach(k=>{try{sessionStorage.removeItem(k);localStorage.removeItem(k);}catch(e){}});
-  Object.keys(p.keys||{}).forEach(k=>{try{sessionStorage.setItem(k,p.keys[k]);}catch(e){}});
+  /* Some of these are read out of sessionStorage and some out of
+     localStorage, and which is which is not this function's business:
+     both are cleared above and both are written here, so whichever one
+     the owner reads finds the restored value. */
+  Object.keys(p.keys||{}).forEach(k=>{
+    try{sessionStorage.setItem(k,p.keys[k]);}catch(e){}
+    try{localStorage.setItem(k,p.keys[k]);}catch(e){}
+  });
   try{sessionStorage.setItem("pp_restore",JSON.stringify(p));}catch(e){}
-  location.reload();
+  /* named so a test can hold it still; the reload is how every panel
+     redraws from the restored state rather than being patched in place */
+  if(typeof projReload==="function")projReload(); else location.reload();
 }
 /* applied after the page has built itself, so nothing overwrites it */
 function projectRestore(){

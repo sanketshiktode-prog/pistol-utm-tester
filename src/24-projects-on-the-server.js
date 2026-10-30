@@ -68,13 +68,14 @@ async function projOpenRemote(owner,name){
   const r=await adsCall("proj-get",{name,owner});
   if(!r||r.error)return toast(`Could not open it: ${(r&&r.error)||"no answer"}`,7000);
   const p=r.project||{};
-  p.name=name;
   p.remote={owner,name};               /* so the reload fetches its pictures from the server */
   p.hasAssets=!!(r.meta&&r.meta.hasAssets);
-  try{ sessionStorage.setItem("pp_restore",JSON.stringify(p)); }
-  catch(e){ return toast("That project is too large for this browser to open.",7000); }
   if(typeof logEvent==="function")logEvent("project-open",name);
-  projReload();
+  /* the same path a local project takes: the stored keys are cleared and
+     written back, which is where the places, the sets and the audiences
+     live. Opening one from the server used to skip that and come back
+     with the brief but the previous project's targeting. */
+  projectApply(p,name);
 }
 
 /* After the reload, the pictures. A project that came off the server has

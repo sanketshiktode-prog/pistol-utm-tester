@@ -298,8 +298,14 @@ drawAuds();
 
 function mdBody(){
   const b=brief();
+  /* "Meta has an option to add 5 primary text and 5 headlines, you put
+     only one." The tab already generates several; only the first was
+     ever sent. Up to five of each go now, and the first of each stays
+     where it was for anything that still reads the singular. */
+  const five=a=>[...new Set((a||[]).map(x=>String(x||"").trim()).filter(Boolean))].slice(0,5);
   const copy={
-    primary:(MT.p&&MT.p[0])||"", headline:(MT.h&&MT.h[0])||"", description:(MT.d&&MT.d[0])||""
+    primary:(MT.p&&MT.p[0])||"", headline:(MT.h&&MT.h[0])||"", description:(MT.d&&MT.d[0])||"",
+    primaries:five(MT.p), headlines:five(MT.h), descriptions:five(MT.d)
   };
   return {
     /* the CRM enquiry name is what the campaign is called: it is the name

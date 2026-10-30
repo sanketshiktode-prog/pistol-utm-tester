@@ -2538,7 +2538,7 @@ function aiReview(body, v) {
 /* Which copy of this file the Apps Script is actually running. The tab
    shows it beside its own build, because "the fix is pushed" and "the fix
    is running" were indistinguishable from the screen for an hour. */
-const BACKEND_BUILD = 'b-30oct-5';
+const BACKEND_BUILD = 'b-30oct-6';
 
 const META_DEFAULT_VERSION = 'v23.0';
 const META_AGE_MIN = 28, META_AGE_MAX = 64;
@@ -2783,6 +2783,18 @@ function metaInstagram_(pageId) {
    on it fails. Fifty-four of a hundred and seven Vehicles interests came
    back unknown for this reason alone, and they were names like BMW and
    Mercedes-Benz, which Meta plainly has. */
+/* up to five, cleaned, with the blanks and the repeats taken out */
+function metaFive_(list, cap) {
+  const out = [], seen = {};
+  (list || []).forEach(function (x) {
+    const t = metaClean_(x, cap);
+    if (!t || seen[t.toLowerCase()]) return;
+    seen[t.toLowerCase()] = 1;
+    if (out.length < 5) out.push(t);
+  });
+  return out;
+}
+
 const metaBareName_ = n => String(n || '').replace(/\s*\([^()]*\)\s*$/, '').trim();
 
 /* Meta's exact-match endpoint answers yes or no and nothing else. When it
@@ -3276,6 +3288,10 @@ function metaPlan(body) {
       primary: metaClean_(c.primary || (body.copy || {}).primary, 1000),
       headline: metaClean_(c.headline || (body.copy || {}).headline, 40),
       description: metaClean_(c.description || (body.copy || {}).description, 30),
+      /* Meta takes five of each. Only the first was ever sent. */
+      primaries: metaFive_((body.copy || {}).primaries, 1000),
+      headlines: metaFive_((body.copy || {}).headlines, 40),
+      descriptions: metaFive_((body.copy || {}).descriptions, 30),
       cta: String(s.cta || 'LEARN_MORE').toUpperCase().replace(/[^A-Z_]/g, '')
     };
   });
@@ -3536,6 +3552,38 @@ function metaCreativeMulti_(plan, ad, hashes) {
   };
 }
 
+/* Five primary texts and five headlines, which Meta takes and Ads
+   Manager offers. This is an asset feed, and an asset feed with
+   customisation RULES is what the lead-ad objective refuses as dynamic
+   creative - this one has no rules, only lists, which is the shape Ads
+   Manager itself sends for a lead ad. If Meta refuses it anyway the
+   deploy falls back to the single-text creative and says so, and because
+   creatives are built before the campaign that costs a message rather
+   than a rollback. */
+function metaCreativeTexts_(plan, ad, hash) {
+  const bodies = (ad.primaries || []), titles = (ad.headlines || []),
+        descs = (ad.descriptions || []);
+  if (bodies.length < 2 && titles.length < 2 && descs.length < 2) return null;
+  const spec = {
+    images: [{ hash: hash }],
+    bodies: (bodies.length ? bodies : [ad.primary]).map(function (t) { return { text: t }; }),
+    titles: (titles.length ? titles : [ad.headline]).map(function (t) { return { text: t }; }),
+    link_urls: [{ website_url: plan.link }],
+    call_to_action_types: [ad.cta || 'LEARN_MORE'],
+    ad_formats: ['SINGLE_IMAGE']
+  };
+  if (descs.length || ad.description)
+    spec.descriptions = (descs.length ? descs : [ad.description]).map(function (t) { return { text: t }; });
+  const c = {
+    name: ad.name,
+    object_story_spec: plan.igId
+      ? { page_id: plan.pageId, instagram_user_id: plan.igId }
+      : { page_id: plan.pageId },
+    asset_feed_spec: spec
+  };
+  return metaOptOuts_(c);
+}
+
 function metaCreative_(plan, ad, hash) {
   const c = {
     name: ad.name,
@@ -3586,10 +3634,18 @@ function metaCreative_(plan, ad, hash) {
     'adapt_to_placement',
     'media_liquidity_animated_image'
   ];
+  return metaOptOuts_(c, OPTOUT_DEFAULT);
+}
+
+/* shared by both creative shapes, so the enhancements are off either way */
+function metaOptOuts_(c, fallback) {
+  const DEF = fallback || ['text_generation', 'text_optimizations', 'image_templates',
+    'image_touchups', 'image_brightness_and_contrast', 'enhance_cta',
+    'description_automation', 'adapt_to_placement', 'media_liquidity_animated_image'];
   const named = metaProp_('META_CREATIVE_OPTOUT', '')
     .split(',').map(function (x) { return x.trim(); }).filter(Boolean);
   const optOut = metaProp_('META_CREATIVE_KEEP', '') === '1' ? []
-    : (named.length ? named : OPTOUT_DEFAULT);
+    : (named.length ? named : DEF);
   if (optOut.length) {
     const feats = {};
     optOut.forEach(function (f) { feats[f] = { enroll_status: 'OPT_OUT' }; });
@@ -3662,8 +3718,17 @@ function metaRun(body, v, validateOnly) {
       if (!hash) return { error: 'Ad ' + (ci + 1) + ' had no usable image.' +
         metaUndoCreatives_(BUILT), plan: plan, made: made };
 
-      const cr = metaCall_(act + '/adcreatives',
-        metaCreativeMulti_(plan, cad, hashes) || metaCreative_(plan, cad, hash));
+      const wanted = metaCreativeMulti_(plan, cad, hashes) ||
+                     metaCreativeTexts_(plan, cad, hash);
+      var cr = metaCall_(act + '/adcreatives', wanted || metaCreative_(plan, cad, hash));
+      /* the five-texts creative is an asset feed, and this objective is
+         fussy about those. Rather than lose the deploy over it, drop to
+         one of each and say which ad it happened to. */
+      if (cr.error && wanted && /dynamic creative|asset feed|asset_feed/i.test(String(cr.error))) {
+        plan.notes.push('Ad ' + (ci + 1) + ': Meta would not take five texts on this objective, ' +
+          'so the first of each was used. (' + String(cr.error).slice(0, 90) + ')');
+        cr = metaCall_(act + '/adcreatives', metaCreative_(plan, cad, hash));
+      }
       if (cr.error) return { error: 'Creative for ad ' + (ci + 1) + ': ' + cr.error +
         metaUndoCreatives_(BUILT) +
         ' No campaign was created \u2014 the creative is built before the campaign now.',
