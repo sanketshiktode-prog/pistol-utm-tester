@@ -302,6 +302,12 @@ function mdBody(){
      only one." The tab already generates several; only the first was
      ever sent. Up to five of each go now, and the first of each stays
      where it was for anything that still reads the singular. */
+  /* The copy lived only in memory, so opening the tool and going to
+     Launch sent a creative with no text at all — and Meta took it,
+     because an empty string is a string. If there is none, it is
+     generated here from the brief rather than quietly sending nothing. */
+  if(typeof mtEmpty==="function"&&mtEmpty()&&typeof mtGenerate==="function")
+    mtGenerate(true);
   const five=a=>[...new Set((a||[]).map(x=>String(x||"").trim()).filter(Boolean))].slice(0,5);
   const copy={
     primary:(MT.p&&MT.p[0])||"", headline:(MT.h&&MT.h[0])||"", description:(MT.d&&MT.d[0])||"",

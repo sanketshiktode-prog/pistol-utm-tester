@@ -65,7 +65,7 @@ const store={get(k,d){try{const v=localStorage.getItem(k);return v?JSON.parse(v)
    device not for users." They travel with the project now. */
 const PROJECT_KEYS=["pp_proj","pp_adgroups","pp_adcur","pp_assets","pp_locmain","pp_localt",
   "pp_campaign","pp_targets","pp_locsets","pp_locpick","pp_meta_auds","pp_ads_off",
-  "pp_launch_pick"];
+  "pp_launch_pick","pp_meta_copy"];
 const sess={get(k,d){try{const v=sessionStorage.getItem(k);return v?JSON.parse(v):d;}catch(e){return d;}},
             set(k,v){try{sessionStorage.setItem(k,JSON.stringify(v));}catch(e){}}};
 function clearProject(){

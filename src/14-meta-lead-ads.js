@@ -3,10 +3,18 @@
    the weight instead is the copy itself and the closing line, because the
    form opens in place and the reader never leaves the feed. */
 const MT_P=125, MT_H=40, MT_D=30;
-let MT={p:[],h:[],d:[]};
-function mtGenerate(){
+/* Kept across reloads and saved with the project. It lived only in
+   memory, so opening the tool and going straight to Launch sent a
+   creative with no primary text, no headline and no description — and
+   Meta accepted it, because an empty string is a string. */
+const MT_KEY="pp_meta_copy";
+let MT=store.get(MT_KEY,null)||{p:[],h:[],d:[]};
+const saveMT=()=>store.set(MT_KEY,MT);
+const mtEmpty=()=>!(MT.p||[]).some(x=>String(x||"").trim());
+
+function mtGenerate(quiet){
   const b=brief();
-  if(!b.proj)return toast("Fill in the project name first");
+  if(!b.proj){ if(!quiet)toast("Fill in the project name first"); return false; }
   const u=b.usps.map(tc), m=b.marks.map(tc), a=b.amen.map(tc);
   const place=placeOf(b)||b.city||b.micro||"";
   const where=place?` at ${place}`:"";
@@ -57,7 +65,9 @@ function mtGenerate(){
     .sort((a,b2)=>a.length-b2.length).slice(0,5);
   MT.h=dedupe(H).map(x=>fit(x,MT_H)).filter(Boolean).slice(0,5);
   MT.d=dedupe(D).map(x=>fit(x,MT_D)).filter(Boolean).slice(0,5);
-  drawMeta(); toast("Meta copy generated");
+  saveMT(); drawMeta();
+  if(!quiet)toast("Meta copy generated");
+  return !mtEmpty();
 }
 function mtLen(n,max){return n>max?"bad":n>max-4?"edge":"";}
 function drawMeta(){
@@ -88,26 +98,26 @@ function drawMeta(){
   $("#mtHStat").textContent=`${MT.h.length} \u00b7 max ${MT_H}`;
   $("#mtDStat").textContent=`${MT.d.length} \u00b7 max ${MT_D}`;
 }
-on("#mtGen","click",mtGenerate);
-on("#mtAddP","click",()=>{MT.p.push("");drawMeta();});
-on("#mtAddH","click",()=>{MT.h.push("");drawMeta();});
-on("#mtAddD","click",()=>{MT.d.push("");drawMeta();});
+on("#mtGen","click",()=>mtGenerate());
+on("#mtAddP","click",()=>{MT.p.push("");saveMT();drawMeta();});
+on("#mtAddH","click",()=>{MT.h.push("");saveMT();drawMeta();});
+on("#mtAddD","click",()=>{MT.d.push("");saveMT();drawMeta();});
 on("#mtPrimary","input",e=>{const i=e.target.dataset.mp;if(i===undefined)return;
-  MT.p[+i]=e.target.value;
+  MT.p[+i]=e.target.value; saveMT();
   const el=e.target.closest("div").previousElementSibling;
   const s=e.target.parentElement.querySelector(".len");
   if(s){s.textContent=`${e.target.value.length}/${MT_P}`;s.className="len "+mtLen(e.target.value.length,MT_P);}});
-on("#mtPrimary","click",e=>{const i=e.target.dataset.mpx;if(i===undefined)return;MT.p.splice(+i,1);drawMeta();});
+on("#mtPrimary","click",e=>{const i=e.target.dataset.mpx;if(i===undefined)return;MT.p.splice(+i,1);saveMT();drawMeta();});
 on("#mtHeads","input",e=>{const i=e.target.dataset.mth;if(i===undefined)return;
-  MT.h[+i]=e.target.value;const s=e.target.nextElementSibling;
+  MT.h[+i]=e.target.value; saveMT(); const s=e.target.nextElementSibling;
   s.textContent=`${e.target.value.length}/${MT_H}`;s.className="len "+mtLen(e.target.value.length,MT_H);
   e.target.classList.toggle("over",e.target.value.length>MT_H);});
-on("#mtHeads","click",e=>{const i=e.target.dataset.mthx;if(i===undefined)return;MT.h.splice(+i,1);drawMeta();});
+on("#mtHeads","click",e=>{const i=e.target.dataset.mthx;if(i===undefined)return;MT.h.splice(+i,1);saveMT();drawMeta();});
 on("#mtDescs","input",e=>{const i=e.target.dataset.mtd;if(i===undefined)return;
-  MT.d[+i]=e.target.value;const s=e.target.nextElementSibling;
+  MT.d[+i]=e.target.value; saveMT();const s=e.target.nextElementSibling;
   s.textContent=`${e.target.value.length}/${MT_D}`;s.className="len "+mtLen(e.target.value.length,MT_D);
   e.target.classList.toggle("over",e.target.value.length>MT_D);});
-on("#mtDescs","click",e=>{const i=e.target.dataset.mtdx;if(i===undefined)return;MT.d.splice(+i,1);drawMeta();});
+on("#mtDescs","click",e=>{const i=e.target.dataset.mtdx;if(i===undefined)return;MT.d.splice(+i,1);saveMT();drawMeta();});
 ["mtTicks","mtEmoji","mtClose","mtCta"].forEach(id=>on("#"+id,"change",()=>{ if(MT.p.length)mtGenerate(); }));
 
 function mtRows(){

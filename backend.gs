@@ -2584,7 +2584,7 @@ function aiReview(body, v) {
 /* Which copy of this file the Apps Script is actually running. The tab
    shows it beside its own build, because "the fix is pushed" and "the fix
    is running" were indistinguishable from the screen for an hour. */
-const BACKEND_BUILD = 'b-30oct-10';
+const BACKEND_BUILD = 'b-30oct-11';
 
 const META_DEFAULT_VERSION = 'v23.0';
 const META_AGE_MIN = 28, META_AGE_MAX = 64;
@@ -3318,7 +3318,7 @@ function metaPlan(body) {
   /* One ad per creative image. The Creative studio already renders the
      shapes Meta wants, so the square goes to feeds and the story to
      stories and reels. */
-  const ads = (body.creatives || []).slice(0, 10).map(function (c, i) {
+  var ads = (body.creatives || []).slice(0, 10).map(function (c, i) {
     return {
       /* The ad was named after the hero image's FILE, so Ads Manager
          showed "riverfront high rise oasis z0dx 1400w (1 - Developers
@@ -3326,6 +3326,9 @@ function metaPlan(body) {
          follows is the name typed in the Creative studio when there was
          one, or the ad's number when there was not. */
       name: metaClean_(base + ' - ' + (metaClean_(c.label, 60) || ('Ad ' + (i + 1))), 100),
+      /* what the render is called in the Creative studio, so a note
+         about it names the thing he can actually go and look at */
+      source: metaClean_(c.name, 60) || ('Ad ' + (i + 1)),
       /* one ad per hero: its shapes go to the placements they were drawn
          for. `image` is the single-image fallback, kept for anything that
          still sends one. */
@@ -3398,6 +3401,32 @@ function metaPlan(body) {
     notes.push(audiences.length + ' audiences, so ' + audiences.length +
       ' ad sets, each with its own budget and ' + ads.length + ' ad' +
       (ads.length === 1 ? '' : 's') + '.');
+  }
+
+  /* An ad with no primary text and no headline is an ad with nothing
+     written on it, and Meta takes it without complaint - an empty
+     string is a string. One went live with all three fields blank. It
+     is refused here, before anything is sent. */
+  {
+    const blank = ads.filter(function (a2) {
+      return !String(a2.primary || '').trim() && !String(a2.headline || '').trim();
+    });
+    if (ads.length && blank.length === ads.length)
+      return { error: 'The ads have no primary text and no headline. Press Generate on the ' +
+        'Meta ads tab, or type the copy in, before deploying \u2014 Meta accepts an empty ad ' +
+        'and it serves blank.' };
+    blank.forEach(function (a2) {
+      notes.push('\u201c' + (a2.source || a2.name) + '\u201d has no primary text and no headline, and was not built.');
+    });
+    if (blank.length) ads = ads.filter(function (a2) {
+      return String(a2.primary || '').trim() || String(a2.headline || '').trim();
+    });
+    ads.forEach(function (a2) {
+      if (!String(a2.headline || '').trim())
+        notes.push('\u201c' + (a2.source || a2.name) + '\u201d has no headline.');
+      if (!String(a2.description || '').trim())
+        notes.push('\u201c' + (a2.source || a2.name) + '\u201d has no description.');
+    });
   }
 
   if (metaProp_('META_ASSET_FEED', '') !== '1' && ads.length)
