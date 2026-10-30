@@ -2584,7 +2584,7 @@ function aiReview(body, v) {
 /* Which copy of this file the Apps Script is actually running. The tab
    shows it beside its own build, because "the fix is pushed" and "the fix
    is running" were indistinguishable from the screen for an hour. */
-const BACKEND_BUILD = 'b-30oct-9';
+const BACKEND_BUILD = 'b-30oct-10';
 
 const META_DEFAULT_VERSION = 'v23.0';
 const META_AGE_MIN = 28, META_AGE_MAX = 64;
@@ -3718,6 +3718,70 @@ function metaOptOuts_(c, fallback) {
   return c;
 }
 
+/* Meta retires interests, and when it refuses one it hands back the
+   replacement in the same breath:
+
+     "Please update the targeting spec to remove them or replace them
+      with alternative options. Relevant alternative options:
+      [{"deprecated_interest_id":"6003454354103",
+        "deprecated_interest_name":"Real Estate Investment Network",
+        "alternative_interest_id":"6003446239080",
+        "alternative_interest_name":"Real estate investing"}]"
+
+   That answer was being thrown away and the deploy stopped. It is read
+   now: the retired ids are swapped for the ones Meta named and the ad
+   set is sent again. More than one round can be needed, because Meta
+   reports the batch it noticed rather than all of them. */
+function metaSwaps_(msg) {
+  const m = String(msg || '').match(/\[\s*\{[\s\S]*\}\s*\]/);
+  if (!m) return [];
+  var list;
+  try { list = JSON.parse(m[0]); } catch (e) { return []; }
+  if (!list || !list.length) return [];
+  return list.filter(function (x) {
+    return x && x.deprecated_interest_id && x.alternative_interest_id;
+  }).map(function (x) {
+    return { from: String(x.deprecated_interest_id), to: String(x.alternative_interest_id),
+             fromName: String(x.deprecated_interest_name || ''),
+             toName: String(x.alternative_interest_name || '') };
+  });
+}
+/* Walks wherever an interest id can sit in a targeting spec. */
+function metaApplySwaps_(targeting, swaps) {
+  if (!targeting || !swaps.length) return 0;
+  const by = {};
+  swaps.forEach(function (s2) { by[s2.from] = s2; });
+  var n = 0;
+  const walk = function (list) {
+    (list || []).forEach(function (it) {
+      const hit = it && by[String(it.id)];
+      if (hit) { it.id = hit.to; if (hit.toName) it.name = hit.toName; n++; }
+    });
+  };
+  walk(targeting.interests);
+  (targeting.flexible_spec || []).forEach(function (f) {
+    walk(f.interests); walk(f.behaviors); walk(f.work_positions); walk(f.work_employers);
+  });
+  walk(targeting.work_positions); walk(targeting.work_employers);
+  return n;
+}
+function metaAdsetCall_(act, body, notes, label) {
+  var r = metaCall_(act + '/adsets', body);
+  for (var round = 0; round < 3; round++) {
+    if (!r.error) return r;
+    const swaps = metaSwaps_(r.error);
+    if (!swaps.length) return r;
+    const n = metaApplySwaps_(body.targeting, swaps);
+    if (!n) return r;
+    (notes || []).push((label ? label + ': ' : '') + 'Meta has retired ' + n +
+      ' interest' + (n === 1 ? '' : 's') + ' \u2014 ' +
+      swaps.map(function (x) { return x.fromName + ' \u2192 ' + x.toName; }).join(', ') +
+      '. The replacement it named was used.');
+    r = metaCall_(act + '/adsets', body);
+  }
+  return r;
+}
+
 function metaRun(body, v, validateOnly) {
   const plan = metaPlan(body);
   if (plan.error) return plan;
@@ -3733,7 +3797,49 @@ function metaRun(body, v, validateOnly) {
     return out;
   };
 
-  /* 0. the images and the creatives, before anything exists.
+  const PLAN_SETS = plan.adsets && plan.adsets.length ? plan.adsets : [plan.adset];
+  /* The ONLY error to forgive on a parentless dry run, because there is
+     no campaign id to give one. Both the deploy's pre-check and the
+     validate use this list. */
+  const PARENT_MISSING = [
+    /\bcampaign_id\b/i,
+    /choose a campaign to create this ad\s?set/i,
+    /missing\s+(?:required\s+)?(?:parameter\s+)?campaign\b/i
+  ];
+  const stripInternal = function (o) {
+    const out = {};
+    for (var k2 in o) if (k2.charAt(0) !== '_') out[k2] = o[k2];
+    return out;
+  };
+
+  /* 0a. the ad sets, dry, before anything exists.
+
+     A retired interest, a budget under the floor, a bad custom audience
+     id - all of these are refused at the AD SET, and that was after the
+     campaign had been created, so every one of them cost a rollback and
+     a restart. Each ad set is now sent with validate_only and no parent
+     first. Meta answers "choose a campaign" for the parent it has not
+     got, which is forgiven here as it is on a dry run; anything else is
+     a real refusal and is reported with nothing made. Retired interests
+     are swapped on this pass, so the real create goes out already
+     carrying the ids Meta asked for. */
+  if (!validateOnly) {
+    for (var pi = 0; pi < PLAN_SETS.length; pi++) {
+      const dry = Object.assign({ execution_options: ['validate_only'] },
+                                stripInternal(PLAN_SETS[pi]));
+      const got = metaAdsetCall_(act, dry, plan.notes, PLAN_SETS[pi]._audience || '');
+      /* the swap happened on the copy, so carry it back to the real one */
+      if (dry.targeting) PLAN_SETS[pi].targeting = dry.targeting;
+      if (!got.error) continue;
+      if (PARENT_MISSING.some(function (re) { return re.test(got.error); })) continue;
+      return { error: (PLAN_SETS.length > 1
+        ? 'Ad set \u201c' + (PLAN_SETS[pi]._audience || (pi + 1)) + '\u201d: ' : 'Ad set: ') +
+        got.error + ' Nothing was created \u2014 the ad sets are checked before the campaign now.',
+        plan: plan, made: made };
+    }
+  }
+
+  /* 0b. the images and the creatives, before anything exists.
 
      Three nights running a deploy built a campaign, then an ad set, and
      then fell over on the creative — and each time the campaign had to
@@ -3809,20 +3915,14 @@ function metaRun(body, v, validateOnly) {
   /* 2. ad set. On a validate pass there is no campaign id to point at, so
      the ad set is checked on its own merits with the campaign left out —
      Meta refuses an ad set with no parent, which would be a false failure. */
-  const PLAN_SETS = plan.adsets && plan.adsets.length ? plan.adsets : [plan.adset];
-  const stripInternal = function (o) {
-    const out = {};
-    for (var k2 in o) if (k2.charAt(0) !== '_') out[k2] = o[k2];
-    return out;
-  };
-
   if (validateOnly) {
     /* Every audience gets its own ad set, and any one of them can be the
        one Meta refuses — a bad interest id, a budget under the floor. All
        of them are checked, not just the first, or a dry run passes and the
        deploy stops halfway through. */
     for (var si = 0; si < PLAN_SETS.length; si++) {
-      const probe = metaCall_(act + '/adsets', withOpts(stripInternal(PLAN_SETS[si])));
+      const probe = metaAdsetCall_(act, withOpts(stripInternal(PLAN_SETS[si])),
+        plan.notes, PLAN_SETS[si]._audience || '');
       const which = PLAN_SETS.length > 1
         ? 'Ad set \u201c' + (PLAN_SETS[si]._audience || (si + 1)) + '\u201d: ' : 'Ad set: ';
     /* The ONLY error to forgive here is the missing parent, because there
@@ -3839,11 +3939,7 @@ function metaRun(body, v, validateOnly) {
        So it is a list of the exact ways Meta reports a missing parent,
        and nothing else is forgiven. A phrasing not on this list shows up
        as a failure, which is the safe direction to be wrong in. */
-    const PARENT_MISSING = [
-      /\bcampaign_id\b/i,
-      /choose a campaign to create this ad\s?set/i,
-      /missing\s+(?:required\s+)?(?:parameter\s+)?campaign\b/i
-    ];
+
       const msg = probe.error || '';
       const parentOnly = PARENT_MISSING.some(function (re) { return re.test(msg); });
       if (probe.error && !parentOnly)
@@ -3897,7 +3993,7 @@ function metaRun(body, v, validateOnly) {
   for (var sj = 0; sj < PLAN_SETS.length; sj++) {
     const body = stripInternal(PLAN_SETS[sj]);
     body.campaign_id = made.campaign;
-    const r = metaCall_(act + '/adsets', body);
+    const r = metaAdsetCall_(act, body, plan.notes, PLAN_SETS[sj]._audience || '');
     const label = PLAN_SETS.length > 1
       ? 'Ad set \u201c' + (PLAN_SETS[sj]._audience || (sj + 1)) + '\u201d: ' : 'Ad set: ';
     if (r.error) return { error: label + r.error + metaUndo_(made), plan: plan, made: made };
