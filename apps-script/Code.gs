@@ -305,3 +305,25 @@ function scopesTheBackendNeeds_() {
   UrlFetchApp.fetch('https://example.com');
   ScriptApp.getService().getUrl();
 }
+
+/* Run this one from the editor to grant Drive.
+
+   scopesTheBackendNeeds_ ends in an underscore, which is how Apps Script
+   marks a function private — it is deliberately hidden from the Run
+   menu, so it could not be used to trigger the consent screen. This one
+   has no underscore, so it is in the list, and it actually touches Drive
+   rather than only being read: pick it, press Run, allow the permissions,
+   then redeploy. The log says what it found. */
+function grantDrivePermission() {
+  const name = 'Trigger — saved projects';
+  const it = DriveApp.getFoldersByName(name);
+  const folder = it.hasNext() ? it.next() : DriveApp.createFolder(name);
+  PropertiesService.getScriptProperties().setProperty('PROJ_FOLDER', folder.getId());
+  var n = 0;
+  const files = folder.getFiles();
+  while (files.hasNext()) { files.next(); n++; }
+  Logger.log('Drive is granted. Folder "%s" (%s) holds %s file(s).',
+             folder.getName(), folder.getId(), n);
+  Logger.log('Now: Deploy -> Manage deployments -> pencil -> New version -> Deploy.');
+  return folder.getId();
+}
