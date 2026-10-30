@@ -3,23 +3,135 @@
    campaign criteria: a radius as ProximityInfo, a pincode as its own geo
    target constant. Tiles come from OpenStreetMap and the geocoding from
    Nominatim, both in the browser — nothing here reaches Google. */
-let MAP=null, MAP_LAYER=null;
+let MAP=null, MAP_LAYER=null;        /* OpenStreetMap, through Leaflet */
+let GMAP=null, GOVL=[], GINFO=null;  /* Google, when there is a key for it */
+let MAPKEY="", MAPKEY_TRIED=false;
+const gmapOn=()=>!!GMAP;
 
-function mapReady(){ return !!(window.L&&$("#map")); }
+/* Two maps behind one set of calls. OpenStreetMap needs nothing and is
+   what runs by default; Google looks far better but needs a key, which
+   needs billing on a Cloud project. So the key is not in this
+   repository — it is a Script Property the server hands over after
+   sign-in, and the moment it arrives the map is rebuilt as a Google
+   one. Without it nothing breaks; the OSM map stays. */
+const MAPX={
+  ready(){ return gmapOn() || !!(window.L && $("#map")); },
+  click:null,
+  clear(){
+    if(gmapOn()){ GOVL.forEach(o=>o.setMap(null)); GOVL=[]; return; }
+    if(MAP_LAYER)MAP_LAYER.clearLayers();
+  },
+  circle(lat,lng,metres){
+    if(gmapOn()){
+      GOVL.push(new google.maps.Circle({map:GMAP,center:{lat,lng},radius:metres,
+        strokeColor:"#FB6A02",strokeWeight:2,strokeOpacity:.9,
+        fillColor:"#FB6A02",fillOpacity:.12,clickable:false}));
+      return;
+    }
+    L.circle([lat,lng],{radius:metres,color:"#FB6A02",weight:2,fillOpacity:.12}).addTo(MAP_LAYER);
+  },
+  marker(lat,lng,o){
+    o=o||{};
+    if(gmapOn()){
+      const m=new google.maps.Marker({map:GMAP,position:{lat,lng},
+        draggable:!!o.drag, title:o.tip||"",
+        icon:{path:google.maps.SymbolPath.CIRCLE,scale:7,fillColor:o.colour||"#FB6A02",
+              fillOpacity:1,strokeColor:"#fff",strokeWeight:2}});
+      if(o.drag)m.addListener("dragend",e=>o.drag(e.latLng.lat(),e.latLng.lng()));
+      if(o.popup)m.addListener("click",()=>{
+        if(!GINFO)GINFO=new google.maps.InfoWindow();
+        GINFO.setContent(o.popup); GINFO.open({anchor:m,map:GMAP});
+      });
+      GOVL.push(m);
+      return;
+    }
+    const icon=L.divIcon({className:"",iconSize:[14,14],iconAnchor:[7,7],
+      html:`<div style="width:14px;height:14px;border-radius:50%;background:${
+        o.colour||"#FB6A02"};border:2px solid #fff;box-shadow:0 0 0 1px rgba(0,0,0,.3)"></div>`});
+    const mk=L.marker([lat,lng],{draggable:!!o.drag,icon}).addTo(MAP_LAYER);
+    if(o.tip)mk.bindTooltip(o.tip);
+    if(o.popup)mk.bindPopup(o.popup,{closeButton:true,className:"pinpopw"});
+    if(o.drag)mk.on("dragend",e=>{const p2=e.target.getLatLng();o.drag(p2.lat,p2.lng);});
+  },
+  fit(pts){
+    if(!pts.length)return;
+    if(gmapOn()){
+      const b=new google.maps.LatLngBounds();
+      pts.forEach(p2=>b.extend({lat:p2[0],lng:p2[1]}));
+      GMAP.fitBounds(b,60);
+      if(pts.length===1)google.maps.event.addListenerOnce(GMAP,"idle",()=>{
+        if(GMAP.getZoom()>14)GMAP.setZoom(13); });
+      return;
+    }
+    try{ MAP.fitBounds(L.latLngBounds(pts).pad(.35),{maxZoom:13}); }catch(e){}
+  },
+  centre(lat,lng,z){
+    if(gmapOn()){ GMAP.setCenter({lat,lng}); GMAP.setZoom(z||12); return; }
+    if(MAP)MAP.setView([lat,lng],z||12);
+  },
+  /* Leaflet measures its container, and a hidden tab has no size */
+  resize(){ if(!gmapOn()&&MAP)setTimeout(()=>MAP.invalidateSize(),60); }
+};
+
+function mapReady(){ return MAPX.ready(); }
+function mapClicked(lat,lng){
+  addTarget({kind:"radius",lat,lng,
+    radius:Number($("#radKm").value)||5,units:$("#radUnit").value||"KILOMETERS",
+    label:`Radius ${(Number($("#radKm").value)||5)} ${$("#radUnit").value==="MILES"?"mi":"km"}`});
+}
 function mapInit(){
-  if(MAP||!mapReady())return;
+  if(GMAP)return;
+  if(MAPKEY&&!MAP){ gmapBuild(); return; }
+  if(MAP||!window.L||!$("#map"))return;
   MAP=L.map("map",{scrollWheelZoom:false}).setView([18.5204,73.8567],11);
   L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
     {maxZoom:18,attribution:"\u00a9 OpenStreetMap"}).addTo(MAP);
   MAP_LAYER=L.layerGroup().addTo(MAP);
-  MAP.on("click",e=>{
-    addTarget({kind:"radius",lat:e.latlng.lat,lng:e.latlng.lng,
-      radius:Number($("#radKm").value)||5,units:$("#radUnit").value||"KILOMETERS",
-      label:`Radius ${(Number($("#radKm").value)||5)} ${$("#radUnit").value==="MILES"?"mi":"km"}`});
-  });
+  MAP.on("click",e=>mapClicked(e.latlng.lat,e.latlng.lng));
   setTimeout(()=>MAP.invalidateSize(),120);
   drawTargets();
 }
+
+function gmapBuild(){
+  const el=$("#map");
+  if(!el||!window.google||!google.maps)return;
+  /* tear the OSM one down first, or two maps share one box */
+  if(MAP){ try{ MAP.remove(); }catch(e){} MAP=null; MAP_LAYER=null; }
+  el.innerHTML="";
+  GMAP=new google.maps.Map(el,{
+    center:{lat:18.5204,lng:73.8567}, zoom:11,
+    mapTypeControl:false, streetViewControl:false, fullscreenControl:true,
+    scrollwheel:false, gestureHandling:"cooperative", clickableIcons:false
+  });
+  GMAP.addListener("click",e=>mapClicked(e.latLng.lat(),e.latLng.lng()));
+  GOVL=[]; GINFO=null;
+  drawTargets();
+}
+
+/* The key lives in the Apps Script, not in this repository, which is
+   public. It is asked for once, after sign-in. */
+function mapsKeyApply(key){
+  key=String(key||"").trim();
+  if(!key||key===MAPKEY)return;
+  MAPKEY=key;
+  if(window.google&&google.maps)return gmapBuild();
+  if(document.getElementById("gmapsjs"))return;
+  const sc=document.createElement("script");
+  sc.id="gmapsjs"; sc.async=true;
+  sc.src="https://maps.googleapis.com/maps/api/js?v=weekly&key="+encodeURIComponent(key);
+  sc.onload=()=>gmapBuild();
+  sc.onerror=()=>toast("Google Maps would not load with that key \u2014 staying on the plain map",7000);
+  document.head.appendChild(sc);
+}
+async function mapsKeyFetch(){
+  if(MAPKEY_TRIED||typeof adsCall!=="function"||typeof USER==="undefined"||!USER)return;
+  MAPKEY_TRIED=true;
+  try{
+    const r=await adsCall("app-config",{});
+    if(r&&r.mapsKey)mapsKeyApply(r.mapsKey);
+  }catch(e){}
+}
+
 /* whatever is added lands in the set the map is editing */
 function addTarget(t){ TARGETS.push(Object.assign({set:LOCSET_ON},t)); saveTargets(); drawTargets();
   try{ drawApSettings(); drawApPlan(); }catch(e){} }
@@ -197,31 +309,26 @@ function drawTargets(){
         ? `Nothing in \u201c${esc(locSetName(LOCSET_ON))}\u201d yet. Search a city, paste pincodes, or click the map.`
         : "Nothing targeted. Search a city, paste pincodes, or click the map."}</div>`;
   drawLocSets();
-  if(!MAP||!MAP_LAYER)return;
-  MAP_LAYER.clearLayers();
+  if(!MAPX.ready()||(!MAP&&!GMAP))return;
+  MAPX.clear();
   const pts=[];
-  const dot=col=>L.divIcon({className:"",iconSize:[14,14],iconAnchor:[7,7],
-    html:`<div style="width:14px;height:14px;border-radius:50%;background:${col};border:2px solid #fff;box-shadow:0 0 0 1px rgba(0,0,0,.3)"></div>`});
   TARGETS.forEach((t,i)=>{
     if(t.kind==="radius"){
-      const m=t.units==="MILES"?t.radius*1609.34:t.radius*1000;
-      L.circle([t.lat,t.lng],{radius:m,color:"#FB6A02",weight:2,fillOpacity:.12}).addTo(MAP_LAYER);
-      const mk=L.marker([t.lat,t.lng],{draggable:true,icon:dot("#FB6A02")}).addTo(MAP_LAYER);
+      MAPX.circle(t.lat,t.lng,t.units==="MILES"?t.radius*1609.34:t.radius*1000);
       /* The circle could only be changed from the row underneath the map,
          and could only be removed from there too — "the radius pin needs
          an option to cancel the location, increase or decrease the
          distance". It is on the pin now: click it. */
-      mk.bindPopup(pinPopupHtml(t,i),{closeButton:true,className:"pinpopw"});
-      mk.on("dragend",e=>{ const p2=e.target.getLatLng();
-        TARGETS[i].lat=p2.lat; TARGETS[i].lng=p2.lng; saveTargets(); drawTargets(); });
+      MAPX.marker(t.lat,t.lng,{colour:"#FB6A02",popup:pinPopupHtml(t,i),
+        drag:(la,ln)=>{ TARGETS[i].lat=la; TARGETS[i].lng=ln; saveTargets(); drawTargets(); }});
       pts.push([t.lat,t.lng]);
     }else if(t.lat&&t.lng){
-      L.marker([t.lat,t.lng],{icon:dot(t.kind==="geo"?"#14213D":"#2E86C1")})
-        .addTo(MAP_LAYER).bindTooltip(`${TGT_KIND[t.kind][0]} \u00b7 ${t.label||""}`);
+      MAPX.marker(t.lat,t.lng,{colour:t.kind==="geo"?"#14213D":"#2E86C1",
+        tip:`${TGT_KIND[t.kind][0]} · ${t.label||""}`});
       pts.push([t.lat,t.lng]);
     }
   });
-  if(pts.length)try{ MAP.fitBounds(L.latLngBounds(pts).pad(.35),{maxZoom:13}); }catch(e){}
+  MAPX.fit(pts);
 }
 /* Built here rather than inline so it can be read without a map: the
    map needs Leaflet off a CDN, and what matters about this is the
@@ -284,7 +391,7 @@ on("#radAll","click",()=>{
 $$(".locbar-b").forEach(b=>b.addEventListener("click",()=>{
   $$(".locbar-b").forEach(x=>x.classList.toggle("on",x===b));
   $$(".locpane").forEach(p=>p.classList.toggle("on",p.dataset.pane===b.dataset.loc));
-  if(MAP)setTimeout(()=>MAP.invalidateSize(),60);
+  MAPX.resize();
 }));
 on("#tgtList","change",e=>{
   const r=e.target.closest("[data-r]"); if(!r)return;
@@ -369,7 +476,7 @@ on("#mapClear","click",()=>{
   TARGETS=[]; saveTargets(); drawTargets(); drawApSettings(); drawApPlan();
 });
 on("#mapCentre","click",async()=>{
-  if(!MAP)return;
+  if(!MAP&&!GMAP)return;
   const where=[($("#acMicro")&&$("#acMicro").value)||"",($("#acCity")&&$("#acCity").value)||""]
     .filter(Boolean).join(", ");
   if(!where)return toast("Fill in the micro-market or city on tab 03 first");
@@ -377,7 +484,7 @@ on("#mapCentre","click",async()=>{
     const r=await fetch(`https://nominatim.openstreetmap.org/search?q=${
       encodeURIComponent(where+", India")}&format=json&limit=1`);
     const j=await r.json();
-    if(j&&j[0]){ MAP.setView([Number(j[0].lat),Number(j[0].lon)],12); toast(`Centred on ${where}`); }
+    if(j&&j[0]){ MAPX.centre(Number(j[0].lat),Number(j[0].lon),12); toast(`Centred on ${where}`); }
     else toast("Could not find that place");
   }catch(e){ toast("Could not reach the map service"); }
 });
@@ -386,7 +493,7 @@ on("#mapCentre","click",async()=>{
 (function(){
   const bar=document.querySelector(".tabs");
   if(bar)bar.addEventListener("click",()=>setTimeout(()=>{
-    mapInit(); if(MAP)MAP.invalidateSize(); },180));
+    mapInit(); MAPX.resize(); mapsKeyFetch(); },180));
 })();
-window.addEventListener("load",()=>setTimeout(mapInit,500));
+window.addEventListener("load",()=>setTimeout(()=>{ mapInit(); mapsKeyFetch(); },500));
 

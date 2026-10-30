@@ -87,6 +87,18 @@ function handlePost(e) {
     return json(historyRead(body, v));
   }
 
+  /* Settings the page needs and that must not sit in a public repository.
+     The Maps key is one: a browser key is necessarily visible to whoever
+     loads the page, but it does not belong in the repository, and
+     restricting it to the site's own referrer is what actually guards
+     it. Kept in a Script Property and handed over after sign-in. */
+  if (String(body.action || '') === 'app-config') {
+    if (!v.ok) return json({ error: 'Sign in again \u2014 ' + v.reason });
+    var mk = '';
+    try { mk = PropertiesService.getScriptProperties().getProperty('MAPS_KEY') || ''; } catch (e) {}
+    return json({ ok: true, mapsKey: mk });
+  }
+
   if (String(body.action || '').indexOf('proj-') === 0) {
     if (!v.ok) return json({ error: 'Sign in again — ' + v.reason });
     return json(projRoute(body, v) || { error: 'Unknown action: ' + body.action });
@@ -2572,7 +2584,7 @@ function aiReview(body, v) {
 /* Which copy of this file the Apps Script is actually running. The tab
    shows it beside its own build, because "the fix is pushed" and "the fix
    is running" were indistinguishable from the screen for an hour. */
-const BACKEND_BUILD = 'b-30oct-7';
+const BACKEND_BUILD = 'b-30oct-8';
 
 const META_DEFAULT_VERSION = 'v23.0';
 const META_AGE_MIN = 28, META_AGE_MAX = 64;
