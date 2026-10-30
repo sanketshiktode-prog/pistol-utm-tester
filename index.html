@@ -14,7 +14,7 @@
      asking for. Loaded here so the canvas can draw with them, and awaited
      before a render so a half-loaded face cannot silently fall back. -->
 <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@300;400;500;600;700&family=Playfair+Display:wght@400;500;600;700;800&family=Cormorant+Garamond:wght@300;400;500;600;700&family=Marcellus&family=Cinzel:wght@400;500;600;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="src/styles/app.css?v=b-30oct-4">
+<link rel="stylesheet" href="src/styles/app.css?v=b-30oct-5">
 
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js" defer></script>
@@ -32,7 +32,7 @@
     <div class="subject">Google Ads</div>
     <div class="spacer"></div>
     <div class="badge-env" id="varCount">0 VARIANTS</div>
-    <span class="pill p-mute" id="buildTag" title="build">b-30oct-4</span>
+    <span class="pill p-mute" id="buildTag" title="build">b-30oct-5</span>
     <div id="userChip" class="hidden" style="display:flex;align-items:center;gap:9px">
       <div class="divider-v"></div>
       <span id="userName" style="font-size:12.5px;font-weight:500"></span>
@@ -848,17 +848,6 @@ Static Square</textarea>
           </div>
         </div>
 
-        <div id="mapWrap" style="margin-top:12px"><div id="map"></div></div>
-        <div class="map-hint">Orange circles are radius targets · blue pins are pincodes · navy pins are cities</div>
-
-        <div class="btnrow" style="margin-top:10px">
-          <button class="btn btn-sm" id="mapCentre">Centre on the project</button>
-          <button class="btn btn-sm" id="tgtAll">Select all</button>
-          <button class="btn btn-sm" id="tgtDelSel">Remove selected</button>
-          <select id="tgtMove" class="hdr-sel" title="Move the selected places to another set"></select>
-          <button class="btn btn-sm" id="mapClear">Clear everything</button>
-        </div>
-        <div id="tgtList" style="margin-top:10px"></div>
 
         <details style="margin-top:14px">
           <summary class="f-lab" style="cursor:pointer">Paste criterion IDs by hand</summary>
@@ -872,12 +861,29 @@ Static Square</textarea>
     </div>
     <div>
       <div class="card">
-        <div class="card-hd"><h2>Which campaign gets which places</h2>
+        <div class="card-hd"><h2>The map</h2>
+          <span class="hint">Orange circles are radius · blue pins are pincodes · navy pins are cities</span></div>
+        <div class="card-bd">
+          <div id="mapWrap"><div id="map"></div></div>
+          <div class="btnrow" style="margin-top:10px">
+            <button class="btn btn-sm" id="mapCentre">Centre on the project</button>
+            <button class="btn btn-sm" id="tgtAll">Select all</button>
+            <button class="btn btn-sm" id="tgtDelSel">Remove selected</button>
+            <select id="tgtMove" class="hdr-sel" title="Move the selected places to another set"></select>
+            <button class="btn btn-sm" id="mapClear">Clear everything</button>
+          </div>
+          <div id="tgtList" style="margin-top:10px"></div>
+        </div>
+      </div>
+
+      <div class="card" style="margin-top:16px">
+        <div class="card-hd"><h2>Who gets which places</h2>
           <span class="hint" id="cmpSetStat"></span></div>
         <div class="card-bd">
-          <div class="callout">Google puts location on the <b>campaign</b>, never the ad group.
-            So a project running two micro-markets needs two campaigns with different places —
-            which is what a second set is for. One set is used by every campaign.</div>
+          <div class="callout">Every Google campaign and the Meta campaign picks a set here, so
+            Search, Demand Gen and Meta can run the same places or three different ones. Google puts
+            location on the <b>campaign</b>, never the ad group, which is why a project running two
+            micro-markets needs two campaigns and two sets.</div>
           <div id="cmpSetList"></div>
         </div>
       </div>
@@ -1617,31 +1623,31 @@ Static Square</textarea>
      the split changed where the code lives and nothing about how it runs.
      No build step — the browser loads these files as they are, which is
      what keeps "push and it is live" true on GitHub Pages. -->
-<script src="src/01-tracking-templates-from-the-sheet.js?v=b-30oct-4"></script>
-<script src="src/02-zip-built-by-hand.js?v=b-30oct-4"></script>
-<script src="src/03-dropdowns.js?v=b-30oct-4"></script>
-<script src="src/04-exports.js?v=b-30oct-4"></script>
-<script src="src/05-ad-copy.js?v=b-30oct-4"></script>
-<script src="src/06-boot-tabs-02-03.js?v=b-30oct-4"></script>
-<script src="src/07-generator.js?v=b-30oct-4"></script>
-<script src="src/08-deploying-as-yourself.js?v=b-30oct-4"></script>
-<script src="src/09-price-wording.js?v=b-30oct-4"></script>
-<script src="src/10-ad-builder-with-the-pin-plan.js?v=b-30oct-4"></script>
-<script src="src/11-demand-gen-targeting.js?v=b-30oct-4"></script>
-<script src="src/12-full-structure.js?v=b-30oct-4"></script>
-<script src="src/13-one-file-campaigns-ad-groups-keywords.js?v=b-30oct-4"></script>
-<script src="src/14-meta-lead-ads.js?v=b-30oct-4"></script>
-<script src="src/15-business-name-and-images.js?v=b-30oct-4"></script>
-<script src="src/16-creative-studio.js?v=b-30oct-4"></script>
-<script src="src/17-creative-layouts.js?v=b-30oct-4"></script>
-<script src="src/18-the-design-agent.js?v=b-30oct-4"></script>
-<script src="src/19-the-targeting-map.js?v=b-30oct-4"></script>
-<script src="src/20-the-creative-viewer.js?v=b-30oct-4"></script>
-<script src="src/21-picking-the-three-ids-instead-of-typin.js?v=b-30oct-4"></script>
-<script src="src/22-the-landing-page-builder.js?v=b-30oct-4"></script>
-<script src="src/23-audience-library.js?v=b-30oct-4"></script>
-<script src="src/24-projects-on-the-server.js?v=b-30oct-4"></script>
-<script src="src/25-launch.js?v=b-30oct-4"></script>
-<script src="src/99-run-boot.js?v=b-30oct-4"></script>
+<script src="src/01-tracking-templates-from-the-sheet.js?v=b-30oct-5"></script>
+<script src="src/02-zip-built-by-hand.js?v=b-30oct-5"></script>
+<script src="src/03-dropdowns.js?v=b-30oct-5"></script>
+<script src="src/04-exports.js?v=b-30oct-5"></script>
+<script src="src/05-ad-copy.js?v=b-30oct-5"></script>
+<script src="src/06-boot-tabs-02-03.js?v=b-30oct-5"></script>
+<script src="src/07-generator.js?v=b-30oct-5"></script>
+<script src="src/08-deploying-as-yourself.js?v=b-30oct-5"></script>
+<script src="src/09-price-wording.js?v=b-30oct-5"></script>
+<script src="src/10-ad-builder-with-the-pin-plan.js?v=b-30oct-5"></script>
+<script src="src/11-demand-gen-targeting.js?v=b-30oct-5"></script>
+<script src="src/12-full-structure.js?v=b-30oct-5"></script>
+<script src="src/13-one-file-campaigns-ad-groups-keywords.js?v=b-30oct-5"></script>
+<script src="src/14-meta-lead-ads.js?v=b-30oct-5"></script>
+<script src="src/15-business-name-and-images.js?v=b-30oct-5"></script>
+<script src="src/16-creative-studio.js?v=b-30oct-5"></script>
+<script src="src/17-creative-layouts.js?v=b-30oct-5"></script>
+<script src="src/18-the-design-agent.js?v=b-30oct-5"></script>
+<script src="src/19-the-targeting-map.js?v=b-30oct-5"></script>
+<script src="src/20-the-creative-viewer.js?v=b-30oct-5"></script>
+<script src="src/21-picking-the-three-ids-instead-of-typin.js?v=b-30oct-5"></script>
+<script src="src/22-the-landing-page-builder.js?v=b-30oct-5"></script>
+<script src="src/23-audience-library.js?v=b-30oct-5"></script>
+<script src="src/24-projects-on-the-server.js?v=b-30oct-5"></script>
+<script src="src/25-launch.js?v=b-30oct-5"></script>
+<script src="src/99-run-boot.js?v=b-30oct-5"></script>
 </body>
 </html>

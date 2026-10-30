@@ -59,7 +59,7 @@ async function mdCreativeSets(){
     const small=await aiShrink("data:image/jpeg;base64,"+b64,1200);
     return small||b64;
   };
-  const sets=(typeof allSets==="function"?allSets():[])||[];
+  const sets=(typeof pickedSets==="function"?pickedSets():[])||[];
   for(const st of sets){
     const imgs=(st&&st.images)||{};
     const one={name:String(st.name||"Ad").slice(0,60),
@@ -96,7 +96,7 @@ async function mdCreatives(){
     const small=await aiShrink("data:image/jpeg;base64,"+b64,1200);
     out.push({name:String(name).slice(0,60),data:small||b64});
   };
-  const sets=(typeof allSets==="function"?allSets():[])||[];
+  const sets=(typeof pickedSets==="function"?pickedSets():[])||[];
   for(const st of sets){
     const imgs=(st&&st.images)||{};
     for(const nm of want) if(imgs[nm]&&imgs[nm].data)
@@ -364,8 +364,39 @@ function mdShow(r,what){
     `<div class="dpair"><span>Age</span><span>${p.adset.targeting.age_min}–${p.adset.targeting.age_max}</span></div>`+
     `<div class="dpair"><span>Excluded</span><span>${
       (p.adset.targeting.excluded_custom_audiences||[]).length} custom audience(s)</span></div>`;
-  notes.forEach(n=>{ h+=mdLine("warn","!",esc(n)); });
+  h+=mdNotes(notes);
   box.innerHTML=h;
+}
+
+/* Thirteen full-width warning blocks, each naming every interest Meta did
+   not know, pushed everything else off the screen — "What is this stupid
+   way of marking unmatched interests? Looks horrible on a professional
+   application." The misses are one folded block now: a line per audience
+   saying how many of how many, and the names behind a disclosure.
+
+   The server marks them with units separators rather than prose, so this
+   does not have to read English back out of a sentence. */
+function mdNotes(notes){
+  const miss=[], rest=[];
+  (notes||[]).forEach(n=>{
+    const p=String(n).split("\u001f");
+    if(p[0]==="MISS"&&p.length>=5)miss.push({aud:p[1],n:+p[2],of:+p[3],names:p[4]});
+    else rest.push(n);
+  });
+  let h=rest.map(n=>mdLine("warn","!",esc(n))).join("");
+  if(!miss.length)return h;
+  const total=miss.reduce((a,m)=>a+m.n,0);
+  const of=miss.reduce((a,m)=>a+m.of,0);
+  h+=`<details class="misses">
+    <summary><span class="ic">!</span>
+      <b>${total} of ${of}</b> not matched, across ${miss.length} audience${
+        miss.length===1?"":"s"} — the rest are targeted</summary>
+    <div class="misses-bd">${miss.map(m=>`
+      <div class="miss-row"><span class="nm">${esc(m.aud)}</span>
+        <span class="cnt">${m.n}/${m.of}</span>
+        <span class="who">${esc(m.names)}</span></div>`).join("")}</div>
+  </details>`;
+  return h;
 }
 
 async function mdRun(action,what){

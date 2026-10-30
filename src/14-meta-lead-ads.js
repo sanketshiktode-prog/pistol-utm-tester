@@ -345,7 +345,7 @@ function dgCreatives(){
    something on screen means he rendered and went straight to deploy, so what
    is on screen is used as the single set rather than refusing. */
 function dgCreativeSets(){
-  const all=(typeof allSets==="function")?allSets():[];
+  const all=(typeof pickedSets==="function")?pickedSets():[];
   if(all.length)return all.map(s=>({name:s.name,images:s.images}));
   const one=dgCreatives();
   return Object.keys(one).length?[{name:"Creative",images:one}]:[];

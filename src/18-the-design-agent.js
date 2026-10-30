@@ -119,6 +119,17 @@ on("#aiLoop","click",async()=>{
 let CR_SETS=[];      /* rebuilt on every render, one per hero image */
 let CR_KEPT=[];      /* held by hand, across renders */
 function allSets(){ return CR_KEPT.concat(CR_SETS); }
+/* "The first generated creative is being saved by default and I dont have
+   an option to remove it." The automatic render had no remove and no
+   tick: it went out as an ad whether or not it was wanted. Every ad in
+   this list has a tick now, the automatic one included, and only the
+   ticked ones are built. Unticking is remembered by name, so re-rendering
+   does not bring back the one that was turned off. */
+const AD_OFF_KEY="pp_ads_off";
+let AD_OFF=store.get(AD_OFF_KEY,[])||[];
+const saveAdOff=()=>store.set(AD_OFF_KEY,AD_OFF);
+const adIsOn=s=>AD_OFF.indexOf(String(s&&s.name||""))<0;
+function pickedSets(){ return allSets().filter(adIsOn); }
 /* Repaints the gallery from whatever is in CR_OUT, for renders that came
    back from a saved project rather than from pressing Render. Without it a
    reopened project shows its heroes and its set list but an empty canvas,
@@ -142,26 +153,31 @@ function crShowSaved(){
 }
 
 function drawSets(){
-  const all=allSets(), st=$("#setStat");
+  const all=allSets(), on=pickedSets(), st=$("#setStat");
   if(st)st.innerHTML=all.length
-    ? `<span class="pill p-ok">${all.length} ad${all.length===1?"":"s"} per ad group${
-        CR_KEPT.length?` · ${CR_KEPT.length} kept`:""}</span>`
+    ? `<span class="pill ${on.length?"p-ok":"p-mute"}">${on.length} ad${
+        on.length===1?"":"s"} per ad group${
+        all.length!==on.length?` · ${all.length-on.length} off`:""}</span>`
     : `<span class="pill p-mute">nothing rendered</span>`;
   const box=$("#setList"); if(!box)return;
+  var n=0;
   box.innerHTML=all.length?all.map((s,i)=>{
-    const kept=i<CR_KEPT.length;
-    return `<div class="tgt-row">
+    const kept=i<CR_KEPT.length, live=adIsOn(s);
+    if(live)n++;
+    return `<div class="tgt-row${live?"":" adoff"}">
+      <input type="checkbox" class="adtick" data-adt="${esc(s.name)}"${live?" checked":""}
+        title="Build this one as an ad">
       ${s.thumb?`<img src="${s.thumb}" alt="" style="width:34px;height:34px;object-fit:cover;border-radius:4px;flex:0 0 auto">`:""}
-      <span class="tgt-kind ${kept?"k-rad":"k-city"}">AD ${i+1}</span>
+      <span class="tgt-kind ${kept?"k-rad":"k-city"}">${live?"AD "+n:"OFF"}</span>
       <span class="nm">${esc(s.name)}</span>
       <span class="cid">${s.sizes.length} size${s.sizes.length===1?"":"s"} · ${esc(s.layout||"")}${
-        kept?" · kept":""}</span>
+        kept?" · saved":" · this render"}</span>
       ${kept?`<button class="x" data-sk="${i}" title="Remove">✕</button>`
             :`<span class="cid">from the hero</span>`}
     </div>`;}).join(""):`<div class="empty">Upload a hero and render.</div>`;
   /* the whole plan travels to the Apps Script as one request, pictures and
      all, so the size is worth saying out loud before a deploy fails on it */
-  const mb=allSets().reduce((a,s)=>a+Object.keys(s.images)
+  const mb=pickedSets().reduce((a,s)=>a+Object.keys(s.images)
     .reduce((b,k)=>b+(s.images[k].data||"").length,0),0)/1048576;
   if(mb>9)box.innerHTML+=`<div class="check c-warn" style="margin-top:8px"><span class="ic">!</span><span>
     <b>${mb.toFixed(0)} MB of artwork.</b> Everything travels to the script in one request. Four sets
@@ -206,6 +222,13 @@ on("#setKeep","click",()=>{
   toast(names.length===1
     ? `"${names[0]}" saved — ${allSets().length} ads per ad group`
     : `${names.length} saved — ${allSets().length} ads per ad group`);
+});
+on("#setList","change",e=>{
+  const t=e.target&&e.target.closest("[data-adt]"); if(!t)return;
+  const nm=t.dataset.adt;
+  AD_OFF=AD_OFF.filter(x=>x!==nm);
+  if(!t.checked)AD_OFF.push(nm);
+  saveAdOff(); drawSets(); drawApSettings(); drawApPlan();
 });
 on("#setList","click",e=>{
   const x=e.target.closest("[data-sk]"); if(!x)return;

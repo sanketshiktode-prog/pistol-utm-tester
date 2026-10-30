@@ -391,7 +391,13 @@ html{scroll-behavior:smooth}
 .cr-open{cursor:zoom-in}
 
 /* The targeting map. Tiles and the library load in the browser, not here. */
-#mapWrap{height:360px;border:1px solid var(--line);border-radius:8px;overflow:hidden;background:#EAEFF4}
+/* The map was 360px tall inside a 380px column, in the corner of a tab
+   with half of it empty - "What is this ugly map? Why is it in a corner?
+   Occupy the space if needed but make sure it is easy to operate." It is
+   in the wide column now and as tall as the screen allows. */
+#mapWrap{height:min(62vh,620px);min-height:380px;border:1px solid var(--line);
+  border-radius:12px;overflow:hidden;background:#EAEFF4}
+@media (max-width:900px){#mapWrap{height:46vh;min-height:300px}}
 #map{height:100%;width:100%}
 .map-hint{font-size:11.5px;color:var(--muted);margin-top:6px}
 .tgt-row{display:flex;align-items:center;gap:8px;padding:7px 9px;border:1px solid var(--line);
@@ -455,3 +461,27 @@ html{scroll-behavior:smooth}
 .ln-tick .nm{font-family:var(--disp);font-weight:600;font-size:13.5px;flex:0 0 auto}
 .ln-tick .sub{font-family:var(--mono);font-size:10.5px;color:var(--ink-soft);
   margin-left:auto;text-align:right;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
+
+/* interests Meta did not match: one folded block, not thirteen warnings */
+.misses{border:1px solid var(--line);border-left:3px solid var(--warn,#9a6b00);
+  border-radius:10px;background:var(--surface);margin-top:8px}
+.misses summary{cursor:pointer;padding:9px 12px;font-size:12.5px;list-style:none;
+  display:flex;align-items:center;gap:8px}
+.misses summary::-webkit-details-marker{display:none}
+.misses summary::after{content:"show";margin-left:auto;font-family:var(--mono);
+  font-size:10.5px;color:var(--ink-soft)}
+.misses[open] summary::after{content:"hide"}
+.misses summary .ic{flex:0 0 auto;color:var(--warn,#9a6b00);font-weight:700}
+.misses-bd{padding:0 12px 10px;display:grid;gap:6px}
+.miss-row{display:grid;grid-template-columns:140px 54px 1fr;gap:10px;align-items:baseline;
+  font-size:11.5px}
+.miss-row .nm{font-weight:600}
+.miss-row .cnt{font-family:var(--mono);font-size:10.5px;color:var(--ink-soft)}
+.miss-row .who{color:var(--ink-soft);overflow-wrap:anywhere}
+@media (max-width:700px){.miss-row{grid-template-columns:1fr;gap:2px}}
+
+/* every ad in the list has a tick, the automatic render included */
+.tgt-row input.adtick{width:15px;height:15px;accent-color:var(--accent);
+  flex:0 0 auto;cursor:pointer}
+.tgt-row.adoff{opacity:.5}
+.tgt-row.adoff .tgt-kind{background:var(--line);color:var(--ink-soft)}
