@@ -2584,7 +2584,7 @@ function aiReview(body, v) {
 /* Which copy of this file the Apps Script is actually running. The tab
    shows it beside its own build, because "the fix is pushed" and "the fix
    is running" were indistinguishable from the screen for an hour. */
-const BACKEND_BUILD = 'b-30oct-8';
+const BACKEND_BUILD = 'b-30oct-9';
 
 const META_DEFAULT_VERSION = 'v23.0';
 const META_AGE_MIN = 28, META_AGE_MAX = 64;
@@ -3401,8 +3401,9 @@ function metaPlan(body) {
   }
 
   if (metaProp_('META_ASSET_FEED', '') !== '1' && ads.length)
-    notes.push('One ad per hero image, carrying the 4:5. Meta crops it for stories and reels — ' +
-      'a per-placement image is its asset feed, which this objective does not support.');
+    notes.push('One ad per hero image, carrying the 4:5 and one of each text. Meta crops the image ' +
+      'for stories and reels. Several images or several texts on one creative is dynamic creative, ' +
+      'and a lead ad set is not a dynamic creative ad set.');
 
   /* Instagram has to be posted AS something. If the Page has no account
      and none can be made, Instagram is dropped rather than the deploy —
@@ -3607,6 +3608,23 @@ function metaCreativeMulti_(plan, ad, hashes) {
    creatives are built before the campaign that costs a message rather
    than a rollback. */
 function metaCreativeTexts_(plan, ad, hash) {
+  /* OFF, and it is Meta that decides that, not a preference.
+
+     An asset feed with several texts IS dynamic creative, and Meta:
+     "Dynamic creative ads can only be created under dynamic creative ad
+     sets." A dynamic creative ad set is a different kind of ad set -
+     one creative, assembled by Meta - and it carries neither an instant
+     form nor the one-ad-set-per-audience structure this tool builds. So
+     five texts and this campaign shape cannot both exist.
+
+     Worse, the CREATIVE was accepted and it was the AD that was refused
+     one call later, so the fallback around the creative never fired and
+     a live demo died on it. Nothing generates a feed now, so there is
+     nothing to fall back from.
+
+     META_FIVE_TEXTS=1 sends it anyway, for an ad set built the other
+     way. */
+  if (metaProp_('META_FIVE_TEXTS', '') !== '1') return null;
   const bodies = (ad.primaries || []), titles = (ad.headlines || []),
         descs = (ad.descriptions || []);
   if (bodies.length < 2 && titles.length < 2 && descs.length < 2) return null;
@@ -3903,7 +3921,12 @@ function metaRun(body, v, validateOnly) {
       });
       if (a2.error) return { error: 'Ad ' + n +
         (into.audience ? ' in \u201c' + into.audience + '\u201d' : '') + ': ' +
-        a2.error + metaUndo_(made), plan: plan, made: made };
+        a2.error +
+        (/dynamic creative/i.test(String(a2.error))
+          ? ' Clear META_FIVE_TEXTS in the Apps Script: several texts on one creative is' +
+            ' dynamic creative, and a lead ad set is not a dynamic creative ad set.'
+          : '') +
+        metaUndo_(made), plan: plan, made: made };
       made.ads.push({ id: a2.id, name: adName, adset: into.id, audience: into.audience });
     }
   }
