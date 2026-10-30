@@ -529,56 +529,88 @@ function histOk_(action, note) {
    Each file carries its owner and its real name in the description, so
    listing never has to open one. A user sees their own; the admin sees
    everybody's. */
-const PROJ_FOLDER_NAME = 'Trigger — saved projects';
+const PROJ_INDEX = '_pp_index';
 const PROJ_PREFIX = 'pp.';
+const PROJ_CHUNK = 45000;          /* a cell holds 50,000 characters */
 
-function projFolder_() {
-  const props = PropertiesService.getScriptProperties();
-  const id = props.getProperty('PROJ_FOLDER');
-  if (id) {
-    try { return DriveApp.getFolderById(id); }
-    catch (e) { /* deleted or moved to another account — make a new one */ }
-  }
-  const it = DriveApp.getFoldersByName(PROJ_FOLDER_NAME);
-  const f = it.hasNext() ? it.next() : DriveApp.createFolder(PROJ_FOLDER_NAME);
-  props.setProperty('PROJ_FOLDER', f.getId());
-  return f;
-}
 const projSlug_ = s => String(s || '').toLowerCase().replace(/[^a-z0-9]+/g, '-')
-  .replace(/^-+|-+$/g, '').slice(0, 60) || 'x';
-/* A slug alone is not a name. "Greenscapes — Phase 2" and "Greenscapes
-   Phase 2" slug to the same thing, and the second save would have
-   silently replaced the first. The tag is of the exact name, so two
-   names that look alike still get two files. */
+  .replace(/^-+|-+$/g, '').slice(0, 24) || 'x';
+/* A slug alone is not a name. "Greenscapes - Phase 2" and "Greenscapes
+   Phase 2" slug to the same thing, and the second save would silently
+   replace the first. The tag is of the exact name. */
 function projTag_(s) {
   const str = String(s || '');
   let h = 5381;
   for (var i = 0; i < str.length; i++) h = ((h * 33) ^ str.charCodeAt(i)) >>> 0;
   return h.toString(36).slice(0, 7);
 }
-function projFile_(owner, name, kind) {
-  return PROJ_PREFIX + projSlug_(owner) + '.' + projSlug_(name) + '-' + projTag_(name) +
-         (kind === 'assets' ? '.assets' : '') + '.json';
+function projTab_(owner, name, kind) {
+  return (kind === 'assets' ? 'pa.' : PROJ_PREFIX) +
+         projSlug_(owner) + '.' + projSlug_(name) + '-' + projTag_(name + '|' + owner);
 }
-/* The description is the index: owner, the name as it was typed, when, and
-   whether there are pictures. Reading it costs nothing next to opening a
-   file that may be eight megabytes. */
-function projMeta_(file) {
-  try { return JSON.parse(file.getDescription() || '{}'); }
-  catch (e) { return {}; }
+
+function projBook_() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  if (!ss) throw new Error('This script is not bound to a spreadsheet, so projects have nowhere to live.');
+  return ss;
 }
-function projWrite_(folder, fname, body, meta) {
-  const it = folder.getFilesByName(fname);
-  let f = it.hasNext() ? it.next() : null;
-  if (f) f.setContent(body);
-  else f = folder.createFile(fname, body, 'application/json');
-  if (meta) f.setDescription(JSON.stringify(meta));
-  return f;
+function projIndex_(ss) {
+  var sh = ss.getSheetByName(PROJ_INDEX);
+  if (!sh) {
+    sh = ss.insertSheet(PROJ_INDEX);
+    sh.appendRow(['owner', 'ownerName', 'name', 'saved', 'hasAssets', 'heroCount', 'tab']);
+    sh.hideSheet();
+  }
+  return sh;
 }
-function projFind_(folder, fname) {
-  const it = folder.getFilesByName(fname);
-  return it.hasNext() ? it.next() : null;
+function projRows_(sh) {
+  const last = sh.getLastRow();
+  if (last < 2) return [];
+  return sh.getRange(2, 1, last - 1, 7).getValues().map(function (r, i) {
+    return { row: i + 2, owner: String(r[0] || ''), ownerName: String(r[1] || ''),
+             name: String(r[2] || ''), saved: Number(r[3] || 0),
+             hasAssets: String(r[4]) === 'true' || r[4] === true,
+             heroCount: Number(r[5] || 0), tab: String(r[6] || '') };
+  }).filter(function (r) { return r.name; });
 }
+const projFindRow_ = (rows, owner, name) => rows.filter(function (r) {
+  return r.name === name && r.owner.toLowerCase() === String(owner).toLowerCase();
+})[0] || null;
+
+/* A project is a long JSON string. One cell holds 50,000 characters, so
+   it is cut into chunks down a single column and joined on the way back.
+   Eight megabytes of artwork is about two hundred rows, which reads and
+   writes in one call each. */
+function projPut_(ss, tab, text) {
+  var sh = ss.getSheetByName(tab);
+  if (!sh) { sh = ss.insertSheet(tab); sh.hideSheet(); }
+  sh.clear();
+  const parts = [];
+  for (var i = 0; i < text.length; i += PROJ_CHUNK)
+    parts.push(["'" + text.substr(i, PROJ_CHUNK)]);   /* leading quote: never a formula, never a number */
+  if (!parts.length) parts.push(["'"]);
+  sh.getRange(1, 1, parts.length, 1).setValues(parts);
+  return sh;
+}
+function projGet_(ss, tab) {
+  const sh = ss.getSheetByName(tab);
+  if (!sh) return null;
+  const last = sh.getLastRow();
+  if (!last) return null;
+  const vals = sh.getRange(1, 1, last, 1).getValues();
+  var out = '';
+  for (var i = 0; i < vals.length; i++) {
+    var v = String(vals[i][0] === null || vals[i][0] === undefined ? '' : vals[i][0]);
+    if (v.charAt(0) === "'") v = v.slice(1);
+    out += v;
+  }
+  return out;
+}
+function projDrop_(ss, tab) {
+  const sh = ss.getSheetByName(tab);
+  if (sh) { try { ss.deleteSheet(sh); } catch (e) {} }
+}
+
 const projMayTouch_ = (v, owner) =>
   !owner || String(owner).toLowerCase() === String(v.email || '').toLowerCase() ||
   (typeof role === 'function' && role(v.email) === 'admin');
@@ -588,28 +620,17 @@ function projRoute(body, v) {
   const action = String(body.action || '');
   const me = String(v.email || '').toLowerCase();
   const admin = typeof role === 'function' && role(v.email) === 'admin';
-  let folder;
-  try { folder = projFolder_(); }
-  catch (e) { return { error: 'Could not reach the projects folder in Drive: ' + e }; }
+  var ss, idx, rows;
+  try { ss = projBook_(); idx = projIndex_(ss); rows = projRows_(idx); }
+  catch (e) { return { error: 'Could not reach the projects sheet: ' + e }; }
 
   if (action === 'proj-list') {
-    const out = [];
-    const it = folder.getFiles();
-    while (it.hasNext()) {
-      const f = it.next();
-      const fname = f.getName();
-      if (fname.indexOf(PROJ_PREFIX) !== 0) continue;
-      if (fname.indexOf('.assets.json') > -1) continue;
-      const m = projMeta_(f);
-      if (!m.name) continue;
-      const owner = String(m.owner || '').toLowerCase();
-      if (!admin && owner !== me) continue;
-      out.push({
-        name: m.name, owner: m.owner || '', ownerName: m.ownerName || '',
-        saved: m.saved || 0, hasAssets: !!m.hasAssets,
-        heroCount: m.heroCount || 0, mine: owner === me
+    const out = rows.filter(function (r) { return admin || r.owner.toLowerCase() === me; })
+      .map(function (r) {
+        return { name: r.name, owner: r.owner, ownerName: r.ownerName, saved: r.saved,
+                 hasAssets: r.hasAssets, heroCount: r.heroCount,
+                 mine: r.owner.toLowerCase() === me };
       });
-    }
     out.sort(function (a, b) { return (b.saved || 0) - (a.saved || 0); });
     return { ok: true, projects: out, you: v.email, admin: admin };
   }
@@ -620,32 +641,37 @@ function projRoute(body, v) {
     const project = body.project;
     if (!project || typeof project !== 'object') return { error: 'Nothing to save.' };
     const assets = body.assets && typeof body.assets === 'object' ? body.assets : null;
-    const meta = {
-      name: name, owner: v.email, ownerName: v.name || '',
-      saved: Date.now(), hasAssets: !!assets,
-      heroCount: assets && assets.heroes ? assets.heroes.length : 0
-    };
-    try {
-      projWrite_(folder, projFile_(v.email, name), JSON.stringify(project), meta);
-    } catch (e) { return { error: 'Could not save the project: ' + e }; }
-    /* The brief is safe by here. The pictures are a second, much larger
-       write that can fail on its own, and if it does the project is still
-       a project — just without them, which is what the answer says. */
-    if (!assets) {
-      const old = projFind_(folder, projFile_(v.email, name, 'assets'));
-      if (old) { try { old.setTrashed(true); } catch (e) {} }
-      return { ok: true, saved: meta.saved, assets: false };
+    const tab = projTab_(v.email, name);
+    const atab = projTab_(v.email, name, 'assets');
+    const saved = Date.now();
+
+    try { projPut_(ss, tab, JSON.stringify(project)); }
+    catch (e) { return { error: 'Could not save the project: ' + e }; }
+
+    /* The brief is safe by here. The artwork is a second, much larger
+       write that can fail on its own, and if it does the project is
+       still a project - just without it, which is what the answer says. */
+    var wroteAssets = false, note = '';
+    if (assets) {
+      try { projPut_(ss, atab, JSON.stringify(assets)); wroteAssets = true; }
+      catch (e) { note = 'The project was saved, but its images could not be: ' + e; }
+    } else {
+      projDrop_(ss, atab);
     }
+
+    const line = [v.email, v.name || '', name, saved,
+                  wroteAssets ? 'true' : 'false',
+                  wroteAssets && assets.heroes ? assets.heroes.length : 0, tab];
+    const was = projFindRow_(rows, v.email, name);
     try {
-      projWrite_(folder, projFile_(v.email, name, 'assets'), JSON.stringify(assets), null);
-    } catch (e) {
-      meta.hasAssets = false; meta.heroCount = 0;
-      try { projWrite_(folder, projFile_(v.email, name), JSON.stringify(project), meta); }
-      catch (e2) {}
-      return { ok: true, saved: meta.saved, assets: false,
-               note: 'The project was saved, but its images could not be: ' + e };
-    }
-    return { ok: true, saved: meta.saved, assets: true, heroCount: meta.heroCount };
+      if (was) idx.getRange(was.row, 1, 1, 7).setValues([line]);
+      else idx.appendRow(line);
+    } catch (e) { return { error: 'The project was written but could not be indexed: ' + e }; }
+
+    const out = { ok: true, saved: saved, assets: wroteAssets };
+    if (wroteAssets) out.heroCount = line[5];
+    if (note) out.note = note;
+    return out;
   }
 
   if (action === 'proj-get' || action === 'proj-assets') {
@@ -654,16 +680,23 @@ function projRoute(body, v) {
     if (!name) return { error: 'Which project?' };
     if (!projMayTouch_(v, owner))
       return { error: 'That project belongs to ' + owner + '.' };
-    const f = projFind_(folder, projFile_(owner, name, action === 'proj-assets' ? 'assets' : ''));
-    if (!f) return action === 'proj-assets'
+    const row = projFindRow_(rows, owner, name);
+    if (!row) return action === 'proj-assets'
       ? { ok: true, assets: null }
       : { error: 'No project called "' + name + '" is saved.' };
-    let data;
-    try { data = JSON.parse(f.getBlob().getDataAsString()); }
+    if (action === 'proj-assets' && !row.hasAssets) return { ok: true, assets: null };
+    const raw = projGet_(ss, action === 'proj-assets' ? projTab_(owner, name, 'assets') : row.tab);
+    if (raw === null) return action === 'proj-assets'
+      ? { ok: true, assets: null }
+      : { error: 'That project is indexed but its contents are gone.' };
+    var data;
+    try { data = JSON.parse(raw); }
     catch (e) { return { error: 'That project could not be read back: ' + e }; }
     return action === 'proj-assets'
       ? { ok: true, assets: data }
-      : { ok: true, project: data, meta: projMeta_(f) };
+      : { ok: true, project: data,
+          meta: { name: row.name, owner: row.owner, ownerName: row.ownerName,
+                  saved: row.saved, hasAssets: row.hasAssets, heroCount: row.heroCount } };
   }
 
   if (action === 'proj-del') {
@@ -672,12 +705,13 @@ function projRoute(body, v) {
     if (!name) return { error: 'Which project?' };
     if (!projMayTouch_(v, owner))
       return { error: 'That project belongs to ' + owner + '.' };
-    let gone = 0;
-    ['', 'assets'].forEach(function (k) {
-      const f = projFind_(folder, projFile_(owner, name, k));
-      if (f) { try { f.setTrashed(true); gone++; } catch (e) {} }
-    });
-    if (!gone) return { error: 'No project called "' + name + '" is saved.' };
+    const row = projFindRow_(rows, owner, name);
+    if (!row) return { error: 'No project called "' + name + '" is saved.' };
+    projDrop_(ss, row.tab);
+    projDrop_(ss, projTab_(owner, name, 'assets'));
+    try { idx.deleteRow(row.row); } catch (e) {
+      return { error: 'Its contents were removed but the index row could not be: ' + e };
+    }
     return { ok: true, deleted: name };
   }
 
@@ -2538,7 +2572,7 @@ function aiReview(body, v) {
 /* Which copy of this file the Apps Script is actually running. The tab
    shows it beside its own build, because "the fix is pushed" and "the fix
    is running" were indistinguishable from the screen for an hour. */
-const BACKEND_BUILD = 'b-30oct-6';
+const BACKEND_BUILD = 'b-30oct-7';
 
 const META_DEFAULT_VERSION = 'v23.0';
 const META_AGE_MIN = 28, META_AGE_MAX = 64;

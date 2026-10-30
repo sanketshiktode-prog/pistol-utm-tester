@@ -485,3 +485,17 @@ html{scroll-behavior:smooth}
   flex:0 0 auto;cursor:pointer}
 .tgt-row.adoff{opacity:.5}
 .tgt-row.adoff .tgt-kind{background:var(--line);color:var(--ink-soft)}
+
+/* the radius pin's own controls: change it or cancel it where it is */
+.pinpopw .leaflet-popup-content{margin:10px 12px;min-width:168px}
+.pinpop .t{font-family:var(--disp);font-weight:600;font-size:12.5px;margin-bottom:8px}
+.pinpop .r{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.pinpop .r b{font-family:var(--mono);font-size:12.5px}
+.pinpop button{border:1px solid var(--line);background:var(--surface);border-radius:8px;
+  cursor:pointer;font:inherit;font-size:12px;padding:3px 9px;color:var(--ink)}
+.pinpop button:hover{border-color:var(--accent);color:var(--accent)}
+.pinpop .r button{width:30px;height:26px;font-size:15px;line-height:1;padding:0}
+.pinpop .q{display:flex;gap:5px;margin-top:8px}
+.pinpop .q button{flex:1 1 0;padding:3px 0;font-family:var(--mono);font-size:11px}
+.pinpop .del{display:block;width:100%;margin-top:9px;padding:5px 0}
+.pinpop .del:hover{border-color:var(--bad);color:var(--bad)}

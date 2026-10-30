@@ -56,16 +56,17 @@ function drawCampaignSets(){
     ? "one set, every campaign and Meta"
     : `${LOCSETS.length} sets · ${names.length-1} campaign${names.length-1===1?"":"s"} + Meta`;
 
-  if(LOCSETS.length===1){
-    box.innerHTML=`<div class="empty">Every campaign and the Meta campaign use
-      “${esc(LOCSETS[0].name)}” — ${locTargets(LOCSETS[0].id).length}
-      place${locTargets(LOCSETS[0].id).length===1?"":"s"}.<br>
-      <button class="btn btn-sm" id="cmpSetAdd" style="margin-top:10px">
-        + Add a second set</button></div>`;
-    return;
-  }
-  box.innerHTML=(built||names.length>1?"":`<div class="f-note" style="margin-bottom:10px">From the brief —
-      these are the campaigns that will be built.</div>`)+
+  /* With one set there was nothing to choose, so this showed a sentence
+     and a button instead of the control — which read as the control
+     being missing. The dropdowns are always drawn now; with one set
+     every row simply shows it, and the button to add a second sits
+     above them. */
+  const addBtn=LOCSETS.length===1
+    ? `<div class="f-note" style="margin-bottom:10px">One set so far, so every campaign is on it.
+         <button class="btn btn-sm" id="cmpSetAdd" style="margin-left:6px">
+           + Add a second set</button></div>`
+    : "";
+  box.innerHTML=addBtn+
     names.map(n=>{
       const cr=locCriteria(locSetFor(n));
       const where=cr.locationIds.length||cr.proximity.length
@@ -206,7 +207,11 @@ function drawTargets(){
       const m=t.units==="MILES"?t.radius*1609.34:t.radius*1000;
       L.circle([t.lat,t.lng],{radius:m,color:"#FB6A02",weight:2,fillOpacity:.12}).addTo(MAP_LAYER);
       const mk=L.marker([t.lat,t.lng],{draggable:true,icon:dot("#FB6A02")}).addTo(MAP_LAYER);
-      mk.bindTooltip(t.label||"Radius");
+      /* The circle could only be changed from the row underneath the map,
+         and could only be removed from there too — "the radius pin needs
+         an option to cancel the location, increase or decrease the
+         distance". It is on the pin now: click it. */
+      mk.bindPopup(pinPopupHtml(t,i),{closeButton:true,className:"pinpopw"});
       mk.on("dragend",e=>{ const p2=e.target.getLatLng();
         TARGETS[i].lat=p2.lat; TARGETS[i].lng=p2.lng; saveTargets(); drawTargets(); });
       pts.push([t.lat,t.lng]);
@@ -218,6 +223,38 @@ function drawTargets(){
   });
   if(pts.length)try{ MAP.fitBounds(L.latLngBounds(pts).pad(.35),{maxZoom:13}); }catch(e){}
 }
+/* Built here rather than inline so it can be read without a map: the
+   map needs Leaflet off a CDN, and what matters about this is the
+   arithmetic underneath it. */
+function pinPopupHtml(t,i){
+  const u=t.units==="MILES"?"mi":"km";
+  return `<div class="pinpop">
+    <div class="t">${esc(t.label||"Radius")}</div>
+    <div class="r"><button data-pin="-" data-i="${i}">\u2212</button>
+      <b>${t.radius} ${u}</b>
+      <button data-pin="+" data-i="${i}">+</button></div>
+    <div class="q"><button data-pin="5" data-i="${i}">5</button>
+      <button data-pin="10" data-i="${i}">10</button>
+      <button data-pin="15" data-i="${i}">15</button>
+      <button data-pin="25" data-i="${i}">25</button></div>
+    <button class="del" data-pin="x" data-i="${i}">Remove this circle</button>
+  </div>`;
+}
+/* the popup is built by Leaflet, so the handler lives on the map itself */
+on("#mapWrap","click",e=>{
+  const b=e.target&&e.target.closest("[data-pin]"); if(!b)return;
+  e.preventDefault();
+  const i=+b.dataset.i, t=TARGETS[i];
+  if(!t||t.kind!=="radius")return;
+  const what=b.dataset.pin;
+  if(what==="x"){ removeTarget(i); drawApSettings(); drawApPlan();
+    return toast("Circle removed"); }
+  const step=t.radius>=20?5:t.radius>=10?2:1;
+  if(what==="+")t.radius=Math.min(80,t.radius+step);
+  else if(what==="-")t.radius=Math.max(1,t.radius-step);
+  else t.radius=Number(what)||t.radius;
+  saveTargets(); drawTargets(); drawApSettings(); drawApPlan();
+});
 on("#tgtList","click",e=>{
   const x=e.target.closest("[data-x]"); if(x){ removeTarget(+x.dataset.x); drawApSettings(); drawApPlan(); }
   const s=e.target.closest("[data-sel]");

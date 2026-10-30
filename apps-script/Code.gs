@@ -287,43 +287,42 @@ function clearBackendCache() {
 }
 
 /* Apps Script decides which permissions to ask for by READING this
-   project's source. backend.gs is fetched and evaluated at run time, so
-   nothing it calls is ever seen — the first DriveApp call from there
-   would come back "You do not have permission to call DriveApp", with
-   no prompt and nothing to click.
+   project's source, and backend.gs is fetched at run time, so nothing it
+   calls is ever seen. This function is never run. It exists so the
+   scanner sees the calls the backend makes and the authorisation screen
+   asks for them.
 
-   This function is never called. It exists so the scanner sees the
-   calls the backend makes, and the authorisation screen asks for them.
-   Saved projects live in a Drive folder, which is why Drive is here.
-
-   After adding this, redeploy and open the web app once: it will ask
-   for Drive, and projects will not save until it has been granted. */
+   Drive is deliberately NOT here. Saved projects used to live in a Drive
+   folder, and this Apps Script project is attached to a standard Cloud
+   project where the Drive API could not be enabled from this account:
+   "Permission denied while enabling APIs: drive for GCP project
+   779938081992". They live in this spreadsheet now, on hidden tabs, so
+   there is nothing to enable and nothing to grant. */
 function scopesTheBackendNeeds_() {
   if (true) return;                       /* never runs; only read */
-  DriveApp.getRootFolder();
   SpreadsheetApp.getActiveSpreadsheet();
   UrlFetchApp.fetch('https://example.com');
   ScriptApp.getService().getUrl();
 }
 
-/* Run this one from the editor to grant Drive.
+/* Run this one from the editor to check the projects store.
 
-   scopesTheBackendNeeds_ ends in an underscore, which is how Apps Script
-   marks a function private — it is deliberately hidden from the Run
-   menu, so it could not be used to trigger the consent screen. This one
-   has no underscore, so it is in the list, and it actually touches Drive
-   rather than only being read: pick it, press Run, allow the permissions,
-   then redeploy. The log says what it found. */
-function grantDrivePermission() {
-  const name = 'Trigger — saved projects';
-  const it = DriveApp.getFoldersByName(name);
-  const folder = it.hasNext() ? it.next() : DriveApp.createFolder(name);
-  PropertiesService.getScriptProperties().setProperty('PROJ_FOLDER', folder.getId());
-  var n = 0;
-  const files = folder.getFiles();
-  while (files.hasNext()) { files.next(); n++; }
-  Logger.log('Drive is granted. Folder "%s" (%s) holds %s file(s).',
-             folder.getName(), folder.getId(), n);
-  Logger.log('Now: Deploy -> Manage deployments -> pencil -> New version -> Deploy.');
-  return folder.getId();
+   It writes nothing. It opens the spreadsheet the log already lives in,
+   counts what is saved there, and says so. If it runs without asking for
+   anything, there is nothing left to set up. */
+function checkProjectStore() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  if (!ss) { Logger.log('This script is not bound to a spreadsheet.'); return; }
+  const sh = ss.getSheetByName('_pp_index');
+  if (!sh) {
+    Logger.log('Spreadsheet "%s" is reachable. No projects saved yet \u2014 the index is ' +
+               'made on the first save.', ss.getName());
+    return;
+  }
+  const last = sh.getLastRow();
+  Logger.log('Spreadsheet "%s": %s project(s) saved.', ss.getName(), Math.max(0, last - 1));
+  if (last > 1) {
+    const rows = sh.getRange(2, 1, Math.min(last - 1, 20), 3).getValues();
+    rows.forEach(function (r) { Logger.log('  %s \u2014 %s', r[2], r[0]); });
+  }
 }
